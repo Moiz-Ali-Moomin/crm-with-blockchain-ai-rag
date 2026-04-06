@@ -1,4 +1,4 @@
-import { Controller, Get, Query, Param } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { AnalyticsService } from './analytics.service';
 import { LeadScoringService } from './lead-scoring.service';
@@ -48,9 +48,9 @@ export class AnalyticsController {
     return this.analyticsService.getLeadSourceBreakdown();
   }
 
-  @Get('pipeline-funnel/:pipelineId')
+  @Get('pipeline-funnel')
   @ApiOperation({ summary: 'Deal stage funnel for pipeline' })
-  getPipelineFunnel(@Param('pipelineId') pipelineId: string) {
+  getPipelineFunnel(@Query('pipelineId') pipelineId: string) {
     return this.analyticsService.getPipelineFunnel(pipelineId);
   }
 

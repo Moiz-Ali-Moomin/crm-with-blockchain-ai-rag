@@ -1278,6 +1278,25 @@ nohup npm start > /tmp/crm-web.log 2>&1 &</pre>
       </div>
 
       <div class="callout" style="background:var(--red-bg); border:1px solid rgba(248,81,73,.28); color:#ff7b72; margin-bottom:20px">
+        <strong>#9 — Dashboard crashes with Digest 3978038655 — forwardRef icons passed across RSC boundary</strong><br/><br/>
+        <strong>Error:</strong><br/>
+        <code style="display:block; background:rgba(0,0,0,.3); padding:10px; border-radius:6px; margin:8px 0; font-size:13px">Functions cannot be passed directly to Client Components...
+{$$typeof: ..., render: function, displayName: ...}
+Digest: 3978038655</code>
+        <strong>Cause:</strong> <code>DashboardPage</code> (Server Component) passed Lucide icon component references (e.g. <code>icon: Users</code>) as props to <code>StatCard</code> (Client Component). React <code>forwardRef</code> components are functions and cannot be serialized across the server/client boundary.<br/><br/>
+        <strong>Fix:</strong> Render icons as JSX on the server before passing as props, and accept <code>React.ReactNode</code> instead of <code>LucideIcon</code>:
+        <div class="code-block" style="margin-top:10px">
+          <button class="copy-btn" onclick="copy(this)">Copy</button>
+          <pre>// Before (crashes)
+icon: Users
+
+// After (works)
+icon: &lt;Users size={16} strokeWidth={2} /&gt;</pre>
+        </div>
+        <strong>Rule:</strong> All props crossing Server → Client boundary must be serializable (strings, numbers, plain objects, JSX). Never pass component references or functions.
+      </div>
+
+      <div class="callout" style="background:var(--red-bg); border:1px solid rgba(248,81,73,.28); color:#ff7b72; margin-bottom:20px">
         <strong>#8 — Dashboard 400 errors on JS chunks after env change</strong><br/><br/>
         <strong>Error:</strong><br/>
         <code style="display:block; background:rgba(0,0,0,.3); padding:10px; border-radius:6px; margin:8px 0; font-size:13px">Failed to load resource: 400 (Bad Request) _next/static/chunks/…js

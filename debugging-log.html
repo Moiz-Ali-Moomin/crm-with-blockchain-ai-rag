@@ -686,7 +686,7 @@
     </a>
     <a class="sidebar-link" onclick="navigateTo('day10')">
       <span class="day-badge">Day 10</span> Deployment
-      <span class="issue-count">8</span>
+      <span class="issue-count">10</span>
     </a>
   </div>
 
@@ -4181,11 +4181,184 @@ Uncaught ChunkLoadError: Loading chunk 9305 failed.</div>
       </div>
     </div>
 
+    <!-- Issue #42 -->
+    <div class="issue-card open" id="issue-42">
+      <div class="issue-header" onclick="toggle(this)">
+        <span class="issue-num">#042</span>
+        <div class="issue-header-content">
+          <div class="issue-title">Dashboard Crashes — forwardRef Icon Components Passed from Server to Client Component</div>
+          <div class="issue-tags">
+            <span class="tag tag-infra">next.js</span>
+            <span class="tag tag-infra">rsc</span>
+            <span class="tag tag-infra">react</span>
+          </div>
+        </div>
+        <span class="status-badge status-fixed">Fixed</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="issue-body">
+        <div class="section-block">
+          <div class="section-label error">🚨 Error</div>
+          <div class="error-log">Application error: a server-side exception has occurred (Digest: 3978038655)
+
+Functions cannot be passed directly to Client Components unless you explicitly
+expose it by marking it with "use server". Or maybe you meant to call this
+function rather than return it.
+  {$$typeof: ..., render: function, displayName: ...}</div>
+        </div>
+        <div class="section-block">
+          <div class="section-label cause">⚠️ Root Cause</div>
+          <div class="cause-box">
+            <div class="prose">
+              <code>DashboardPage</code> is a React Server Component (async function). It built a <code>stats</code> array where each item had an <code>icon</code> field set to a Lucide icon component reference (e.g. <code>icon: Users</code>). This array was then mapped over to render <code>&lt;StatCard icon={stat.icon} /&gt;</code>.<br/><br/>
+              <code>StatCard</code> is a Client Component (<code>'use client'</code>). In Next.js App Router, props passed from a Server Component to a Client Component must be <strong>serializable</strong> — plain JSON-compatible values. Lucide icons are <code>React.forwardRef</code> wrappers: they have <code>$$typeof</code>, <code>render</code>, and <code>displayName</code> properties and are functions. Functions cannot be serialized across the server/client boundary, causing a fatal SSR crash.
+            </div>
+          </div>
+        </div>
+        <div class="section-block">
+          <div class="section-label fix">🛠 Fix</div>
+          <div class="prose" style="margin-bottom:10px">Render icons as JSX <em>on the server</em> before passing them as props. Change the prop type from <code>LucideIcon</code> to <code>React.ReactNode</code> and pass rendered elements instead of component references.</div>
+          <div class="diff-cols">
+            <div class="diff-col">
+              <div class="diff-col-label">dashboard/page.tsx — Before</div>
+              <div class="code-block"><pre><span class="diff-del">icon: Users,  // component reference — NOT serializable</span></pre></div>
+            </div>
+            <div class="diff-col">
+              <div class="diff-col-label">dashboard/page.tsx — After</div>
+              <div class="code-block"><pre><span class="diff-add">icon: &lt;Users size={16} strokeWidth={2} /&gt;  // JSX element — serializable</span></pre></div>
+            </div>
+          </div>
+          <div class="diff-cols" style="margin-top:10px">
+            <div class="diff-col">
+              <div class="diff-col-label">stat-card.tsx — Before</div>
+              <div class="code-block"><pre><span class="diff-del">icon: LucideIcon</span>
+<span class="diff-ctx">...</span>
+<span class="diff-del">icon: Icon,</span>
+<span class="diff-ctx">...</span>
+<span class="diff-del">&lt;Icon size={16} strokeWidth={2} /&gt;</span></pre></div>
+            </div>
+            <div class="diff-col">
+              <div class="diff-col-label">stat-card.tsx — After</div>
+              <div class="code-block"><pre><span class="diff-add">icon: React.ReactNode</span>
+<span class="diff-ctx">...</span>
+<span class="diff-add">icon,</span>
+<span class="diff-ctx">...</span>
+<span class="diff-add">{icon}</span></pre></div>
+            </div>
+          </div>
+        </div>
+        <div class="section-block">
+          <div class="section-label pm">🧠 Post-Mortem</div>
+          <div class="pm-box">
+            <div class="pm-text">In Next.js App Router, <strong>all props crossing the Server → Client boundary must be serializable</strong>. This means: strings, numbers, booleans, plain objects, arrays — but NOT functions, class instances, Dates, Maps, Sets, or React components. The rule of thumb: if you need to pass a component to a Client Component, render it as JSX first (<code>&lt;Icon /&gt;</code> not <code>Icon</code>), or move the icon lookup into the Client Component itself using a string key registry.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Issue #43 -->
+    <div class="issue-card open" id="issue-43">
+      <div class="issue-header" onclick="toggle(this)">
+        <span class="issue-num">#043</span>
+        <div class="issue-header-content">
+          <div class="issue-title">Analytics Page — 500 on /analytics/revenue + TypeError: Cannot read properties of undefined (reading 'replace')</div>
+          <div class="issue-tags">
+            <span class="tag tag-db">postgres</span>
+            <span class="tag tag-infra">prisma</span>
+            <span class="tag tag-api">analytics</span>
+          </div>
+        </div>
+        <span class="status-badge status-fixed">Fixed</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="issue-body">
+        <div class="section-block">
+          <div class="section-label error">🚨 Error</div>
+          <div class="error-log">GET /api/v1/analytics/revenue → 500 Internal Server Error
+
+Uncaught TypeError: Cannot read properties of undefined (reading 'replace')
+  at formatter (page-5c338302c2f24026.js:1:16106)
+  at r.value (7848-d4e78ca2f8d10643.js:1:18349)
+  at Array.map (&lt;anonymous&gt;)</div>
+        </div>
+        <div class="section-block">
+          <div class="section-label cause">⚠️ Root Cause</div>
+          <div class="cause-box">
+            <div class="prose">
+              <strong>4 compounding bugs:</strong><br/><br/>
+              <strong>1. Raw SQL column name mismatch (primary cause of 500):</strong> Prisma migrations preserve camelCase field names as column names — <code>wonAt</code>, <code>tenantId</code>, <code>ownerId</code>, <code>firstName</code>, <code>lastName</code>, <code>avatarUrl</code>. The raw SQL in <code>getRevenueChart</code> and <code>getSalesPerformance</code> used snake_case (<code>won_at</code>, <code>tenant_id</code>, <code>owner_id</code>) which PostgreSQL couldn't resolve → 500.<br/><br/>
+              <strong>2. Lead source shape mismatch:</strong> <code>getLeadSourceBreakdown</code> returned Prisma's raw <code>{ _count: { id: number } }</code> shape but the frontend expected <code>{ count: number, percentage: number }</code>.<br/><br/>
+              <strong>3. Pipeline funnel shape + route mismatch:</strong> Service returned <code>{ stageName, dealCount, totalValue }</code> but frontend expected <code>{ stage, count, value, conversionRate }</code>. Controller used <code>@Get('pipeline-funnel/:pipelineId')</code> (route param) but frontend sent <code>pipelineId</code> as a query param.<br/><br/>
+              <strong>4. Sales performance shape mismatch:</strong> Service returned <code>{ user: { firstName, lastName }, deals }</code> but frontend expected <code>{ userId, name, dealsWon, leadsConverted }</code>.
+            </div>
+          </div>
+        </div>
+        <div class="section-block">
+          <div class="section-label fix">🛠 Fix</div>
+          <div class="diff-cols">
+            <div class="diff-col">
+              <div class="diff-col-label">analytics.service.ts — Raw SQL Before</div>
+              <div class="code-block"><pre><span class="diff-del">TO_CHAR("won_at", 'YYYY-MM') AS month_key</span>
+<span class="diff-del">WHERE tenant_id = ${tenantId}</span>
+<span class="diff-del">  AND won_at   &gt;= ${startDate}</span>
+<span class="diff-ctx">...</span>
+<span class="diff-del">JOIN users u ON u.id = d.owner_id</span>
+<span class="diff-del">WHERE d.tenant_id = ${tenantId}</span>
+<span class="diff-del">  AND d.won_at   &gt;= ${start}</span></pre></div>
+            </div>
+            <div class="diff-col">
+              <div class="diff-col-label">analytics.service.ts — Raw SQL After</div>
+              <div class="code-block"><pre><span class="diff-add">TO_CHAR("wonAt", 'YYYY-MM') AS month_key</span>
+<span class="diff-add">WHERE "tenantId" = ${tenantId}</span>
+<span class="diff-add">  AND "wonAt"   &gt;= ${startDate}</span>
+<span class="diff-ctx">...</span>
+<span class="diff-add">JOIN users u ON u.id = d."ownerId"</span>
+<span class="diff-add">WHERE d."tenantId" = ${tenantId}</span>
+<span class="diff-add">  AND d."wonAt"   &gt;= ${start}</span></pre></div>
+            </div>
+          </div>
+          <div class="diff-cols" style="margin-top:10px">
+            <div class="diff-col">
+              <div class="diff-col-label">getLeadSourceBreakdown — Before</div>
+              <div class="code-block"><pre><span class="diff-del">return this.prisma.lead.groupBy({ ... });</span>
+<span class="diff-ctx">// returned { source, _count: { id } }[]</span></pre></div>
+            </div>
+            <div class="diff-col">
+              <div class="diff-col-label">getLeadSourceBreakdown — After</div>
+              <div class="code-block"><pre><span class="diff-add">return rows.map(r =&gt; ({</span>
+<span class="diff-add">  source: r.source ?? 'UNKNOWN',</span>
+<span class="diff-add">  count: r._count.id,</span>
+<span class="diff-add">  percentage: Math.round((r._count.id / total) * 100),</span>
+<span class="diff-add">}));</span></pre></div>
+            </div>
+          </div>
+          <div class="diff-cols" style="margin-top:10px">
+            <div class="diff-col">
+              <div class="diff-col-label">Controller — Before</div>
+              <div class="code-block"><pre><span class="diff-del">@Get('pipeline-funnel/:pipelineId')</span>
+<span class="diff-del">getPipelineFunnel(@Param('pipelineId') id: string)</span></pre></div>
+            </div>
+            <div class="diff-col">
+              <div class="diff-col-label">Controller — After</div>
+              <div class="code-block"><pre><span class="diff-add">@Get('pipeline-funnel')</span>
+<span class="diff-add">getPipelineFunnel(@Query('pipelineId') id: string)</span></pre></div>
+            </div>
+          </div>
+        </div>
+        <div class="section-block">
+          <div class="section-label pm">🧠 Post-Mortem</div>
+          <div class="pm-box">
+            <div class="pm-text"><strong>Prisma does NOT auto-snake_case column names.</strong> When a Prisma field is <code>wonAt</code> with no <code>@map()</code>, the migration creates column <code>"wonAt"</code> — PostgreSQL stores it case-sensitively when quoted. Raw <code>$queryRaw</code> bypasses Prisma's ORM layer entirely, so you must quote every camelCase identifier: <code>"wonAt"</code>, <code>"tenantId"</code>, <code>"ownerId"</code>, etc. Rule of thumb: grep the migration SQL to confirm column names before writing raw queries. Also: always verify the response shape your service emits matches the TypeScript interface the frontend imports — shape mismatches produce silent <code>undefined</code> fields that crash chart formatters.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </section>
 
   <footer class="footer">
     <strong>CRM SaaS Backend — Debugging Log</strong><br/>
-    41 Issues · 37 Fixed · 4 Warnings · 10 Days<br/><br/>
+    43 Issues · 39 Fixed · 4 Warnings · 10 Days<br/><br/>
     <span>Stack: NestJS · Prisma · PostgreSQL · Redis · BullMQ · Socket.io · ethers.js · OpenAI</span><br/>
     <span style="color:var(--text-muted); font-size:12px; margin-top:8px; display:block;">
       Built and debugged from scratch — April 2026

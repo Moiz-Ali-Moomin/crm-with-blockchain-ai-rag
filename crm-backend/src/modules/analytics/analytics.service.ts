@@ -117,15 +117,16 @@ export class AnalyticsService {
     const startDate = startOfMonth(subMonths(now, clampedMonths - 1));
 
     // Aggregate in DB — never pull all rows into JS
+    // NOTE: Prisma migrations keep camelCase column names ("wonAt", "tenantId") — quote them
     const rows = await this.prisma.$queryRaw<{ month_key: string; revenue: number; deal_count: bigint }[]>`
       SELECT
-        TO_CHAR("won_at", 'YYYY-MM') AS month_key,
-        SUM(value)::float            AS revenue,
-        COUNT(*)                     AS deal_count
+        TO_CHAR("wonAt", 'YYYY-MM') AS month_key,
+        SUM(value)::float           AS revenue,
+        COUNT(*)                    AS deal_count
       FROM deals
-      WHERE tenant_id = ${tenantId}
-        AND status    = 'WON'
-        AND won_at   >= ${startDate}
+      WHERE "tenantId" = ${tenantId}
+        AND status     = 'WON'
+        AND "wonAt"   >= ${startDate}
       GROUP BY month_key
       ORDER BY month_key
     `;
@@ -137,10 +138,9 @@ export class AnalyticsService {
       const monthStr = format(month, 'yyyy-MM');
       const row = rowMap.get(monthStr);
       return {
-        month: format(month, 'MMM yyyy'),
-        monthKey: monthStr,
+        month:   format(month, 'MMM yyyy'),
         revenue: row ? Number(row.revenue) : 0,
-        dealCount: row ? Number(row.deal_count) : 0,
+        deals:   row ? Number(row.deal_count) : 0,
       };
     });
 
@@ -156,6 +156,7 @@ export class AnalyticsService {
     const end   = dateTo   ?? new Date();
 
     // Single query: group by owner in PostgreSQL, join user for display fields
+    // NOTE: Prisma migrations keep camelCase column names — quote them
     const rows = await this.prisma.$queryRaw<{
       owner_id: string;
       first_name: string;
@@ -165,31 +166,28 @@ export class AnalyticsService {
       revenue: number;
     }[]>`
       SELECT
-        u.id           AS owner_id,
-        u.first_name,
-        u.last_name,
-        u.avatar_url,
-        COUNT(d.id)    AS deal_count,
+        u.id              AS owner_id,
+        u."firstName"     AS first_name,
+        u."lastName"      AS last_name,
+        u."avatarUrl"     AS avatar_url,
+        COUNT(d.id)       AS deal_count,
         SUM(d.value)::float AS revenue
       FROM deals d
-      JOIN users u ON u.id = d.owner_id
-      WHERE d.tenant_id = ${tenantId}
-        AND d.status    = 'WON'
-        AND d.won_at   >= ${start}
-        AND d.won_at   <= ${end}
-      GROUP BY u.id, u.first_name, u.last_name, u.avatar_url
+      JOIN users u ON u.id = d."ownerId"
+      WHERE d."tenantId" = ${tenantId}
+        AND d.status     = 'WON'
+        AND d."wonAt"   >= ${start}
+        AND d."wonAt"   <= ${end}
+      GROUP BY u.id, u."firstName", u."lastName", u."avatarUrl"
       ORDER BY revenue DESC
     `;
 
     return rows.map((r) => ({
-      user: {
-        id: r.owner_id,
-        firstName: r.first_name,
-        lastName: r.last_name,
-        avatarUrl: r.avatar_url,
-      },
-      deals:   Number(r.deal_count),
-      revenue: Number(r.revenue),
+      userId:         r.owner_id,
+      name:           `${r.first_name} ${r.last_name}`.trim(),
+      dealsWon:       Number(r.deal_count),
+      revenue:        Number(r.revenue ?? 0),
+      leadsConverted: 0, // not tracked per-rep; placeholder
     }));
   }
 
@@ -197,11 +195,17 @@ export class AnalyticsService {
    * Lead source breakdown for pie chart
    */
   async getLeadSourceBreakdown() {
-    return this.prisma.lead.groupBy({
+    const rows = await this.prisma.lead.groupBy({
       by: ['source'],
       _count: { id: true },
       orderBy: { _count: { id: 'desc' } },
     });
+    const total = rows.reduce((sum, r) => sum + r._count.id, 0) || 1;
+    return rows.map((r) => ({
+      source:     r.source ?? 'UNKNOWN',
+      count:      r._count.id,
+      percentage: Math.round((r._count.id / total) * 100),
+    }));
   }
 
   /**
@@ -220,10 +224,10 @@ export class AnalyticsService {
     });
 
     return stages.map((stage) => ({
-      stageName: stage.name,
-      dealCount: stage.deals.length,
-      totalValue: stage.deals.reduce((sum, d) => sum + Number(d.value), 0),
-      probability: stage.probability,
+      stage:          stage.name,
+      count:          stage.deals.length,
+      value:          stage.deals.reduce((sum, d) => sum + Number(d.value), 0),
+      conversionRate: Math.round(stage.probability * 100),
     }));
   }
 }
