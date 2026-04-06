@@ -1,11 +1,11 @@
-<![CDATA[<div align="center">
+<div align="center">
 
 # NexusCRM
 
 ### Enterprise-grade CRM SaaS Platform
 
-[![CI](https://github.com/your-org/nexus-crm/actions/workflows/ci.yml/badge.svg)](https://github.com/your-org/nexus-crm/actions/workflows/ci.yml)
-[![CD](https://github.com/your-org/nexus-crm/actions/workflows/cd.yml/badge.svg)](https://github.com/your-org/nexus-crm/actions/workflows/cd.yml)
+[![CI](https://github.com/Moiz-Ali-Moomin/crm-with-blockchain-rag/actions/workflows/ci.yml/badge.svg)](https://github.com/Moiz-Ali-Moomin/crm-with-blockchain-rag/actions/workflows/ci.yml)
+[![CD](https://github.com/Moiz-Ali-Moomin/crm-with-blockchain-rag/actions/workflows/cd.yml/badge.svg)](https://github.com/Moiz-Ali-Moomin/crm-with-blockchain-rag/actions/workflows/cd.yml)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![NestJS](https://img.shields.io/badge/NestJS-10-E0234E?logo=nestjs&logoColor=white)](https://nestjs.com/)
 [![Next.js](https://img.shields.io/badge/Next.js-15-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
@@ -174,8 +174,8 @@ All side-effects (email, SMS, webhooks, blockchain, AI embeddings) are decoupled
 ### 1. Clone
 
 ```bash
-git clone https://github.com/your-org/nexus-crm.git
-cd nexus-crm
+git clone https://github.com/Moiz-Ali-Moomin/crm-with-blockchain-rag.git
+cd crm-with-blockchain-rag
 ```
 
 ### 2. Start Infrastructure
@@ -447,7 +447,7 @@ See [docs/deployment.md](docs/deployment.md) for the full guide including:
 
 ```bash
 # On your server
-git clone https://github.com/your-org/nexus-crm.git /opt/nexus-crm
+git clone https://github.com/Moiz-Ali-Moomin/crm-with-blockchain-rag.git /opt/nexus-crm
 cd /opt/nexus-crm
 
 # Copy and fill production env
@@ -588,4 +588,3 @@ Found a vulnerability? Please **do not** open a public issue. Email `security@yo
 ## License
 
 [MIT](LICENSE) — see the LICENSE file for details.
-]]>
