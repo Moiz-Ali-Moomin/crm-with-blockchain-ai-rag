@@ -1350,6 +1350,27 @@ getPipelineFunnel(@Query('pipelineId') id: string)</pre>
         </div>
         <strong>Rule:</strong> Before writing any <code>$queryRaw</code>, grep the migration SQL to confirm exact column names. Prisma never auto-converts camelCase to snake_case — only <code>@map("snake_case")</code> does that. Always verify the shape your service returns matches the TypeScript interface the frontend imports.
       </div>
+
+      <div class="callout" style="background:var(--red-bg); border:1px solid rgba(248,81,73,.28); color:#ff7b72; margin-bottom:20px">
+        <strong>#11 — Leads / Deals / Tasks / Tickets return 400 on every page load — empty string query params fail Zod enum validation</strong><br/><br/>
+        <strong>Error:</strong><br/>
+        <code style="display:block; background:rgba(0,0,0,.3); padding:10px; border-radius:6px; margin:8px 0; font-size:13px">GET /api/v1/leads?page=1&amp;limit=20&amp;search=&amp;status=&amp;source= → 400 Validation failed</code>
+        <strong>Cause:</strong> The frontend sends every filter param on each request, including unset ones as <code>""</code> (empty string). Zod's <code>z.enum([...]).optional()</code> accepts <code>undefined</code> but rejects <code>""</code> — empty string is not a valid enum member.<br/><br/>
+        <strong>Fix — wrap enum/uuid filter fields with <code>z.preprocess</code> in the DTO schemas:</strong>
+        <div class="code-block" style="margin-top:8px">
+          <button class="copy-btn" onclick="copy(this)">Copy</button>
+          <pre>// Before — crashes on status=&amp;source=
+status: z.enum(['NEW', 'CONTACTED', ...]).optional()
+
+// After — empty string coerced to undefined before validation
+status: z.preprocess(
+  (v) => (v === '' ? undefined : v),
+  z.enum(['NEW', 'CONTACTED', ...]).optional()
+)</pre>
+        </div>
+        <strong>Files changed:</strong> <code>leads.dto.ts</code>, <code>deals.dto.ts</code>, <code>tasks.dto.ts</code>, <code>tickets.dto.ts</code> — all <code>FilterXxxSchema</code> enum and uuid fields.<br/><br/>
+        <strong>Rule:</strong> HTTP query params are always strings. <code>.optional()</code> only accepts <code>undefined</code>, not <code>""</code>. Always preprocess enum/uuid filter fields to convert empty strings to <code>undefined</code>.
+      </div>
     </section>
 
     <footer class="footer">

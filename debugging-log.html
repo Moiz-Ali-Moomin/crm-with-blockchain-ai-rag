@@ -686,7 +686,7 @@
     </a>
     <a class="sidebar-link" onclick="navigateTo('day10')">
       <span class="day-badge">Day 10</span> Deployment
-      <span class="issue-count">10</span>
+      <span class="issue-count">11</span>
     </a>
   </div>
 
@@ -4354,11 +4354,72 @@ Uncaught TypeError: Cannot read properties of undefined (reading 'replace')
       </div>
     </div>
 
+    <!-- Issue #44 -->
+    <div class="issue-card open" id="issue-44">
+      <div class="issue-header" onclick="toggle(this)">
+        <span class="issue-num">#044</span>
+        <div class="issue-header-content">
+          <div class="issue-title">Leads / Deals / Tasks / Tickets — 400 Validation Failed when filters sent as empty strings</div>
+          <div class="issue-tags">
+            <span class="tag tag-api">validation</span>
+            <span class="tag tag-api">zod</span>
+            <span class="tag tag-api">dto</span>
+          </div>
+        </div>
+        <span class="status-badge status-fixed">Fixed</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="issue-body">
+        <div class="section-block">
+          <div class="section-label error">🚨 Error</div>
+          <div class="error-log">GET /api/v1/leads?page=1&limit=20&search=&status=&source= → 400: Validation failed
+GET /api/v1/deals?status=&ownerId= → 400: Validation failed
+GET /api/v1/tasks?status=&priority= → 400: Validation failed
+GET /api/v1/tickets?status=&priority= → 400: Validation failed</div>
+        </div>
+        <div class="section-block">
+          <div class="section-label cause">⚠️ Root Cause</div>
+          <div class="cause-box">
+            <div class="prose">
+              Filter pages (Leads, Deals, Tasks, Tickets) send all filter query params on every request, including unset ones as empty strings — e.g. <code>status=&amp;source=</code>. Zod's <code>z.enum([...]).optional()</code> accepts <code>undefined</code> but rejects <code>""</code> (an empty string is not a valid enum member), causing a 400 on every page load even with no filters applied.
+            </div>
+          </div>
+        </div>
+        <div class="section-block">
+          <div class="section-label fix">🛠 Fix</div>
+          <div class="prose" style="margin-bottom:10px">Wrap every enum (and uuid) field in the filter schemas with <code>z.preprocess</code> to coerce empty strings to <code>undefined</code> before Zod validates them. Applied to <code>FilterLeadSchema</code>, <code>FilterDealSchema</code>, <code>FilterTaskSchema</code>, <code>FilterTicketSchema</code>.</div>
+          <div class="diff-cols">
+            <div class="diff-col">
+              <div class="diff-col-label">Before (rejects "")</div>
+              <div class="code-block"><pre><span class="diff-del">status: z.enum(['NEW', 'CONTACTED', ...]).optional()</span>
+<span class="diff-del">source: z.string().optional()</span>
+<span class="diff-del">assigneeId: z.string().uuid().optional()</span></pre></div>
+            </div>
+            <div class="diff-col">
+              <div class="diff-col-label">After (accepts "")</div>
+              <div class="code-block"><pre><span class="diff-add">status: z.preprocess(</span>
+<span class="diff-add">  (v) =&gt; (v === '' ? undefined : v),</span>
+<span class="diff-add">  z.enum(['NEW', 'CONTACTED', ...]).optional()</span>
+<span class="diff-add">)</span>
+<span class="diff-add">source: z.preprocess((v) =&gt; (v === '' ? undefined : v), z.string().optional())</span>
+<span class="diff-add">assigneeId: z.preprocess((v) =&gt; (v === '' ? undefined : v), z.string().uuid().optional())</span></pre></div>
+            </div>
+          </div>
+        </div>
+        <div class="section-block">
+          <div class="section-label pm">🧠 Post-Mortem</div>
+          <div class="pm-box">
+            <div class="pm-text">HTTP query params are always strings — there is no <code>undefined</code> over the wire, only <code>""</code>. Zod's <code>.optional()</code> only accepts <code>undefined</code> (or a missing key), not an empty string. Any time a frontend sends a cleared filter as <code>param=</code>, the backend must pre-process it. The fix pattern is <code>z.preprocess((v) =&gt; (v === '' ? undefined : v), schema)</code>. Apply this defensively to all enum and uuid filter fields — not just the ones currently broken.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </section>
 
   <footer class="footer">
     <strong>CRM SaaS Backend — Debugging Log</strong><br/>
-    43 Issues · 39 Fixed · 4 Warnings · 10 Days<br/><br/>
+    44 Issues · 40 Fixed · 4 Warnings · 10 Days<br/><br/>
     <span>Stack: NestJS · Prisma · PostgreSQL · Redis · BullMQ · Socket.io · ethers.js · OpenAI</span><br/>
     <span style="color:var(--text-muted); font-size:12px; margin-top:8px; display:block;">
       Built and debugged from scratch — April 2026
