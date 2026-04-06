@@ -34,12 +34,12 @@ export const CreateActivitySchema = z.object({
 export const UpdateActivitySchema = CreateActivitySchema.partial();
 
 export const FilterActivitySchema = PaginationSchema.extend({
-  entityType: EntityTypeEnum.optional(),
+  entityType: z.preprocess((v) => (v === '' ? undefined : v), EntityTypeEnum.optional()),
   entityId: z.string().optional(),
-  type: ActivityTypeEnum.optional(),
-  createdById: z.string().uuid().optional(),
-  dateFrom: z.string().datetime().optional(),
-  dateTo: z.string().datetime().optional(),
+  type: z.preprocess((v) => (v === '' ? undefined : v), ActivityTypeEnum.optional()),
+  createdById: z.preprocess((v) => (v === '' ? undefined : v), z.string().uuid().optional()),
+  dateFrom: z.preprocess((v) => (v === '' ? undefined : v), z.string().datetime().optional()),
+  dateTo: z.preprocess((v) => (v === '' ? undefined : v), z.string().datetime().optional()),
 });
 
 export const TimelineQuerySchema = z.object({

@@ -3,187 +3,68 @@ name: CD
 on:
   push:
     branches: [main]
-    tags: ['v*.*.*']
 
 concurrency:
-  group: cd-${{ github.ref }}
+  group: cd-production
   cancel-in-progress: false   # Never cancel a running deploy
 
-env:
-  REGISTRY: ghcr.io
-  API_IMAGE: ghcr.io/${{ github.repository_owner }}/nexus-crm-api
-  WEB_IMAGE: ghcr.io/${{ github.repository_owner }}/nexus-crm-web
-
 jobs:
-  # ────────────────────────────────────────────────────────────────────────────
-  # Build & Push Docker images to GHCR
-  # ────────────────────────────────────────────────────────────────────────────
-  build-push:
-    name: Build & Push Images
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    outputs:
-      image-tag: ${{ steps.meta.outputs.version }}
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up QEMU (multi-arch)
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata (tags, labels)
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: |
-            ${{ env.API_IMAGE }}
-            ${{ env.WEB_IMAGE }}
-          tags: |
-            type=ref,event=branch
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha,prefix=sha-,format=short
-
-      - name: Build & push API image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./crm-backend
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: |
-            ${{ env.API_IMAGE }}:${{ steps.meta.outputs.version }}
-            ${{ env.API_IMAGE }}:latest
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Build & push Web image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./crm-frontend
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: |
-            ${{ env.WEB_IMAGE }}:${{ steps.meta.outputs.version }}
-            ${{ env.WEB_IMAGE }}:latest
-          labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  # ────────────────────────────────────────────────────────────────────────────
-  # Deploy to production server over SSH
-  # ────────────────────────────────────────────────────────────────────────────
   deploy:
-    name: Deploy to Production
+    name: Deploy to Hetzner
     runs-on: ubuntu-latest
-    needs: build-push
     environment:
       name: production
-      url: ${{ secrets.APP_URL }}
+      url: http://37.27.41.226:3000
 
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Write production .env
-        run: |
-          cat > crm-backend/.env <<EOF
-          NODE_ENV=production
-          PORT=3001
-          APP_URL=${{ secrets.APP_URL }}
-          API_URL=${{ secrets.API_URL }}
-          CORS_ORIGINS=${{ secrets.CORS_ORIGINS }}
-
-          DATABASE_URL=${{ secrets.PROD_DATABASE_URL }}
-          REDIS_URL=${{ secrets.PROD_REDIS_URL }}
-          MONGO_URI=${{ secrets.PROD_MONGO_URI }}
-
-          JWT_SECRET=${{ secrets.PROD_JWT_SECRET }}
-          JWT_REFRESH_SECRET=${{ secrets.PROD_JWT_REFRESH_SECRET }}
-          JWT_EXPIRES_IN=15m
-          JWT_REFRESH_EXPIRES_IN=7d
-
-          SENDGRID_API_KEY=${{ secrets.PROD_SENDGRID_API_KEY }}
-          SENDGRID_FROM_EMAIL=${{ secrets.SENDGRID_FROM_EMAIL }}
-
-          TWILIO_ACCOUNT_SID=${{ secrets.PROD_TWILIO_ACCOUNT_SID }}
-          TWILIO_AUTH_TOKEN=${{ secrets.PROD_TWILIO_AUTH_TOKEN }}
-          TWILIO_PHONE_NUMBER=${{ secrets.TWILIO_PHONE_NUMBER }}
-          TWILIO_WHATSAPP_NUMBER=${{ secrets.TWILIO_WHATSAPP_NUMBER }}
-
-          STRIPE_SECRET_KEY=${{ secrets.PROD_STRIPE_SECRET_KEY }}
-          STRIPE_PUBLISHABLE_KEY=${{ secrets.STRIPE_PUBLISHABLE_KEY }}
-          STRIPE_WEBHOOK_SECRET=${{ secrets.PROD_STRIPE_WEBHOOK_SECRET }}
-
-          OPENAI_API_KEY=${{ secrets.PROD_OPENAI_API_KEY }}
-
-          BLOCKCHAIN_RPC_URL=${{ secrets.PROD_BLOCKCHAIN_RPC_URL }}
-          BLOCKCHAIN_PRIVATE_KEY=${{ secrets.PROD_BLOCKCHAIN_PRIVATE_KEY }}
-          BLOCKCHAIN_CONTRACT_ADDR=${{ secrets.PROD_BLOCKCHAIN_CONTRACT_ADDR }}
-          BLOCKCHAIN_NETWORK=${{ secrets.BLOCKCHAIN_NETWORK }}
-
-          LOG_LEVEL=info
-          EOF
-
-      - name: Copy files to server
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          source: 'docker-compose.prod.yml,crm-backend/.env,nginx/'
-          target: ${{ secrets.DEPLOY_PATH }}
-
-      - name: Deploy on server
+      - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
+          command_timeout: 15m
           script: |
             set -e
-            cd ${{ secrets.DEPLOY_PATH }}
+            cd /opt/nexus-crm
 
-            # Pull latest images
-            IMAGE_TAG=${{ needs.build-push.outputs.image-tag }} \
-            docker compose -f docker-compose.prod.yml pull api web
+            echo "==> Pulling latest code..."
+            git pull origin main
 
-            # Zero-downtime rolling restart
-            IMAGE_TAG=${{ needs.build-push.outputs.image-tag }} \
-            docker compose -f docker-compose.prod.yml up -d \
-              --no-build \
-              --remove-orphans
+            # ── Backend ────────────────────────────────────────────────────────
+            echo "==> Building backend..."
+            cd /opt/nexus-crm/crm-backend
+            npm ci --prefer-offline
+            npx prisma generate
+            npx prisma migrate deploy
+            npm run build
 
-            # Run pending migrations (idempotent)
-            docker compose -f docker-compose.prod.yml exec -T api \
-              npx prisma migrate deploy
+            echo "==> Restarting backend..."
+            kill $(fuser 3001/tcp 2>/dev/null) || true
+            sleep 1
+            nohup node dist/src/main.js > /tmp/crm-api.log 2>&1 &
+            echo "Backend PID: $!"
 
-            # Remove dangling images
-            docker image prune -f
+            # Wait for backend to be ready
+            echo "==> Waiting for backend health check..."
+            for i in $(seq 1 30); do
+              if curl -sf http://localhost:3001/api/v1/health > /dev/null 2>&1; then
+                echo "Backend is up."
+                break
+              fi
+              sleep 2
+            done
 
-            echo "Deploy complete: ${{ needs.build-push.outputs.image-tag }}"
+            # ── Frontend ───────────────────────────────────────────────────────
+            echo "==> Building frontend..."
+            cd /opt/nexus-crm/crm-frontend
+            npm install --legacy-peer-deps --prefer-offline
+            npm run build
 
-      - name: Notify on failure
-        if: failure()
-        uses: actions/github-script@v7
-        with:
-          script: |
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: '❌ Production deploy failed for ${{ github.sha }}. Check the [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}).'
-            })
+            echo "==> Restarting frontend..."
+            kill $(fuser 3000/tcp 2>/dev/null) || true
+            sleep 1
+            nohup npm start > /tmp/crm-web.log 2>&1 &
+            echo "Frontend PID: $!"
+
+            echo "==> Deploy complete!"
