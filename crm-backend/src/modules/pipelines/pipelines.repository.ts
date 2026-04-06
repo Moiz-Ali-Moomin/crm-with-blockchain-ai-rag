@@ -9,7 +9,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../core/database/prisma.service';
 import { Prisma } from '@prisma/client';
-import { buildPrismaSkipTake, buildPaginatedResult } from '../../common/dto/pagination.dto';
 import { FilterPipelineDto } from './pipelines.dto';
 
 @Injectable()
@@ -17,26 +16,20 @@ export class PipelinesRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async findAll(filters: FilterPipelineDto) {
-    const { page, limit, sortBy, sortOrder, search, isDefault } = filters;
+    const { sortBy, sortOrder, search, isDefault } = filters;
 
     const where: Prisma.PipelineWhereInput = {
       ...(isDefault !== undefined && { isDefault }),
       ...(search && { name: { contains: search, mode: 'insensitive' } }),
     };
 
-    const [data, total] = await Promise.all([
-      this.prisma.pipeline.findMany({
-        where,
-        include: {
-          stages: { orderBy: { position: 'asc' } },
-        },
-        orderBy: { [sortBy ?? 'createdAt']: sortOrder },
-        ...buildPrismaSkipTake(page, limit),
-      }),
-      this.prisma.pipeline.count({ where }),
-    ]);
-
-    return buildPaginatedResult(data, total, page, limit);
+    return this.prisma.pipeline.findMany({
+      where,
+      include: {
+        stages: { orderBy: { position: 'asc' } },
+      },
+      orderBy: { [sortBy ?? 'createdAt']: sortOrder },
+    });
   }
 
   async findById(id: string) {
