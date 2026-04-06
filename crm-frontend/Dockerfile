@@ -16,6 +16,9 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+# Ensure optional static assets directory always exists so COPY succeeds.
+RUN mkdir -p public
+
 # Build-time env (NEXT_PUBLIC_ vars must be available at build time)
 ARG NEXT_PUBLIC_API_URL=http://localhost:3001
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
