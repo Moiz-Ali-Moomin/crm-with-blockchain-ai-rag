@@ -369,6 +369,7 @@
     <a href="#backups"><span class="step-num">12</span> Backups &amp; Cron</a>
     <a href="#ops"><span class="step-num">⟁</span> Ops Commands</a>
     <a href="#checklist"><span class="step-num">✓</span> Final Checklist</a>
+    <a href="#known-issues"><span class="step-num">⚠</span> Known Gotchas</a>
   </aside>
 
   <!-- ── Main ─────────────────────────────────────────────────── -->
@@ -1175,6 +1176,71 @@ Docker Compose version v2.x.x</code></pre>
           <div class="card-title">SSL Cost</div>
           <div class="card-value" style="color:var(--green)">Free</div>
           <div class="card-sub">Let's Encrypt</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Known Deployment Issues ────────────────────────────── -->
+    <section class="section" id="known-issues">
+      <h2>⚠️ Known Deployment Gotchas</h2>
+      <p style="color:var(--text2); margin-bottom:24px">Issues encountered during first deploy — documented so you don't hit them again.</p>
+
+      <div class="callout" style="background:var(--red-bg); border:1px solid rgba(248,81,73,.28); color:#ff7b72; margin-bottom:20px">
+        <strong>#1 — Wrong PostgreSQL Docker image (pgvector missing)</strong><br/><br/>
+        <strong>Error:</strong><br/>
+        <code style="display:block; background:rgba(0,0,0,.3); padding:10px; border-radius:6px; margin:8px 0; font-size:13px">ERROR: extension "vector" is not available
+DETAIL: Could not open extension control file ".../vector.control": No such file or directory</code>
+        <strong>Cause:</strong> The <code>postgres:16-alpine</code> image does not include pgvector. The schema uses <code>vector</code> columns for AI embeddings.<br/><br/>
+        <strong>Fix:</strong> Use <code>pgvector/pgvector:pg16</code> in <code>docker-compose.yml</code> instead of <code>postgres:16-alpine</code>, then recreate volumes:
+        <div class="code-block" style="margin-top:10px">
+          <button class="copy-btn" onclick="copy(this)">Copy</button>
+          <pre>docker compose down -v
+docker compose up -d</pre>
+        </div>
+      </div>
+
+      <div class="callout" style="background:var(--red-bg); border:1px solid rgba(248,81,73,.28); color:#ff7b72; margin-bottom:20px">
+        <strong>#2 — CREATE INDEX CONCURRENTLY inside Prisma migration transaction</strong><br/><br/>
+        <strong>Error:</strong><br/>
+        <code style="display:block; background:rgba(0,0,0,.3); padding:10px; border-radius:6px; margin:8px 0; font-size:13px">ERROR: CREATE INDEX CONCURRENTLY cannot run inside a transaction block (code: 25001)</code>
+        <strong>Cause:</strong> Prisma wraps migrations in a transaction by default. <code>CREATE INDEX CONCURRENTLY</code> is forbidden inside transactions — it was written with production zero-downtime in mind but is incompatible with Prisma's migration runner.<br/><br/>
+        <strong>Fix:</strong> Remove <code>CONCURRENTLY</code> from the vector index in <code>prisma/migrations/20260405000001_add_ai_embeddings_and_blockchain/migration.sql</code>:
+        <div class="code-block" style="margin-top:10px">
+          <button class="copy-btn" onclick="copy(this)">Copy</button>
+          <pre>-- Before
+CREATE INDEX CONCURRENTLY IF NOT EXISTS "ai_embeddings_embedding_idx" ...
+
+-- After
+CREATE INDEX IF NOT EXISTS "ai_embeddings_embedding_idx" ...</pre>
+        </div>
+        This is safe on initial deploy since the table is empty — no table lock impact.
+      </div>
+
+      <div class="callout" style="background:var(--red-bg); border:1px solid rgba(248,81,73,.28); color:#ff7b72; margin-bottom:20px">
+        <strong>#3 — Wrong backend start script name</strong><br/><br/>
+        <strong>Error:</strong><br/>
+        <code style="display:block; background:rgba(0,0,0,.3); padding:10px; border-radius:6px; margin:8px 0; font-size:13px">npm error Missing script: "start:prod"</code>
+        <strong>Cause:</strong> <code>crm-backend/package.json</code> has no <code>start:prod</code> script. The correct production script is <code>npm start</code> → <code>node dist/main</code>. Also triggered by running the command from the wrong directory (<code>crm-frontend/</code> instead of <code>crm-backend/</code>).<br/><br/>
+        <strong>Fix:</strong>
+        <div class="code-block" style="margin-top:10px">
+          <button class="copy-btn" onclick="copy(this)">Copy</button>
+          <pre>cd /opt/nexus-crm/crm-backend
+npm run build
+nohup npm start > /tmp/crm-api.log 2>&1 &</pre>
+        </div>
+      </div>
+
+      <div class="callout" style="background:var(--red-bg); border:1px solid rgba(248,81,73,.28); color:#ff7b72; margin-bottom:20px">
+        <strong>#4 — Frontend starts with no .next build directory</strong><br/><br/>
+        <strong>Error:</strong><br/>
+        <code style="display:block; background:rgba(0,0,0,.3); padding:10px; border-radius:6px; margin:8px 0; font-size:13px">Error: Could not find a production build in the '.next' directory.</code>
+        <strong>Cause:</strong> Running <code>npm run build &amp;&amp; nohup npm start &amp;</code> as a single backgrounded command causes the build to receive <code>SIGTSTP</code> and stop mid-way. <code>npm start</code> then runs against a missing or incomplete <code>.next</code> directory.<br/><br/>
+        <strong>Fix:</strong> Always run build in the foreground first, then background only the start:
+        <div class="code-block" style="margin-top:10px">
+          <button class="copy-btn" onclick="copy(this)">Copy</button>
+          <pre>cd /opt/nexus-crm/crm-frontend
+npm run build                                  # foreground — wait for it to finish
+nohup npm start > /tmp/crm-web.log 2>&1 &     # background only the server</pre>
         </div>
       </div>
     </section>

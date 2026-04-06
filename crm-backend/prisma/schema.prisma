@@ -806,6 +806,7 @@ model BillingInfo {
   tenantId             String    @unique
   stripeCustomerId     String?   @unique
   stripeSubscriptionId String?   @unique
+  paypalSubscriptionId String?   @unique
   plan                 String    @default("free")
   status               String    @default("active")  // active | past_due | canceled | trialing
   currentPeriodStart   DateTime?

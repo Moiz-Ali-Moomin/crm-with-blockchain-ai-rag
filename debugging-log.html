@@ -684,6 +684,10 @@
       <span class="day-badge">Day 9</span> Workers, Security &amp; Automation
       <span class="issue-count">7</span>
     </a>
+    <a class="sidebar-link" onclick="navigateTo('day10')">
+      <span class="day-badge">Day 10</span> Deployment
+      <span class="issue-count">2</span>
+    </a>
   </div>
 
   <div class="sidebar-section" style="margin-top:auto; padding-top:16px; border-top:1px solid var(--border-subtle)">
@@ -3766,9 +3770,250 @@ compares against a value that no user will ever have — access is denied for ev
 
   </section>
 
+  <!-- ═══════════════════════════════════════════════════════════════
+       DAY 10 — DEPLOYMENT
+  ═══════════════════════════════════════════════════════════════ -->
+  <section class="phase" id="day10">
+    <div class="phase-header">
+      <span class="phase-day">Day 10</span>
+      <span class="phase-title">Deployment — Hetzner VPS</span>
+      <div class="phase-line"></div>
+    </div>
+
+    <!-- Issue #34 -->
+    <div class="issue-card open" id="issue-34">
+      <div class="issue-header" onclick="toggle(this)">
+        <span class="issue-num">#034</span>
+        <div class="issue-header-content">
+          <div class="issue-title">Prisma Migration Fails — pgvector Extension Not Available in postgres:16-alpine</div>
+          <div class="issue-tags">
+            <span class="tag tag-prisma">prisma</span>
+            <span class="tag tag-infra">docker</span>
+            <span class="tag tag-infra">deployment</span>
+          </div>
+        </div>
+        <span class="status-badge status-fixed">Fixed</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="issue-body">
+        <div class="section-block">
+          <div class="section-label error">🚨 Error</div>
+          <div class="error-log">Error: P3018 — A migration failed to apply.
+
+Migration name: 20260405000001_add_ai_embeddings_and_blockchain
+
+Database error code: 0A000
+ERROR: extension "vector" is not available
+DETAIL: Could not open extension control file
+"/usr/local/share/postgresql/extension/vector.control": No such file or directory.
+HINT: The extension must first be installed on the system where PostgreSQL is running.</div>
+        </div>
+        <div class="section-block">
+          <div class="section-label cause">⚠️ Root Cause</div>
+          <div class="cause-box">
+            <div class="prose">
+              The migration's second file runs <code>CREATE EXTENSION IF NOT EXISTS "vector"</code> (required for AI embeddings / RAG). The <code>postgres:16-alpine</code> image is a minimal build and does <strong>not</strong> include the <code>pgvector</code> extension binaries. The extension control file simply does not exist on that image, so PostgreSQL cannot enable it regardless of permissions or user role.
+            </div>
+          </div>
+        </div>
+        <div class="section-block">
+          <div class="section-label fix">🛠 Fix</div>
+          <div class="diff-cols">
+            <div class="diff-col">
+              <div class="diff-col-label">docker-compose.yml — Before</div>
+              <div class="code-block"><pre><span class="diff-del">image: postgres:16-alpine</span></pre></div>
+            </div>
+            <div class="diff-col">
+              <div class="diff-col-label">docker-compose.yml — After</div>
+              <div class="code-block"><pre><span class="diff-add">image: pgvector/pgvector:pg16</span></pre></div>
+            </div>
+          </div>
+          <div class="prose" style="margin-top:12px">
+            The <code>pgvector/pgvector:pg16</code> image is the official pgvector image built on top of <code>postgres:16</code> with the extension pre-compiled and installed. After swapping the image, the volume must be recreated:
+          </div>
+          <div class="code-block" style="margin-top:8px"><pre>docker compose down -v
+docker compose up -d</pre></div>
+        </div>
+        <div class="section-block">
+          <div class="section-label pm">🧠 Post-Mortem</div>
+          <div class="pm-box">
+            <div class="pm-text">Any Prisma schema that uses <code>Unsupported("vector")</code> fields requires <code>pgvector</code> to be installed at the database level — it is not a Prisma-level feature. Always use <code>pgvector/pgvector:pgXX</code> (not the plain <code>postgres</code> image) whenever the schema includes vector columns. Document this as a hard prerequisite in the deployment guide.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Issue #35 -->
+    <div class="issue-card open" id="issue-35">
+      <div class="issue-header" onclick="toggle(this)">
+        <span class="issue-num">#035</span>
+        <div class="issue-header-content">
+          <div class="issue-title">Prisma Migration Fails — CREATE INDEX CONCURRENTLY Cannot Run Inside a Transaction</div>
+          <div class="issue-tags">
+            <span class="tag tag-prisma">prisma</span>
+            <span class="tag tag-infra">postgresql</span>
+            <span class="tag tag-infra">deployment</span>
+          </div>
+        </div>
+        <span class="status-badge status-fixed">Fixed</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="issue-body">
+        <div class="section-block">
+          <div class="section-label error">🚨 Error</div>
+          <div class="error-log">Error: P3018 — A migration failed to apply.
+
+Migration name: 20260405000001_add_ai_embeddings_and_blockchain
+
+Database error code: 25001
+ERROR: CREATE INDEX CONCURRENTLY cannot run inside a transaction block</div>
+        </div>
+        <div class="section-block">
+          <div class="section-label cause">⚠️ Root Cause</div>
+          <div class="cause-box">
+            <div class="prose">
+              Prisma wraps every migration file in a single PostgreSQL transaction by default. <code>CREATE INDEX CONCURRENTLY</code> is a PostgreSQL feature that builds the index without locking the table — but it explicitly <strong>cannot run inside a transaction block</strong>. The migration file used <code>CONCURRENTLY</code> to make the index build safe for production (no table lock), but this is incompatible with how Prisma executes migrations. The error only surfaces at deploy time, not during <code>prisma migrate dev</code> because the dev flow sometimes differs in transaction handling.
+            </div>
+          </div>
+        </div>
+        <div class="section-block">
+          <div class="section-label fix">🛠 Fix</div>
+          <div class="diff-cols">
+            <div class="diff-col">
+              <div class="diff-col-label">migration.sql — Before</div>
+              <div class="code-block"><pre><span class="diff-del">CREATE INDEX CONCURRENTLY IF NOT EXISTS "ai_embeddings_embedding_idx"</span>
+<span class="diff-ctx">    ON "ai_embeddings" USING ivfflat ("embedding" vector_cosine_ops)</span>
+<span class="diff-ctx">    WITH (lists = 100);</span></pre></div>
+            </div>
+            <div class="diff-col">
+              <div class="diff-col-label">migration.sql — After</div>
+              <div class="code-block"><pre><span class="diff-add">CREATE INDEX IF NOT EXISTS "ai_embeddings_embedding_idx"</span>
+<span class="diff-ctx">    ON "ai_embeddings" USING ivfflat ("embedding" vector_cosine_ops)</span>
+<span class="diff-ctx">    WITH (lists = 100);</span></pre></div>
+            </div>
+          </div>
+        </div>
+        <div class="section-block">
+          <div class="section-label pm">🧠 Post-Mortem</div>
+          <div class="pm-box">
+            <div class="pm-text"><code>CREATE INDEX CONCURRENTLY</code> is valid SQL and a good production practice for large tables — but it is incompatible with transactional migration runners like Prisma. Two options exist: (1) remove <code>CONCURRENTLY</code> and accept a brief table lock during migration (fine for initial deploys on empty tables), or (2) add <code>-- prisma-migrate-ignore-transaction</code> pragma to the migration file header, which tells Prisma to run that file outside a transaction. For an initial schema with no live traffic, option 1 is simpler.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Issue #36 -->
+    <div class="issue-card open" id="issue-36">
+      <div class="issue-header" onclick="toggle(this)">
+        <span class="issue-num">#036</span>
+        <div class="issue-header-content">
+          <div class="issue-title">Backend Won't Start — npm run start:prod Does Not Exist</div>
+          <div class="issue-tags">
+            <span class="tag tag-infra">deployment</span>
+            <span class="tag tag-nestjs">nestjs</span>
+          </div>
+        </div>
+        <span class="status-badge status-fixed">Fixed</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="issue-body">
+        <div class="section-block">
+          <div class="section-label error">🚨 Error</div>
+          <div class="error-log">npm error Missing script: "start:prod"
+npm error
+npm error To see a list of scripts, run:
+npm error   npm run</div>
+        </div>
+        <div class="section-block">
+          <div class="section-label cause">⚠️ Root Cause</div>
+          <div class="cause-box">
+            <div class="prose">
+              Two compounding mistakes: (1) the command <code>npm run start:prod</code> was used but <code>crm-backend/package.json</code> has no such script — the production start script is simply <code>npm start</code> which maps to <code>node dist/main</code>. (2) the command was run from <code>/opt/nexus-crm/crm-frontend</code> instead of <code>/opt/nexus-crm/crm-backend</code>, so npm was reading the wrong <code>package.json</code> entirely.
+            </div>
+          </div>
+        </div>
+        <div class="section-block">
+          <div class="section-label fix">🛠 Fix</div>
+          <div class="diff-cols">
+            <div class="diff-col">
+              <div class="diff-col-label">Wrong</div>
+              <div class="code-block"><pre><span class="diff-del">nohup npm run start:prod > /tmp/crm-api.log 2>&1 &</span></pre></div>
+            </div>
+            <div class="diff-col">
+              <div class="diff-col-label">Correct</div>
+              <div class="code-block"><pre><span class="diff-add">cd /opt/nexus-crm/crm-backend</span>
+<span class="diff-add">npm run build</span>
+<span class="diff-add">nohup npm start > /tmp/crm-api.log 2>&1 &</span></pre></div>
+            </div>
+          </div>
+        </div>
+        <div class="section-block">
+          <div class="section-label pm">🧠 Post-Mortem</div>
+          <div class="pm-box">
+            <div class="pm-text">Always <code>cd</code> into the correct subdirectory before running npm commands in a monorepo. The backend start script is <code>npm start</code> → <code>node dist/main</code>. There is no <code>start:prod</code> — that was an assumption. Always run <code>npm run</code> with no arguments to list available scripts when unsure.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Issue #37 -->
+    <div class="issue-card open" id="issue-37">
+      <div class="issue-header" onclick="toggle(this)">
+        <span class="issue-num">#037</span>
+        <div class="issue-header-content">
+          <div class="issue-title">Frontend Won't Start — No Production Build Found in .next Directory</div>
+          <div class="issue-tags">
+            <span class="tag tag-infra">deployment</span>
+            <span class="tag tag-infra">next.js</span>
+          </div>
+        </div>
+        <span class="status-badge status-fixed">Fixed</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="issue-body">
+        <div class="section-block">
+          <div class="section-label error">🚨 Error</div>
+          <div class="error-log">[Error: Could not find a production build in the '.next' directory.
+Try building your app with 'next build' before starting the production server.
+https://nextjs.org/docs/messages/production-start-no-build-id]</div>
+        </div>
+        <div class="section-block">
+          <div class="section-label cause">⚠️ Root Cause</div>
+          <div class="cause-box">
+            <div class="prose">
+              The <code>next build</code> process was suspended mid-run (<code>[1]+ Stopped</code>) due to a shell backgrounding issue — the build command and start command were chained with <code>&amp;&amp;</code> and backgrounded together with <code>&amp;</code>. When the terminal interacted with the process, it received <code>SIGTSTP</code> and stopped before the <code>.next</code> directory was fully written. <code>npm start</code> then ran against an incomplete or missing build output.
+            </div>
+          </div>
+        </div>
+        <div class="section-block">
+          <div class="section-label fix">🛠 Fix</div>
+          <div class="diff-cols">
+            <div class="diff-col">
+              <div class="diff-col-label">Wrong (chained in background)</div>
+              <div class="code-block"><pre><span class="diff-del">nohup npm run build && nohup npm start > /tmp/crm-web.log 2>&1 &</span></pre></div>
+            </div>
+            <div class="diff-col">
+              <div class="diff-col-label">Correct (build foreground, start background)</div>
+              <div class="code-block"><pre><span class="diff-add">cd /opt/nexus-crm/crm-frontend</span>
+<span class="diff-add">npm run build</span>
+<span class="diff-add">nohup npm start > /tmp/crm-web.log 2>&1 &</span></pre></div>
+            </div>
+          </div>
+        </div>
+        <div class="section-block">
+          <div class="section-label pm">🧠 Post-Mortem</div>
+          <div class="pm-box">
+            <div class="pm-text">Always run <code>npm run build</code> in the <strong>foreground</strong> so you can see output and confirm it completes successfully. Only background the <em>start</em> command with <code>nohup ... &amp;</code>. Chaining build + start in a single backgrounded command hides errors and risks starting the server against a broken or missing build.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
   <footer class="footer">
     <strong>CRM SaaS Backend — Debugging Log</strong><br/>
-    33 Issues · 29 Fixed · 4 Warnings · 9 Days<br/><br/>
+    37 Issues · 33 Fixed · 4 Warnings · 10 Days<br/><br/>
     <span>Stack: NestJS · Prisma · PostgreSQL · Redis · BullMQ · Socket.io · ethers.js · OpenAI</span><br/>
     <span style="color:var(--text-muted); font-size:12px; margin-top:8px; display:block;">
       Built and debugged from scratch — April 2026

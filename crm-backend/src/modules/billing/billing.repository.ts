@@ -27,9 +27,14 @@ export class BillingRepository {
     });
   }
 
+  async findByPayPalSubscriptionId(paypalSubscriptionId: string) {
+    return this.prisma.billingInfo.findUnique({ where: { paypalSubscriptionId } });
+  }
+
   async update(tenantId: string, data: {
     stripeCustomerId?: string;
     stripeSubscriptionId?: string | null;
+    paypalSubscriptionId?: string | null;
     plan?: string;
     status?: string;
     currentPeriodEnd?: Date | null;
