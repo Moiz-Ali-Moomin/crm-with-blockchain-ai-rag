@@ -25,8 +25,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      DEPLOY_PATH: ${{ vars.PRODUCTION_DEPLOY_PATH || secrets.DEPLOY_PATH }}
-      API_HEALTH_URL: ${{ vars.PRODUCTION_API_HEALTH_URL }}
+      DEPLOY_PATH: ${{ vars.PRODUCTION_DEPLOY_PATH || secrets.PRODUCTION_DEPLOY_PATH || secrets.DEPLOY_PATH }}
+      API_HEALTH_URL: ${{ vars.PRODUCTION_API_HEALTH_URL || secrets.PRODUCTION_API_HEALTH_URL }}
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (
