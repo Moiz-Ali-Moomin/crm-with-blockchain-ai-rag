@@ -78,6 +78,22 @@ export const PLANS = [
   },
 ];
 
+type BillingInfoRecord = {
+  id: string;
+  tenantId: string;
+  stripeCustomerId: string | null;
+  stripeSubscriptionId: string | null;
+  paypalSubscriptionId: string | null;
+  plan: string;
+  status: string;
+  currentPeriodStart: Date | null;
+  currentPeriodEnd: Date | null;
+  cancelAtPeriodEnd: boolean;
+  metadata: unknown;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 @Injectable()
 export class BillingService {
   private readonly logger = new Logger(BillingService.name);
@@ -87,12 +103,25 @@ export class BillingService {
 
   constructor(private readonly billingRepo: BillingRepository) {}
 
-  async getBillingInfo(tenantId: string) {
+  private normalizeBillingInfo(
+    billing: Awaited<ReturnType<BillingRepository['findByTenantId']>> extends infer T
+      ? NonNullable<T>
+      : never,
+  ): BillingInfoRecord {
+    const normalized = billing as BillingInfoRecord & { paypalSubscriptionId?: string | null };
+
+    return {
+      ...normalized,
+      paypalSubscriptionId: normalized.paypalSubscriptionId ?? null,
+    };
+  }
+
+  async getBillingInfo(tenantId: string): Promise<BillingInfoRecord> {
     let billing = await this.billingRepo.findByTenantId(tenantId);
     if (!billing) {
       billing = await this.billingRepo.create(tenantId);
     }
-    return billing;
+    return this.normalizeBillingInfo(billing);
   }
 
   async getPlans() {

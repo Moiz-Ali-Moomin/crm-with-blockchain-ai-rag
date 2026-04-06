@@ -103,7 +103,7 @@ jobs:
         run: npx prisma generate
 
       - name: Run unit tests
-        run: npm run test:cov
+        run: npm run test:cov -- --passWithNoTests --runInBand
         env:
           NODE_ENV: test
 

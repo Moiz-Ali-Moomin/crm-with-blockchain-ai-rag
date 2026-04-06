@@ -77,8 +77,9 @@ export class LeadScoringService {
   async batchRecomputeForTenant(tenantId: string): Promise<void> {
     let cursor: string | undefined;
     let processed = 0;
+    let hasMore = true;
 
-    do {
+    while (hasMore) {
       const leads = await this.prisma.withoutTenantScope(() =>
         this.prisma.lead.findMany({
           where: { tenantId },
@@ -90,7 +91,10 @@ export class LeadScoringService {
         }),
       );
 
-      if (!leads.length) break;
+      if (!leads.length) {
+        hasMore = false;
+        continue;
+      }
 
       await Promise.all(
         leads.map((l) => this.computeAndCache(tenantId, l.id)),
@@ -100,7 +104,7 @@ export class LeadScoringService {
       cursor = leads[leads.length - 1].id;
 
       this.logger.debug(`Batch scored ${processed} leads for tenant ${tenantId}`);
-    } while (true);
+    }
   }
 
   // ─── Core Scoring Logic ───────────────────────────────────────────────────

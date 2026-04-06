@@ -33,7 +33,6 @@ function processQueue(error: AxiosError | null, token: string | null = null) {
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     // Dynamically import to avoid circular dependencies at module load time
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { useAuthStore } = require('@/store/auth.store');
     const token: string | null = useAuthStore.getState().accessToken;
     if (token && config.headers) {
@@ -53,7 +52,6 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       // Don't retry refresh endpoint itself
       if (originalRequest.url?.includes('/auth/refresh')) {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
         const { useAuthStore } = require('@/store/auth.store');
         useAuthStore.getState().logout();
         if (typeof window !== 'undefined') {
@@ -82,7 +80,6 @@ apiClient.interceptors.response.use(
         const response = await apiClient.post('/auth/refresh');
         const newToken: string = response.data.data.accessToken;
 
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
         const { useAuthStore } = require('@/store/auth.store');
         useAuthStore.getState().setAccessToken(newToken);
 
@@ -96,7 +93,6 @@ apiClient.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError as AxiosError, null);
 
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
         const { useAuthStore } = require('@/store/auth.store');
         useAuthStore.getState().logout();
 
