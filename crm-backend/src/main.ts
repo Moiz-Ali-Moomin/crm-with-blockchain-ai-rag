@@ -82,23 +82,23 @@ async function bootstrap() {
       .build();
 
     const document = SwaggerModule.createDocument(app, config);
-    SwaggerModule.setup('api/docs', app, document, {
+
+    SwaggerModule.setup(`api/${apiVersion}/docs`, app, document, {
       swaggerOptions: {
         persistAuthorization: true,
         tagsSorter: 'alpha',
         operationsSorter: 'alpha',
       },
-    });
+    });}
+
+    const port = parseInt(process.env.PORT ?? '4000', 10);
+    await app.listen(port);
+
+    logger.log(`🚀 CRM Backend running on http://localhost:${port}/api/${apiVersion}`, 'Bootstrap');
+    logger.log(`📚 Swagger: http://localhost:${port}/api/docs`, 'Bootstrap');
   }
 
-  const port = parseInt(process.env.PORT ?? '4000', 10);
-  await app.listen(port);
-
-  logger.log(`🚀 CRM Backend running on http://localhost:${port}/api/${apiVersion}`, 'Bootstrap');
-  logger.log(`📚 Swagger: http://localhost:${port}/api/docs`, 'Bootstrap');
-}
-
-bootstrap().catch((err) => {
-  console.error('Fatal error during bootstrap:', err);
-  process.exit(1);
-});
+  bootstrap().catch((err) => {
+    console.error('Fatal error during bootstrap:', err);
+    process.exit(1);
+  });

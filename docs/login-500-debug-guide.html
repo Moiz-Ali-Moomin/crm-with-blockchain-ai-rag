@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NexusCRM — Login 500 Debug Guide</title>
+  <style>
+    :root {
+      --bg:      #0d1117;
+      --bg2:     #161b22;
+      --bg3:     #21262d;
+      --bg4:     #30363d;
+      --border:  #30363d;
+      --text:    #e6edf3;
+      --text2:   #8b949e;
+      --text3:   #6e7681;
+      --accent:  #58a6ff;
+      --accent2: #1f6feb;
+      --green:   #3fb950;
+      --green-bg:#0d2119;
+      --yellow:  #d29922;
+      --yellow-bg:#1c1810;
+      --red:     #f85149;
+      --red-bg:  #200d0d;
+      --purple:  #bc8cff;
+      --orange:  #ffa657;
+      --radius:  8px;
+      --radius-lg: 12px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      font-size: 15px;
+      line-height: 1.7;
+    }
+
+    .page { display: flex; min-height: 100vh; }
+
+    /* ── Sidebar ──────────────────────────────────────── */
+    .sidebar {
+      width: 268px; min-width: 268px;
+      background: var(--bg2);
+      border-right: 1px solid var(--border);
+      padding: 24px 0;
+      position: sticky; top: 0;
+      height: 100vh; overflow-y: auto;
+    }
+    .sidebar-logo {
+      padding: 0 20px 20px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 12px;
+    }
+    .logo-icon {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, #f85149, #ffa657);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; margin-bottom: 10px;
+    }
+    .logo-name { font-size: 15px; font-weight: 700; letter-spacing: -.3px; }
+    .logo-sub  { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: .8px; margin-top: 2px; }
+
+    .status-pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      margin: 12px 20px 0;
+      padding: 5px 12px; border-radius: 20px;
+      font-size: 11px; font-weight: 600;
+      background: rgba(248,81,73,.12);
+      border: 1px solid rgba(248,81,73,.3);
+      color: #ff7b72;
+    }
+    .status-pill::before {
+      content: ''; width: 6px; height: 6px; border-radius: 50%;
+      background: #f85149;
+      animation: blink 1.5s infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+    .sidebar-section {
+      padding: 10px 20px 4px;
+      font-size: 10px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 1px;
+      color: var(--text3);
+    }
+    .sidebar a {
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 20px;
+      color: var(--text2); text-decoration: none;
+      font-size: 13px;
+      border-left: 2px solid transparent;
+      transition: all .15s;
+    }
+    .sidebar a:hover  { color: var(--text); background: var(--bg3); }
+    .sidebar a.active { color: var(--accent); border-left-color: var(--accent); background: rgba(88,166,255,.06); }
+
+    .step-num {
+      width: 20px; height: 20px; border-radius: 50%;
+      background: var(--bg4); color: var(--text3);
+      font-size: 10px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+
+    /* ── Main ─────────────────────────────────────────── */
+    .main { flex: 1; max-width: 940px; padding: 48px 56px; overflow-x: hidden; }
+
+    /* ── Hero ─────────────────────────────────────────── */
+    .hero {
+      background: linear-gradient(135deg, #0d1117 0%, #1a1010 50%, #0d1117 100%);
+      border: 1px solid rgba(248,81,73,.25);
+      border-radius: var(--radius-lg);
+      padding: 36px 44px;
+      margin-bottom: 40px;
+      position: relative; overflow: hidden;
+    }
+    .hero::before {
+      content: ''; position: absolute; top: -60px; right: -60px;
+      width: 240px; height: 240px;
+      background: radial-gradient(circle, rgba(248,81,73,.08) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(248,81,73,.1); border: 1px solid rgba(248,81,73,.25);
+      color: #ff7b72; padding: 4px 12px; border-radius: 20px;
+      font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px;
+      margin-bottom: 14px;
+    }
+    .hero h1 { font-size: 28px; font-weight: 800; letter-spacing: -.7px; margin-bottom: 10px; line-height: 1.2; }
+    .hero h1 span { color: #ff7b72; }
+    .hero p { color: var(--text2); font-size: 14.5px; max-width: 600px; margin-bottom: 20px; }
+    .hero-tags { display: flex; flex-wrap: wrap; gap: 7px; }
+    .tag {
+      padding: 3px 10px; border-radius: 6px; font-size: 12px; font-weight: 500;
+      background: var(--bg3); border: 1px solid var(--border); color: var(--text2);
+    }
+
+    /* ── Alert banner ─────────────────────────────────── */
+    .alert {
+      display: flex; gap: 14px;
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 14px 20px;
+      margin-bottom: 36px;
+    }
+    .alert.red  { border-left: 3px solid var(--red);    background: rgba(248,81,73,.04); }
+    .alert.yellow{ border-left: 3px solid var(--yellow); background: rgba(210,153,34,.04); }
+    .alert.green { border-left: 3px solid var(--green);  background: rgba(63,185,80,.04); }
+    .alert.blue  { border-left: 3px solid var(--accent); background: rgba(88,166,255,.04); }
+    .alert-icon  { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+    .alert-title { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+    .alert.red    .alert-title { color: #ff7b72; }
+    .alert.yellow .alert-title { color: #e3b341; }
+    .alert.green  .alert-title { color: #56d364; }
+    .alert.blue   .alert-title { color: var(--accent); }
+    .alert-body  { font-size: 13px; color: var(--text2); line-height: 1.6; }
+    .alert-body code {
+      font-family: 'SF Mono', Consolas, monospace; font-size: 12px;
+      background: var(--bg3); border: 1px solid var(--border);
+      padding: 1px 5px; border-radius: 4px; color: var(--orange);
+    }
+
+    /* ── Sections ─────────────────────────────────────── */
+    .section { margin-bottom: 52px; scroll-margin-top: 24px; }
+    .section-header {
+      display: flex; align-items: center; gap: 14px;
+      margin-bottom: 22px; padding-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .step-badge {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent2), var(--accent));
+      color: #fff; font-size: 14px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .step-badge.red    { background: linear-gradient(135deg, #b22020, var(--red)); }
+    .step-badge.yellow { background: linear-gradient(135deg, #7a5500, var(--yellow)); }
+    .step-badge.green  { background: linear-gradient(135deg, #1a5e30, var(--green)); }
+    .step-badge.purple { background: linear-gradient(135deg, #5a2e8a, var(--purple)); }
+    .section-title { font-size: 19px; font-weight: 700; }
+
+    /* ── Cards ────────────────────────────────────────── */
+    .card {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 22px 26px;
+      margin-bottom: 16px;
+    }
+    .card-title {
+      font-size: 13px; font-weight: 700; margin-bottom: 10px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .card-title .badge {
+      font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px;
+      text-transform: uppercase; letter-spacing: .4px;
+    }
+    .badge-fixed    { background: rgba(63,185,80,.15);  color: #56d364; border: 1px solid rgba(63,185,80,.3); }
+    .badge-open     { background: rgba(248,81,73,.15);  color: #ff7b72; border: 1px solid rgba(248,81,73,.3); }
+    .badge-warning  { background: rgba(210,153,34,.15); color: #e3b341; border: 1px solid rgba(210,153,34,.3); }
+
+    /* ── Prose ────────────────────────────────────────── */
+    .prose { font-size: 14px; color: var(--text2); line-height: 1.75; }
+    .prose strong { color: var(--text); font-weight: 600; }
+    .prose code {
+      font-family: 'SF Mono', Consolas, monospace; font-size: 12px;
+      background: var(--bg3); border: 1px solid var(--border);
+      padding: 1px 5px; border-radius: 4px; color: var(--orange);
+    }
+    .prose ul, .prose ol { padding-left: 20px; margin-top: 8px; }
+    .prose li { margin-bottom: 5px; }
+
+    /* ── Code block ───────────────────────────────────── */
+    .code-block {
+      background: #0d1117; border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden; margin: 12px 0;
+    }
+    .code-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 14px; background: var(--bg3);
+      border-bottom: 1px solid var(--border);
+    }
+    .code-lang { font-size: 11px; color: var(--text3); font-family: 'SF Mono', Consolas, monospace; }
+    .copy-btn {
+      font-size: 11px; color: var(--text3); background: none;
+      border: 1px solid var(--border); border-radius: 5px;
+      padding: 3px 10px; cursor: pointer; font-family: inherit; transition: all .15s;
+    }
+    .copy-btn:hover   { color: var(--text); border-color: var(--bg4); background: var(--bg2); }
+    .copy-btn.copied  { color: #56d364; border-color: rgba(63,185,80,.4); }
+    .code-block pre {
+      padding: 16px 18px; overflow-x: auto;
+      font-family: 'SF Mono', 'Fira Code', Consolas, monospace;
+      font-size: 12.5px; line-height: 1.7; color: var(--text);
+      white-space: pre; scrollbar-width: thin;
+    }
+    .code-block pre::-webkit-scrollbar { height: 6px; }
+    .code-block pre::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* Token colours */
+    .kw  { color: #ff7b72; }
+    .fn  { color: #d2a8ff; }
+    .str { color: #a5d6ff; }
+    .cmt { color: #6e7681; font-style: italic; }
+    .cls { color: #ffa657; }
+    .ok  { color: #56d364; }
+    .err { color: #ff7b72; }
+    .num-c { color: #79c0ff; }
+
+    /* ── Checklist ────────────────────────────────────── */
+    .checklist { list-style: none; padding: 0; }
+    .checklist li {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 10px 14px; border-radius: var(--radius);
+      font-size: 13.5px; border: 1px solid var(--border);
+      margin-bottom: 8px; background: var(--bg2);
+      transition: border-color .15s;
+    }
+    .checklist li:hover { border-color: var(--bg4); }
+    .chk-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+    .chk-text { flex: 1; color: var(--text2); line-height: 1.5; }
+    .chk-text strong { color: var(--text); }
+    .chk-text code {
+      font-family: 'SF Mono', Consolas, monospace; font-size: 11.5px;
+      background: var(--bg3); border: 1px solid var(--border);
+      padding: 1px 5px; border-radius: 4px; color: var(--orange);
+    }
+    .chk-status {
+      flex-shrink: 0; font-size: 10px; font-weight: 600; padding: 2px 8px;
+      border-radius: 10px; text-transform: uppercase; letter-spacing: .3px;
+      align-self: flex-start; margin-top: 2px;
+    }
+    .chk-cleared  { background: rgba(63,185,80,.12);  color: #56d364; border: 1px solid rgba(63,185,80,.25); }
+    .chk-open     { background: rgba(248,81,73,.12);  color: #ff7b72; border: 1px solid rgba(248,81,73,.25); }
+    .chk-warning  { background: rgba(210,153,34,.12); color: #e3b341; border: 1px solid rgba(210,153,34,.25); }
+
+    /* ── Diff block ───────────────────────────────────── */
+    .diff-block {
+      background: #0d1117; border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden; margin: 12px 0;
+      font-family: 'SF Mono', Consolas, monospace; font-size: 12.5px; line-height: 1.7;
+    }
+    .diff-header {
+      padding: 8px 14px; background: var(--bg3);
+      border-bottom: 1px solid var(--border);
+      font-size: 11px; color: var(--text3);
+    }
+    .diff-cols { display: grid; grid-template-columns: 1fr 1fr; }
+    .diff-col { padding: 14px 18px; overflow-x: auto; }
+    .diff-col:first-child { border-right: 1px solid var(--border); }
+    .diff-col-label { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 10px; font-weight: 600; }
+    .diff-col:first-child .diff-col-label { color: #ff7b72; }
+    .diff-col:last-child  .diff-col-label { color: #56d364; }
+    .diff-del { color: #ff7b72; background: rgba(248,81,73,.08); display: block; padding: 0 4px; border-radius: 2px; margin: 1px 0; }
+    .diff-add { color: #56d364; background: rgba(63,185,80,.08);  display: block; padding: 0 4px; border-radius: 2px; margin: 1px 0; }
+    .diff-ctx { color: var(--text2); display: block; padding: 0 4px; }
+
+    /* ── Rule box ─────────────────────────────────────── */
+    .rule-box {
+      background: linear-gradient(135deg, rgba(188,140,255,.05), rgba(88,166,255,.04));
+      border: 1px solid rgba(188,140,255,.2);
+      border-radius: var(--radius); padding: 16px 20px; margin-top: 14px;
+    }
+    .rule-box .rule-label {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .6px; color: var(--purple); margin-bottom: 8px;
+    }
+    .rule-box .rule-text { font-size: 13.5px; color: var(--text2); line-height: 1.7; }
+    .rule-box .rule-text strong { color: var(--purple); }
+
+    /* ── Flow diagram ─────────────────────────────────── */
+    .flow {
+      display: flex; flex-direction: column; gap: 0;
+      border: 1px solid var(--border); border-radius: var(--radius-lg);
+      overflow: hidden; margin: 12px 0;
+    }
+    .flow-step {
+      display: flex; align-items: stretch;
+      border-bottom: 1px solid var(--border);
+    }
+    .flow-step:last-child { border-bottom: none; }
+    .flow-num {
+      width: 44px; min-width: 44px;
+      background: var(--bg3); color: var(--text3);
+      font-size: 11px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      border-right: 1px solid var(--border);
+    }
+    .flow-body {
+      flex: 1; padding: 12px 16px; background: var(--bg2);
+      font-size: 13px; color: var(--text2);
+    }
+    .flow-body strong { color: var(--text); }
+    .flow-body code {
+      font-family: 'SF Mono', Consolas, monospace; font-size: 11.5px;
+      background: var(--bg3); border: 1px solid var(--border);
+      padding: 1px 5px; border-radius: 4px; color: var(--orange);
+    }
+    .flow-status {
+      display: flex; align-items: center;
+      padding: 0 14px; background: var(--bg2); font-size: 11px; font-weight: 600;
+      border-left: 1px solid var(--border); white-space: nowrap;
+    }
+    .flow-status.ok     { color: #56d364; }
+    .flow-status.warn   { color: #e3b341; }
+    .flow-status.err    { color: #ff7b72; }
+    .flow-status.skip   { color: var(--text3); }
+    .flow-step.highlight { background: rgba(248,81,73,.03); }
+    .flow-step.highlight .flow-body { background: rgba(248,81,73,.04); }
+    .flow-step.highlight .flow-num { background: rgba(248,81,73,.15); color: #ff7b72; }
+
+    /* ── Footer ───────────────────────────────────────── */
+    .footer {
+      margin-top: 60px; padding: 32px 0;
+      border-top: 1px solid var(--border);
+      text-align: center; color: var(--text3); font-size: 12.5px;
+    }
+    .footer strong { color: var(--text2); }
+
+    /* ── Scrollbar ────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 8px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    @media (max-width: 900px) {
+      .sidebar { display: none; }
+      .main { padding: 32px 24px; }
+      .diff-cols { grid-template-columns: 1fr; }
+      .hero { padding: 28px 24px; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+<!-- ════════════════════ SIDEBAR ════════════════════ -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">🔴</div>
+    <div class="logo-name">NexusCRM</div>
+    <div class="logo-sub">Login 500 Debug Guide</div>
+  </div>
+  <div class="status-pill">Under Investigation</div>
+
+  <div class="sidebar-section" style="margin-top:16px">Contents</div>
+  <a href="#symptom"  class="active"><span class="step-num">1</span>Symptom &amp; Impact</a>
+  <a href="#diagnosis"><span class="step-num">2</span>What the Error Means</a>
+  <a href="#pipeline"><span class="step-num">3</span>Pipeline Execution Order</a>
+  <a href="#audit"><span class="step-num">4</span>Full Pipeline Audit</a>
+  <a href="#getlogs"><span class="step-num">5</span>Get the Stack Trace</a>
+  <a href="#related"><span class="step-num">6</span>Related Fixed Issues</a>
+  <a href="#rules"><span class="step-num">7</span>Rules &amp; Takeaways</a>
+
+  <div class="sidebar-section" style="margin-top:auto; padding-top:16px; border-top:1px solid var(--border)">Issue Refs</div>
+  <a href="../debugging-log.html#issue-57">debugging-log #057 — AI boot crash (Fixed)</a>
+  <a href="../debugging-log.html#issue-58">debugging-log #058 — Login 500 (Open)</a>
+</nav>
+
+<!-- ════════════════════ MAIN ════════════════════ -->
+<main class="main">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-badge">🔴 Active Investigation — Issue #058</div>
+    <h1>Login Endpoint Returns <span>500</span><br/>Instead of 401</h1>
+    <p>
+      <code>POST /api/v1/auth/login</code> returns <code>500 "Database error occurred"</code>
+      for every request. The auth service itself is correct. The bug lives somewhere in the
+      NestJS HTTP pipeline. This guide documents the full investigation and the exact commands
+      to resolve it.
+    </p>
+    <div class="hero-tags">
+      <span class="tag">NestJS v10</span>
+      <span class="tag">Prisma</span>
+      <span class="tag">AsyncLocalStorage</span>
+      <span class="tag">AllExceptionsFilter</span>
+      <span class="tag">Docker — Hetzner</span>
+      <span class="tag">April 2026</span>
+    </div>
+  </div>
+
+  <!-- ── SYMPTOM ── -->
+  <section class="section" id="symptom">
+    <div class="section-header">
+      <div class="step-badge red">1</div>
+      <div class="section-title">Symptom &amp; Impact</div>
+    </div>
+
+    <div class="alert red">
+      <span class="alert-icon">🚨</span>
+      <div>
+        <div class="alert-title">Production — Login Completely Broken</div>
+        <div class="alert-body">
+          Every login attempt returns HTTP 500. No user can log in. The frontend shows
+          a generic network error. The expected response is 401 with
+          <code>"Invalid email or password"</code>.
+        </div>
+      </div>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header"><span class="code-lang">Observed HTTP response</span></div>
+      <pre>{
+  <span class="str">"success"</span>: <span class="kw">false</span>,
+  <span class="str">"statusCode"</span>: <span class="num-c">500</span>,
+  <span class="str">"message"</span>: <span class="str">"Database error occurred"</span>,   <span class="cmt">// ← the key clue</span>
+  <span class="str">"timestamp"</span>: <span class="str">"2026-04-07T..."</span>,
+  <span class="str">"path"</span>: <span class="str">"/api/v1/auth/login"</span>
+}
+
+<span class="cmt">Expected:</span>
+{
+  <span class="str">"statusCode"</span>: <span class="num-c">401</span>,
+  <span class="str">"message"</span>: <span class="str">"Invalid email or password"</span>
+}</pre>
+    </div>
+  </section>
+
+  <!-- ── DIAGNOSIS ── -->
+  <section class="section" id="diagnosis">
+    <div class="section-header">
+      <div class="step-badge red">2</div>
+      <div class="section-title">What "Database error occurred" Actually Means</div>
+    </div>
+
+    <div class="prose" style="margin-bottom:14px">
+      The message is not generic — it comes from <strong>exactly one code path</strong>
+      in the global exception filter. Understanding this immediately constrains the search space.
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-lang">src/common/filters/all-exceptions.filter.ts — mapPrismaError()</span>
+      </div>
+      <pre><span class="kw">private</span> <span class="fn">mapPrismaError</span>(exception: Prisma.PrismaClientKnownRequestError) {
+  <span class="kw">switch</span> (exception.code) {
+    <span class="kw">case</span> <span class="str">'P2002'</span>: <span class="kw">return</span> { status: <span class="num-c">409</span>, message: <span class="str">'A record with this field already exists'</span> };
+    <span class="kw">case</span> <span class="str">'P2025'</span>: <span class="kw">return</span> { status: <span class="num-c">404</span>, message: <span class="str">'Record not found'</span> };
+    <span class="kw">case</span> <span class="str">'P2003'</span>: <span class="kw">return</span> { status: <span class="num-c">400</span>, message: <span class="str">'Foreign key constraint failed'</span> };
+    <span class="kw">case</span> <span class="str">'P2014'</span>: <span class="kw">return</span> { status: <span class="num-c">400</span>, message: <span class="str">'Cannot delete — has related records'</span> };
+    <span class="kw">default</span>:
+      <span class="kw">return</span> { status: <span class="num-c">500</span>, message: <span class="err"><strong>'Database error occurred'</strong></span> }; <span class="cmt">// ← WE ARE HERE</span>
+  }
+}</pre>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="card-title">What this tells us:</div>
+      <div class="prose">
+        <ul>
+          <li>The exception IS a <code>Prisma.PrismaClientKnownRequestError</code> — not a plain Error, not an HttpException, not a DomainError</li>
+          <li>Its <code>.code</code> is <strong>not</strong> P2002, P2025, P2003, or P2014 — some other Prisma error code</li>
+          <li>In production, unhandled non-Prisma errors return <code>"An unexpected error occurred"</code> — so this <em>cannot</em> be that path</li>
+          <li>The <code>DomainError</code> check runs <strong>before</strong> the Prisma check — so <code>UnauthorizedError</code> is NOT being thrown (or its <code>instanceof</code> check is failing)</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="alert blue" style="margin-top:16px">
+      <span class="alert-icon">💡</span>
+      <div>
+        <div class="alert-title">Key exception filter order</div>
+        <div class="alert-body">
+          HttpException → DomainError → ZodError → <strong>PrismaClientKnownRequestError</strong> → PrismaClientValidationError → default<br/>
+          Reaching the Prisma branch means all three checks above it were <code>false</code>.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── PIPELINE ── -->
+  <section class="section" id="pipeline">
+    <div class="section-header">
+      <div class="step-badge">3</div>
+      <div class="section-title">HTTP Pipeline Execution Order for Login</div>
+    </div>
+
+    <div class="prose" style="margin-bottom:14px">
+      Every NestJS HTTP request for <code>POST /api/v1/auth/login</code> passes through
+      these layers in order. The Prisma error must be thrown by one of them.
+    </div>
+
+    <div class="flow">
+      <div class="flow-step">
+        <div class="flow-num">1</div>
+        <div class="flow-body"><strong>Express middleware: RequestIdMiddleware</strong> — Injects <code>X-Request-ID</code> header</div>
+        <div class="flow-status ok">✅ Cleared</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">2</div>
+        <div class="flow-body"><strong>Express middleware: TenantContextMiddleware</strong> — Excluded for <code>api/v1/auth/(.*)</code> routes via <code>.exclude()</code></div>
+        <div class="flow-status ok">✅ Cleared</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">3</div>
+        <div class="flow-body"><strong>Global Guard: JwtAuthGuard</strong> — Route is <code>@Public()</code>, returns <code>true</code> immediately — Passport strategy never invoked</div>
+        <div class="flow-status ok">✅ Cleared</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">4</div>
+        <div class="flow-body"><strong>Global Guard: ThrottlerGuard</strong> — Uses in-memory storage (<code>ThrottlerModule.forRoot</code> has no Redis storage configured), no Prisma calls</div>
+        <div class="flow-status ok">✅ Cleared</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">5</div>
+        <div class="flow-body"><strong>Global Interceptor: ResponseTransformInterceptor</strong> — Wraps successful responses in <code>{ success, data, timestamp }</code>. Error path is unaffected.</div>
+        <div class="flow-status ok">✅ Cleared</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">6</div>
+        <div class="flow-body"><strong>Global Pipe: ZodValidationPipe</strong> (no schema) — Passthrough. Param-level pipe validates <code>LoginSchema</code>; bad input → <code>BadRequestException</code> (400), not Prisma error.</div>
+        <div class="flow-status ok">✅ Cleared</div>
+      </div>
+      <div class="flow-step highlight">
+        <div class="flow-num">7</div>
+        <div class="flow-body"><strong>Controller handler: AuthController.login()</strong> → <code>AuthService.login()</code></div>
+        <div class="flow-status warn">⚠ Suspected</div>
+      </div>
+      <div class="flow-step highlight">
+        <div class="flow-num">8</div>
+        <div class="flow-body"><strong>Auth service layer</strong> — <code>authRepo.findByEmail()</code> → <code>withoutTenantScope()</code> → <code>prisma.user.findFirst()</code></div>
+        <div class="flow-status warn">⚠ Suspected</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">9</div>
+        <div class="flow-body"><strong>Global Exception Filter: AllExceptionsFilter</strong> — Catches the thrown error, maps it, logs stack trace</div>
+        <div class="flow-status err">→ Returns 500</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── AUDIT ── -->
+  <section class="section" id="audit">
+    <div class="section-header">
+      <div class="step-badge yellow">4</div>
+      <div class="section-title">Full Pipeline Audit Results</div>
+    </div>
+
+    <ul class="checklist">
+
+      <li>
+        <span class="chk-icon">✅</span>
+        <div class="chk-text"><strong>RequestIdMiddleware</strong> — Only sets <code>x-request-id</code> header. No database access.</div>
+        <span class="chk-status chk-cleared">Cleared</span>
+      </li>
+
+      <li>
+        <span class="chk-icon">✅</span>
+        <div class="chk-text"><strong>TenantContextMiddleware</strong> — Excluded for <code>api/v1/auth/(.*)</code>. Even if it ran: sets <code>tenantId: ''</code>, which <code>withoutTenantScope()</code> overrides with <code>null</code>.</div>
+        <span class="chk-status chk-cleared">Cleared</span>
+      </li>
+
+      <li>
+        <span class="chk-icon">✅</span>
+        <div class="chk-text"><strong>JwtAuthGuard</strong> — Checks <code>@Public()</code> via <code>Reflector</code>, returns <code>true</code> immediately. <code>super.canActivate()</code> is never reached. Passport's <code>JwtStrategy.validate()</code> is never called.</div>
+        <span class="chk-status chk-cleared">Cleared</span>
+      </li>
+
+      <li>
+        <span class="chk-icon">✅</span>
+        <div class="chk-text"><strong>ThrottlerGuard</strong> — Default in-memory storage. No Redis, no Prisma. Throws <code>ThrottlerException</code> (HttpException → 429) if rate-limited, which would be caught before Prisma check.</div>
+        <span class="chk-status chk-cleared">Cleared</span>
+      </li>
+
+      <li>
+        <span class="chk-icon">✅</span>
+        <div class="chk-text"><strong>ResponseTransformInterceptor</strong> — Only wraps successful response data. Errors are not intercepted here (NestJS exception filters handle errors, not interceptors).</div>
+        <span class="chk-status chk-cleared">Cleared</span>
+      </li>
+
+      <li>
+        <span class="chk-icon">✅</span>
+        <div class="chk-text"><strong>AuditLogInterceptor</strong> — NOT global. Only applied via <code>@UseInterceptors(AuditLogInterceptor)</code> on specific routes. Login route has no such decorator. Even if it ran, it skips when <code>!user?.tenantId</code>.</div>
+        <span class="chk-status chk-cleared">Cleared</span>
+      </li>
+
+      <li>
+        <span class="chk-icon">✅</span>
+        <div class="chk-text"><strong>ZodValidationPipe (global)</strong> — No schema → passthrough. Parameter-level pipe for <code>@Body</code> throws <code>BadRequestException</code> on invalid input → would produce 400, not 500.</div>
+        <span class="chk-status chk-cleared">Cleared</span>
+      </li>
+
+      <li>
+        <span class="chk-icon">✅</span>
+        <div class="chk-text"><strong>AuthService.login()</strong> — Directly tested via <code>docker exec crm_api node -e "..."</code> with ALS context set. Throws <code>UnauthorizedError</code> correctly for wrong credentials. Service itself is not the bug.</div>
+        <span class="chk-status chk-cleared">Cleared</span>
+      </li>
+
+      <li>
+        <span class="chk-icon">✅</span>
+        <div class="chk-text"><strong>AuthRepository.findByEmail()</strong> — Uses <code>withoutTenantScope()</code> which sets <code>tenantId: null</code> in ALS. Extension checks <code>!null === true</code> → bypasses scoping → calls raw <code>query(args)</code>.</div>
+        <span class="chk-status chk-cleared">Cleared</span>
+      </li>
+
+      <li>
+        <span class="chk-icon">✅</span>
+        <div class="chk-text"><strong>Prisma extension $allOperations</strong> — Bypasses tenant injection for: empty/null/undefined tenantId, and models in <code>UNSCOPED_MODELS</code> (Tenant, BillingInfo). <code>withoutTenantScope</code> guarantees null tenantId.</div>
+        <span class="chk-status chk-cleared">Cleared</span>
+      </li>
+
+      <li>
+        <span class="chk-icon">✅</span>
+        <div class="chk-text"><strong>DomainError instanceof check</strong> — <code>tsconfig.json</code> target is <strong>ES2021</strong>, so <code>new.target</code> is native. <code>Object.setPrototypeOf(this, new.target.prototype)</code> in <code>DomainError</code> correctly fixes the prototype chain. <code>instanceof</code> works.</div>
+        <span class="chk-status chk-cleared">Cleared</span>
+      </li>
+
+      <li>
+        <span class="chk-icon">✅</span>
+        <div class="chk-text"><strong>AllExceptionsFilter ordering</strong> — DomainError check is at line 88, Prisma check is at line 108. DomainError runs first. If UnauthorizedError were thrown, it would produce 401, not 500.</div>
+        <span class="chk-status chk-cleared">Cleared</span>
+      </li>
+
+      <li>
+        <span class="chk-icon">⚠️</span>
+        <div class="chk-text"><strong>Actual Prisma error code</strong> — Unknown. The code is not P2002/P2025/P2003/P2014. Could be P1001 (connection), P2016 (query parse), schema mismatch, or something else entirely. <strong>Must be read from the stack trace.</strong></div>
+        <span class="chk-status chk-open">Unknown</span>
+      </li>
+
+      <li>
+        <span class="chk-icon">⚠️</span>
+        <div class="chk-text"><strong>DB schema vs Prisma client mismatch</strong> — If a migration failed silently or the Prisma client was generated against a different schema version, queries could fail before generating SQL. This would explain why no SQL reaches Postgres.</div>
+        <span class="chk-status chk-open">Not ruled out</span>
+      </li>
+
+    </ul>
+  </section>
+
+  <!-- ── GET LOGS ── -->
+  <section class="section" id="getlogs">
+    <div class="section-header">
+      <div class="step-badge green">5</div>
+      <div class="section-title">Get the Stack Trace — End This in 5 Minutes</div>
+    </div>
+
+    <div class="alert green">
+      <span class="alert-icon">✅</span>
+      <div>
+        <div class="alert-title">AllExceptionsFilter Already Logs Everything</div>
+        <div class="alert-body">
+          Every 500 error logs <code>exception.message</code> and <code>exception.stack</code>
+          to the container's stdout. The stack trace will show the exact file, line, and Prisma code.
+          No code changes needed — just read the logs.
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Step 1 — SSH into the server</div>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre>ssh root@37.27.41.226</pre>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Step 2 — Trigger a login request</div>
+      <div class="prose" style="margin-bottom:8px">Any credentials will trigger the error — even wrong ones will reproduce the 500 if the bug is pre-auth-check. Even correct ones will if the bug is post-auth.</div>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre>curl -s -X POST http://localhost:3001/api/v1/auth/login \
+  -H <span class="str">"Content-Type: application/json"</span> \
+  -d <span class="str">'{"email":"test@test.com","password":"wrongpassword"}'</span> | jq .</pre>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Step 3 — Read the stack trace from container logs</div>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><span class="cmt"># Most recent 150 lines — the error log will be near the end</span>
+docker logs crm_api --tail=150 2>&amp;1
+
+<span class="cmt"># If logs are JSON, grep for the stack field</span>
+docker logs crm_api --tail=150 2>&amp;1 | grep -A 40 <span class="str">'"stack"'</span>
+
+<span class="cmt"># Or search for the auth path specifically</span>
+docker logs crm_api --tail=150 2>&amp;1 | grep -A 40 <span class="str">'auth/login'</span></pre>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Step 4 — Direct Prisma isolation test (no HTTP pipeline)</div>
+      <div class="prose" style="margin-bottom:8px">Tests whether the Prisma error is in <code>findFirst</code> itself, independent of NestJS.</div>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre>docker exec crm_api node -e <span class="str">"
+const { PrismaClient } = require('@prisma/client');
+const p = new PrismaClient();
+p.user.findFirst({ where: { email: 'test@test.com' } })
+  .then(r => {
+    console.log('Result:', r ? 'user found' : 'null (not found)');
+    p.\$disconnect();
+  })
+  .catch(e => {
+    console.log('ERROR type:', e.constructor.name);
+    console.log('ERROR code:', e.code);
+    console.log('ERROR msg:', e.message);
+    p.\$disconnect();
+  });
+"</span></pre>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Step 5 — Check for Prisma/DB schema mismatch</div>
+      <div class="prose" style="margin-bottom:8px">If the Prisma client schema doesn't match the live DB, queries fail before SQL is generated.</div>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre><span class="cmt"># Check migration status inside running container</span>
+docker exec crm_api npx prisma migrate status
+
+<span class="cmt"># Or check directly in the DB</span>
+docker exec crm_postgres psql -U crm_user -d crm_db \
+  -c "SELECT migration_name, finished_at FROM _prisma_migrations ORDER BY started_at DESC LIMIT 10;"</pre>
+      </div>
+    </div>
+
+    <div class="alert yellow" style="margin-top:20px">
+      <span class="alert-icon">⚠️</span>
+      <div>
+        <div class="alert-title">What to look for in the stack trace</div>
+        <div class="alert-body">
+          The stack trace will show: (1) <strong>the Prisma error code</strong> (e.g. P1001, P2016, P2034…),
+          (2) <strong>which file threw it</strong> (prisma.service.js line X, auth.repository.js line Y),
+          and (3) <strong>at what point in the auth flow</strong> (before or after the password check).
+          That's all that's needed to identify and fix the bug.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── RELATED ── -->
+  <section class="section" id="related">
+    <div class="section-header">
+      <div class="step-badge purple">6</div>
+      <div class="section-title">Related Fixed Issues (Same Session)</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Issue #057 — crm_api boot crash: OPENAI_API_KEY <span class="badge badge-fixed">Fixed</span></div>
+      <div class="prose" style="margin-bottom:12px">
+        <code>CopilotService</code> used <code>configService.getOrThrow('OPENAI_API_KEY')</code> which
+        crashes the whole app if the key is absent. Fixed by changing to <code>configService.get()</code>
+        with a null guard. AI features now degrade gracefully.
+      </div>
+      <div class="diff-block">
+        <div class="diff-header">src/modules/ai/copilot.service.ts</div>
+        <div class="diff-cols">
+          <div class="diff-col">
+            <div class="diff-col-label">Before (crashes on boot)</div>
+            <pre><span class="diff-del">this.openai = new OpenAI({</span>
+<span class="diff-del">  apiKey: config.getOrThrow('OPENAI_API_KEY')</span>
+<span class="diff-del">});</span></pre>
+          </div>
+          <div class="diff-col">
+            <div class="diff-col-label">After (graceful degradation)</div>
+            <pre><span class="diff-add">private readonly openai: OpenAI | null;</span>
+<span class="diff-add">const key = config.get&lt;string&gt;('OPENAI_API_KEY');</span>
+<span class="diff-add">this.openai = key ? new OpenAI({ apiKey: key }) : null;</span>
+<span class="diff-add">if (!key) this.logger.warn('AI disabled: no key');</span></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">CD Pipeline — .env Overwritten on Every Deploy <span class="badge badge-warning">Action Required</span></div>
+      <div class="prose">
+        <strong>Problem:</strong> The CD "Create .env on server" step (<code>cd.yml:127</code>) writes
+        a fresh <code>.env</code> from GitHub secrets on every deploy, overwriting any manual edits
+        (including manually added <code>OPENAI_API_KEY</code>).<br/><br/>
+        <strong>Also missing from CD pipeline:</strong> <code>PAYPAL_CLIENT_ID</code>,
+        <code>PAYPAL_CLIENT_SECRET</code>, <code>PAYPAL_MODE</code> — these are in the backend
+        but not in the CD's <code>dotenv</code> builder at <code>cd.yml:86-113</code>.<br/><br/>
+        <strong>Fix:</strong> Add all required keys as GitHub Actions secrets
+        (Repo → Settings → Secrets → Actions → New repository secret).
+      </div>
+    </div>
+  </section>
+
+  <!-- ── RULES ── -->
+  <section class="section" id="rules">
+    <div class="section-header">
+      <div class="step-badge purple">7</div>
+      <div class="section-title">Rules &amp; Takeaways</div>
+    </div>
+
+    <div class="rule-box">
+      <div class="rule-label">Rule 1 — Optional services must never use getOrThrow()</div>
+      <div class="rule-text">
+        <strong>getOrThrow()</strong> is for hard infrastructure (DB URL, JWT secrets). External APIs
+        (OpenAI, Stripe, Twilio, SendGrid) are optional — use <code>get()</code> with a null guard
+        and degrade gracefully. A missing OpenAI key should log a warning, not crash the entire app.
+      </div>
+    </div>
+
+    <div class="rule-box" style="margin-top:14px">
+      <div class="rule-label">Rule 2 — docker restart does NOT reload env_file</div>
+      <div class="rule-text">
+        Docker caches the environment at container <em>creation</em> time.
+        <code>docker restart crm_api</code> keeps the old env vars.
+        <strong>Always use <code>docker compose up -d --no-deps api</code></strong> after changing
+        <code>.env</code> — this recreates the container from the current <code>env_file</code>.
+      </div>
+    </div>
+
+    <div class="rule-box" style="margin-top:14px">
+      <div class="rule-label">Rule 3 — Read logs FIRST when service works but HTTP fails</div>
+      <div class="rule-text">
+        When a NestJS service passes unit/integration tests but the HTTP endpoint returns 500,
+        the bug is in a <strong>global provider</strong> (guard, interceptor, middleware, pipe)
+        that only runs in the HTTP request lifecycle. The global exception filter already logs
+        the full stack trace — <strong>check <code>docker logs</code> before any code inspection</strong>.
+        Stack trace = file + line + error code = instant root cause.
+      </div>
+    </div>
+
+    <div class="rule-box" style="margin-top:14px">
+      <div class="rule-label">Rule 4 — CD pipeline is the source of truth for production .env</div>
+      <div class="rule-text">
+        Never rely on manually edited server files surviving a deploy. Every deploy overwrites
+        <code>.env</code> from GitHub secrets. Add ALL required environment variables as GitHub Actions
+        secrets before deploying. The server file is ephemeral; the secret store is permanent.
+      </div>
+    </div>
+
+    <div class="rule-box" style="margin-top:14px">
+      <div class="rule-label">Rule 5 — withoutTenantScope() is the correct auth pattern</div>
+      <div class="rule-text">
+        Auth queries (login, register, token refresh) are cross-tenant by nature — a user's email
+        must be looked up without a tenant filter. All <code>AuthRepository</code> methods correctly
+        use <code>this.prisma.withoutTenantScope(() =&gt; ...)</code>, which sets
+        <code>tenantId: null</code> in ALS, causing the Prisma extension to bypass scoping entirely.
+        This pattern is verified and correct.
+      </div>
+    </div>
+
+  </section>
+
+  <footer class="footer">
+    <strong>NexusCRM — Login 500 Debug Guide</strong><br/>
+    Issue #058 — Under Investigation · April 2026<br/>
+    <span style="margin-top:6px; display:block;">See also: <a href="../debugging-log.html#issue-58" style="color:var(--accent)">debugging-log.html #058</a></span>
+  </footer>
+
+</main>
+</div>
+
+<script>
+  function copyCode(btn) {
+    const pre = btn.closest('.code-block').querySelector('pre');
+    navigator.clipboard.writeText(pre.innerText).then(() => {
+      btn.textContent = 'Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+    });
+  }
+
+  // Active sidebar link on scroll
+  const sections = document.querySelectorAll('.section');
+  const links = document.querySelectorAll('.sidebar a[href^="#"]');
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = '#' + entry.target.id;
+        links.forEach(l => l.classList.toggle('active', l.getAttribute('href') === id));
+      }
+    });
+  }, { rootMargin: '-20% 0px -65% 0px' });
+  sections.forEach(s => io.observe(s));
+</script>
+</body>
+</html>

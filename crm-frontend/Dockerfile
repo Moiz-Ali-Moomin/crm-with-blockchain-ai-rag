@@ -16,19 +16,29 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Ensure optional static assets directory always exists so COPY succeeds.
+# Ensure public exists
 RUN mkdir -p public
 
-# Build-time env (NEXT_PUBLIC_ vars must be available at build time)
-ARG NEXT_PUBLIC_API_URL=http://localhost:3001
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+# 🔥 BUILD-TIME ENV (REQUIRED)
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_APP_URL
 
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# 🔥 FAIL FAST if env missing (important)
+RUN test -n "$NEXT_PUBLIC_API_URL" || (echo "NEXT_PUBLIC_API_URL not set" && exit 1)
+
+# Debug (optional)
+RUN echo "API URL: $NEXT_PUBLIC_API_URL"
+RUN echo "APP URL: $NEXT_PUBLIC_APP_URL"
+
+# Build
 RUN npm run build
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Stage 3: runner — Next.js standalone output
+# Stage 3: runner
 # ─────────────────────────────────────────────────────────────────────────────
 FROM node:20-alpine AS runner
 WORKDIR /app
@@ -37,18 +47,18 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
 RUN addgroup --system --gid 1001 nodejs && \
-    adduser  --system --uid 1001 nextjs
+    adduser --system --uid 1001 nextjs
 
-# Next.js standalone build
-COPY --from=builder /app/public          ./public
+# Copy standalone build
+COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static     ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 USER nextjs
 
 EXPOSE 3000
 
 ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"
+ENV HOSTNAME=0.0.0.0
 
 CMD ["node", "server.js"]
