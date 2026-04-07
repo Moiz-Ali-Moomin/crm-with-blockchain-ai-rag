@@ -39,14 +39,16 @@ jobs:
             echo "[INFO] Navigating to project..."
             cd ${{ secrets.DEPLOY_PATH }}
 
-            echo "[INFO] Pulling latest code..."
-            git pull origin main
+            echo "[INFO] Forcing clean git state..."
+            git fetch origin main
+            git reset --hard origin/main
+            git clean -fd
 
             echo "[INFO] Saving backup images..."
             docker tag crm-with-blockchain-rag-api:latest crm-api-backup || true
             docker tag crm-with-blockchain-rag-web:latest crm-web-backup || true
 
-            echo "[INFO] Building & starting containers (zero downtime)..."
+            echo "[INFO] Building & starting containers..."
             docker compose up -d --build
 
             echo "[INFO] Waiting for API to be ready..."
