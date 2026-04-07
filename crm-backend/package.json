@@ -1,10 +1,10 @@
 {
   "name": "crm-backend",
   "version": "1.0.0",
-  "description": "Production-grade CRM SaaS Backend (NestJS + Prisma + PostgreSQL + Redis)",
+  "description": "Production-grade CRM SaaS Backend (NestJS + Prisma + PostgreSQL + Reseeddis)",
   "scripts": {
     "build": "nest build",
-    "start": "node dist/main",
+    "start": "node dist/src/main.js",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\"",
@@ -17,7 +17,7 @@
     "prisma:deploy": "prisma migrate deploy",
     "prisma:generate": "prisma generate",
     "prisma:studio": "prisma studio",
-    "seed": "ts-node prisma/seed.ts"
+    "seed": "node dist/prisma/seed.js"
   },
   "dependencies": {
     "@nestjs/bullmq": "^10.1.1",
