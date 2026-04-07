@@ -42,23 +42,42 @@ jobs:
             echo "[INFO] Pulling latest code..."
             git pull origin main
 
-            echo "[INFO] Stopping old containers..."
-            docker compose down
+            echo "[INFO] Saving backup images..."
+            docker tag crm-with-blockchain-rag-api:latest crm-api-backup || true
+            docker tag crm-with-blockchain-rag-web:latest crm-web-backup || true
 
-            echo "[INFO] Building containers (no cache)..."
-            docker compose build --no-cache
-
-            echo "[INFO] Starting containers..."
-            docker compose up -d
+            echo "[INFO] Building & starting containers (zero downtime)..."
+            docker compose up -d --build
 
             echo "[INFO] Waiting for API to be ready..."
-            sleep 15
+
+            SUCCESS=0
+            for i in {1..12}; do
+              if curl -f http://localhost:3001/api/v1/health; then
+                echo "✅ API is up"
+                SUCCESS=1
+                break
+              fi
+              echo "⏳ Attempt $i failed, retrying in 5s..."
+              sleep 5
+            done
+
+            if [ "$SUCCESS" != "1" ]; then
+              echo "❌ Deployment failed, rolling back..."
+
+              docker compose down
+
+              docker tag crm-api-backup crm-with-blockchain-rag-api:latest || true
+              docker tag crm-web-backup crm-with-blockchain-rag-web:latest || true
+
+              docker compose up -d
+
+              echo "⚠️ Rolled back to previous version"
+              exit 1
+            fi
 
             echo "[INFO] Running containers:"
             docker ps
-
-            echo "[INFO] Checking API..."
-            curl -f http://localhost:3001/api/v1/health
 
             echo "[INFO] Latest commit:"
             git log -1 --oneline
