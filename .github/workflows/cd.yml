@@ -17,6 +17,7 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     if: >-
       github.event_name == 'workflow_dispatch' ||
@@ -35,50 +36,63 @@ jobs:
           script: |
             set -e
 
-            echo "[INFO] Navigating to project..."
+            echo "🚀 Starting deployment..."
+
+            echo "[1/8] Go to project directory"
             cd /opt/crm-with-blockchain-rag
 
-            echo "[INFO] Forcing clean git state..."
+            echo "[2/8] Sync latest code"
             git fetch origin main
             git reset --hard origin/main
             git clean -fd
 
-            echo "[INFO] Saving backup images..."
+            echo "[3/8] Backup current images"
             docker tag crm-with-blockchain-rag-api:latest crm-api-backup || true
             docker tag crm-with-blockchain-rag-web:latest crm-web-backup || true
 
-            echo "[INFO] Building & starting containers..."
+            echo "[4/8] Build & start containers"
+            docker compose down
             docker compose up -d --build
 
-            echo "[INFO] Waiting for API to be ready..."
+            echo "[5/8] Wait for API (via HTTPS + Nginx)"
             SUCCESS=0
 
             for i in {1..30}; do
-              if curl -k -f https://bestpurchasestore.com/api/v1/health; then
-                echo "✅ API is up"
+              if curl -f --max-time 5 https://bestpurchasestore.com/api/v1/health > /dev/null; then
+                echo "✅ API is healthy"
                 SUCCESS=1
                 break
               fi
-              echo "⏳ Attempt $i failed, retrying in 5s..."
+              echo "⏳ Attempt $i/30 failed... retrying in 5s"
               sleep 5
             done
 
             if [ "$SUCCESS" != "1" ]; then
-              echo "❌ Deployment failed, rolling back..."
+              echo "❌ Deployment failed! Starting rollback..."
 
+              echo "[ROLLBACK] Stopping current containers"
               docker compose down
 
+              echo "[ROLLBACK] Restoring previous images"
               docker tag crm-api-backup crm-with-blockchain-rag-api:latest || true
               docker tag crm-web-backup crm-with-blockchain-rag-web:latest || true
 
+              echo "[ROLLBACK] Restarting old version"
               docker compose up -d
 
-              echo "⚠️ Rolled back to previous version"
+              echo "[ROLLBACK] Showing logs"
+              docker compose logs --tail=100
+
               exit 1
             fi
 
-            echo "[INFO] Running containers:"
-            docker ps
+            echo "[6/8] Deployment successful 🎉"
 
-            echo "[INFO] Latest commit:"
+            echo "[7/8] Cleaning unused Docker resources"
+            docker system prune -af --volumes || true
+
+            echo "[8/8] Status"
+            docker ps
             git log -1 --oneline
+
+            echo "✅ Deployment completed successfully!"
