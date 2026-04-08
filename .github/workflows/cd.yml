@@ -30,16 +30,16 @@ jobs:
       - name: Deploy to Server via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: root
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
             set -e
 
             echo "🚀 Starting deployment..."
 
             echo "[1/8] Go to project directory"
-            cd /opt/crm-with-blockchain-rag
+            cd ${{ secrets.DEPLOY_PATH }}
 
             echo "[2/8] Sync latest code"
             git fetch origin main
@@ -70,17 +70,17 @@ jobs:
             if [ "$SUCCESS" != "1" ]; then
               echo "❌ Deployment failed! Starting rollback..."
 
-              echo "[ROLLBACK] Stopping current containers"
+              echo "[ROLLBACK] Stopping containers"
               docker compose down
 
               echo "[ROLLBACK] Restoring previous images"
               docker tag crm-api-backup crm-with-blockchain-rag-api:latest || true
               docker tag crm-web-backup crm-with-blockchain-rag-web:latest || true
 
-              echo "[ROLLBACK] Restarting old version"
+              echo "[ROLLBACK] Restarting previous version"
               docker compose up -d
 
-              echo "[ROLLBACK] Showing logs"
+              echo "[ROLLBACK] Logs"
               docker compose logs --tail=100
 
               exit 1
