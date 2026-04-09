@@ -11,7 +11,6 @@ import { useState } from 'react';
 import { useAuthStore } from '@/store/auth.store';
 import { notificationsApi } from '@/lib/api/notifications.api';
 import { authApi } from '@/lib/api/auth.api';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { queryKeys } from '@/lib/query/query-keys';
 import {
   DropdownMenu,
@@ -29,22 +28,22 @@ interface NavbarProps {
 }
 
 const breadcrumbMap: Record<string, string> = {
-  '/dashboard':        'Dashboard',
-  '/leads':            'Leads',
-  '/contacts':         'Contacts',
-  '/companies':        'Companies',
-  '/deals':            'Deals',
-  '/pipeline':         'Pipeline',
-  '/tickets':          'Tickets',
-  '/activities':       'Activities',
-  '/tasks':            'Tasks',
-  '/communications':   'Communications',
-  '/automation':       'Workflows',
-  '/analytics':        'Analytics',
-  '/notifications':    'Notifications',
-  '/settings':         'Settings',
-  '/settings/team':    'Team',
-  '/ai':               'AI Copilot',
+  '/dashboard':       'Dashboard',
+  '/leads':           'Leads',
+  '/contacts':        'Contacts',
+  '/companies':       'Companies',
+  '/deals':           'Deals',
+  '/pipeline':        'Pipeline',
+  '/tickets':         'Tickets',
+  '/activities':      'Activities',
+  '/tasks':           'Tasks',
+  '/communications':  'Communications',
+  '/automation':      'Workflows',
+  '/analytics':       'Analytics',
+  '/notifications':   'Notifications',
+  '/settings':        'Settings',
+  '/settings/team':   'Team',
+  '/ai':              'AI Copilot',
 };
 
 function resolvePageTitle(pathname: string): string {
@@ -86,16 +85,12 @@ export function Navbar({ onMenuToggle }: NavbarProps) {
   };
 
   return (
-    <header className="glass-navbar h-16 flex items-center justify-between px-5 shrink-0 sticky top-0 z-30">
-      {/* Left: hamburger + breadcrumb */}
+    <header className="bg-white border-b border-gray-200 h-14 flex items-center justify-between px-5 shrink-0 sticky top-0 z-30">
+      {/* Left: hamburger + page title */}
       <div className="flex items-center gap-3">
         <button
           onClick={onMenuToggle}
-          className={cn(
-            'w-8 h-8 rounded-lg flex items-center justify-center',
-            'text-white/50 hover:text-white hover:bg-white/8',
-            'transition-all duration-150',
-          )}
+          className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-all duration-150"
           aria-label="Toggle sidebar"
         >
           <svg width="16" height="12" viewBox="0 0 16 12" fill="none">
@@ -105,9 +100,9 @@ export function Navbar({ onMenuToggle }: NavbarProps) {
           </svg>
         </button>
 
-        <div className="h-4 w-px bg-white/10" />
+        <div className="h-4 w-px bg-gray-200" />
 
-        <h1 className="text-sm font-semibold text-white/80 tracking-tight">
+        <h1 className="text-sm font-semibold text-gray-800 tracking-tight">
           {pageTitle}
         </h1>
       </div>
@@ -118,14 +113,14 @@ export function Navbar({ onMenuToggle }: NavbarProps) {
         <button
           className={cn(
             'hidden md:flex items-center gap-2 px-3 h-8 rounded-lg w-56',
-            'bg-gray-800/80 border border-gray-700/60 hover:border-gray-600',
-            'text-gray-500 hover:text-gray-400',
+            'bg-gray-100 border border-gray-200 hover:border-gray-300',
+            'text-gray-400 hover:text-gray-500',
             'transition-all duration-150',
           )}
         >
           <Search size={13} className="shrink-0" />
           <span className="flex-1 text-left text-xs truncate">Search or ask AI…</span>
-          <div className="flex items-center gap-0.5 shrink-0 opacity-50">
+          <div className="flex items-center gap-0.5 shrink-0 opacity-60">
             <Command size={10} />
             <span className="text-[11px]">K</span>
           </div>
@@ -135,7 +130,7 @@ export function Navbar({ onMenuToggle }: NavbarProps) {
         <button
           className={cn(
             'hidden sm:flex items-center gap-1.5 px-3 h-8 rounded-lg',
-            'bg-blue-600 hover:bg-blue-500 text-white',
+            'bg-blue-600 hover:bg-blue-700 text-white',
             'text-xs font-semibold',
             'transition-colors duration-150',
           )}
@@ -150,8 +145,8 @@ export function Navbar({ onMenuToggle }: NavbarProps) {
             onClick={() => router.push('/notifications')}
             className={cn(
               'relative w-8 h-8 rounded-lg flex items-center justify-center',
-              'text-white/50 hover:text-white hover:bg-white/8',
-              'transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20',
+              'text-gray-400 hover:text-gray-700 hover:bg-gray-100',
+              'transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30',
             )}
           >
             <Bell size={16} strokeWidth={1.8} />
@@ -162,13 +157,7 @@ export function Navbar({ onMenuToggle }: NavbarProps) {
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   exit={{ scale: 0 }}
-                  className={cn(
-                    'absolute -top-0.5 -right-0.5',
-                    'min-w-[16px] h-4 px-0.5',
-                    'bg-blue-600',
-                    'text-white text-[9px] font-bold rounded-full',
-                    'flex items-center justify-center',
-                  )}
+                  className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-0.5 bg-blue-600 text-white text-[9px] font-bold rounded-full flex items-center justify-center"
                 >
                   {unreadCount > 99 ? '99+' : unreadCount}
                 </motion.span>
@@ -178,42 +167,43 @@ export function Navbar({ onMenuToggle }: NavbarProps) {
         </div>
 
         {/* Separator */}
-        <div className="h-4 w-px bg-white/10 mx-1" />
+        <div className="h-4 w-px bg-gray-200 mx-1" />
 
         {/* User dropdown */}
         <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
           <DropdownMenuTrigger asChild>
             <button
               className={cn(
-                'flex items-center gap-2 rounded-xl border border-transparent pl-1.5 pr-2.5 py-1',
-                'text-left transition-all duration-150 group',
-                'hover:border-white/10 hover:bg-white/6',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 focus-visible:ring-offset-0',
-                'data-[state=open]:border-white/12 data-[state=open]:bg-white/8',
+                'flex items-center gap-2 rounded-lg border border-transparent pl-1.5 pr-2.5 py-1',
+                'text-left transition-all duration-150',
+                'hover:border-gray-200 hover:bg-gray-100',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30',
+                'data-[state=open]:border-gray-200 data-[state=open]:bg-gray-100',
               )}
               aria-label="Open user menu"
             >
+              {/* Avatar */}
               <div className="relative">
-                <Avatar className="h-8 w-8 ring-1 ring-white/10">
-                  <AvatarFallback className="bg-blue-600 text-[11px] font-bold text-white">
-                    {initials}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-slate-950 bg-emerald-400" />
+                <div className="h-7 w-7 rounded-full bg-blue-600 flex items-center justify-center text-white text-[11px] font-bold ring-1 ring-gray-200">
+                  {initials}
+                </div>
+                <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-emerald-400" />
               </div>
+
               <div className="hidden min-w-0 sm:block">
-                <p className="truncate text-[13px] font-medium text-white/78 transition-colors group-hover:text-white">
+                <p className="truncate text-[13px] font-medium text-gray-700">
                   {user?.firstName} {user?.lastName}
                 </p>
-                <p className="truncate text-[11px] text-slate-400">
+                <p className="truncate text-[11px] text-gray-400">
                   {user?.role ? parseEnumLabel(user.role) : 'User'}
                 </p>
               </div>
+
               <ChevronDown
                 size={12}
                 strokeWidth={2.5}
                 className={cn(
-                  'text-white/35 transition-transform duration-200',
+                  'text-gray-400 transition-transform duration-200',
                   dropdownOpen && 'rotate-180',
                 )}
               />
@@ -225,51 +215,53 @@ export function Navbar({ onMenuToggle }: NavbarProps) {
             side="bottom"
             sideOffset={10}
             collisionPadding={12}
-            className="z-[90]"
+            className="z-[90] w-56 bg-white border border-gray-200 shadow-lg rounded-xl p-1"
           >
-            <div className="rounded-[18px] bg-white/[0.03] p-1">
-              <DropdownMenuLabel className="px-3 pb-3 pt-2 normal-case tracking-normal text-inherit">
-                <div className="flex items-start gap-3">
-                  <Avatar className="mt-0.5 h-10 w-10 ring-1 ring-white/10">
-                    <AvatarFallback className="bg-blue-600 text-xs font-semibold text-white">
-                      {initials}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="min-w-0 flex-1 space-y-1">
-                    <p className="truncate text-sm font-semibold text-white">
-                      {user?.firstName} {user?.lastName}
-                    </p>
-                    <p className="truncate text-xs text-slate-400">{user?.email}</p>
-                    <span className="inline-flex items-center rounded-full border border-violet-400/15 bg-violet-500/12 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-200/90">
-                      {user?.role ? parseEnumLabel(user.role) : 'User'}
-                    </span>
-                  </div>
+            <DropdownMenuLabel className="px-3 pb-3 pt-2 normal-case tracking-normal text-inherit">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 h-9 w-9 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-semibold shrink-0">
+                  {initials}
                 </div>
-              </DropdownMenuLabel>
+                <div className="min-w-0 flex-1 space-y-0.5">
+                  <p className="truncate text-sm font-semibold text-gray-900">
+                    {user?.firstName} {user?.lastName}
+                  </p>
+                  <p className="truncate text-xs text-gray-500">{user?.email}</p>
+                  <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-blue-600">
+                    {user?.role ? parseEnumLabel(user.role) : 'User'}
+                  </span>
+                </div>
+              </div>
+            </DropdownMenuLabel>
 
-              <DropdownMenuSeparator />
+            <DropdownMenuSeparator className="bg-gray-100" />
 
-              <DropdownMenuGroup>
-                <DropdownMenuItem onSelect={() => router.push('/settings')}>
-                  <User size={15} strokeWidth={1.9} className="text-slate-400" />
-                  <span className="flex-1">Profile</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => router.push('/settings')}>
-                  <Settings size={15} strokeWidth={1.9} className="text-slate-400" />
-                  <span className="flex-1">Settings</span>
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-
-              <DropdownMenuSeparator />
-
+            <DropdownMenuGroup>
               <DropdownMenuItem
-                onSelect={handleLogout}
-                className="text-rose-300 hover:bg-rose-500/10 hover:text-rose-200 focus:bg-rose-500/12 focus:text-rose-100"
+                onSelect={() => router.push('/settings')}
+                className="text-gray-700 hover:bg-gray-100 rounded-lg"
               >
-                <LogOut size={15} strokeWidth={1.9} className="text-rose-300/90" />
-                <span className="flex-1">Sign out</span>
+                <User size={15} strokeWidth={1.9} className="text-gray-400" />
+                <span className="flex-1">Profile</span>
               </DropdownMenuItem>
-            </div>
+              <DropdownMenuItem
+                onSelect={() => router.push('/settings')}
+                className="text-gray-700 hover:bg-gray-100 rounded-lg"
+              >
+                <Settings size={15} strokeWidth={1.9} className="text-gray-400" />
+                <span className="flex-1">Settings</span>
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+
+            <DropdownMenuSeparator className="bg-gray-100" />
+
+            <DropdownMenuItem
+              onSelect={handleLogout}
+              className="text-rose-600 hover:bg-rose-50 focus:bg-rose-50 rounded-lg"
+            >
+              <LogOut size={15} strokeWidth={1.9} className="text-rose-400" />
+              <span className="flex-1">Sign out</span>
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

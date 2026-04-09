@@ -44,28 +44,14 @@
 
   body {
     @apply antialiased;
-    background: linear-gradient(135deg, #0f172a 0%, #1e1035 50%, #0f172a 100%);
-    background-attachment: fixed;
+    background: #F9FAFB;
     min-height: 100vh;
-    color: rgba(248, 250, 252, 0.92);
+    color: #111827;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 
   h1, h2, h3, h4, h5, h6 {
     @apply font-semibold tracking-tight;
-  }
-
-  /* Ambient orb background — rendered once, never re-painted */
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    z-index: -1;
-    background:
-      radial-gradient(ellipse 80% 50% at 20% 10%, rgba(139, 92, 246, 0.18) 0%, transparent 60%),
-      radial-gradient(ellipse 60% 40% at 80% 80%, rgba(59, 130, 246, 0.14) 0%, transparent 60%),
-      radial-gradient(ellipse 40% 30% at 60% 30%, rgba(168, 85, 247, 0.10) 0%, transparent 50%);
-    pointer-events: none;
   }
 
   ::-webkit-scrollbar {
@@ -78,12 +64,12 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.12);
+    background: #D1D5DB;
     border-radius: 99px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.22);
+    background: #9CA3AF;
   }
 }
 
@@ -106,20 +92,16 @@
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.10);
   }
 
-  /* Sidebar — denser blur to anchor the navigation */
+  /* Sidebar */
   .glass-sidebar {
-    background: rgba(15, 23, 42, 0.72);
-    backdrop-filter: blur(32px);
-    -webkit-backdrop-filter: blur(32px);
-    border-right: 1px solid rgba(255, 255, 255, 0.08);
+    background: #ffffff;
+    border-right: 1px solid #E5E7EB;
   }
 
-  /* Navbar — semi-transparent top bar */
+  /* Navbar */
   .glass-navbar {
-    background: rgba(15, 23, 42, 0.55);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    background: #ffffff;
+    border-bottom: 1px solid #E5E7EB;
   }
 
   /* Purple-tinted glass — for accented stat cards */
@@ -201,12 +183,9 @@
     box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.35);
   }
 
-  /* Neon sidebar active glow */
+  /* Sidebar active state — flat, no glow */
   .nav-active-glow {
-    box-shadow:
-      0 0 10px rgba(139, 92, 246, 0.45),
-      0 0 20px rgba(139, 92, 246, 0.20),
-      inset 0 0 8px rgba(139, 92, 246, 0.08);
+    box-shadow: none;
   }
 
   /* Cyan accent for charts / highlights */
@@ -227,13 +206,13 @@
     to   { transform: translateX(0);    opacity: 1; }
   }
 
-  /* Row hover glass */
+  /* Row hover */
   .row-hover {
     @apply transition-all duration-150;
   }
   .row-hover:hover {
-    background: rgba(255, 255, 255, 0.04);
-    border-color: rgba(255, 255, 255, 0.10);
+    background: #F9FAFB;
+    border-color: #E5E7EB;
   }
 }
 

@@ -23,9 +23,9 @@ function AreaTooltip({
 }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-[#111827] border border-gray-700/80 rounded-lg px-3 py-2 shadow-xl">
-      <p className="text-gray-400 text-[11px] mb-1">{label}</p>
-      <p className="text-white text-sm font-semibold">{formatCurrency(payload[0].value)}</p>
+    <div className="bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-md">
+      <p className="text-gray-500 text-[11px] mb-1">{label}</p>
+      <p className="text-gray-900 text-sm font-semibold">{formatCurrency(payload[0].value)}</p>
     </div>
   );
 }
@@ -38,7 +38,7 @@ function ChartSkeleton() {
       {[60, 80, 45, 90, 70, 55, 85, 40, 75, 65, 50, 88].map((h, i) => (
         <div
           key={i}
-          className="flex-1 bg-gray-700/40 rounded-t-sm animate-pulse"
+          className="flex-1 bg-gray-100 rounded-t-sm animate-pulse"
           style={{ height: `${h}%`, animationDelay: `${i * 0.04}s` }}
         />
       ))}
@@ -60,13 +60,13 @@ function ChartCard({
   badge?: React.ReactNode;
 }) {
   return (
-    <div className="bg-[#1f2937] border border-gray-700/60 rounded-xl p-5">
+    <div className="bg-white border border-gray-200 rounded-xl p-5">
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-2">
-          <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-400">
+          <div className="p-1.5 rounded-lg bg-blue-50 text-blue-600">
             {icon}
           </div>
-          <span className="text-sm font-semibold text-white">{title}</span>
+          <span className="text-sm font-semibold text-gray-900">{title}</span>
         </div>
         {badge}
       </div>
@@ -87,12 +87,12 @@ function RevenueChart() {
     <ChartCard
       title="Revenue"
       icon={<TrendingUp size={14} strokeWidth={2} />}
-      badge={<span className="text-[11px] text-gray-500 font-medium">12 months</span>}
+      badge={<span className="text-[11px] text-gray-400 font-medium">12 months</span>}
     >
       {isLoading ? (
         <ChartSkeleton />
       ) : !data?.length ? (
-        <div className="h-52 flex items-center justify-center text-gray-500 text-sm">
+        <div className="h-52 flex items-center justify-center text-gray-400 text-sm">
           No revenue data yet
         </div>
       ) : (
@@ -100,30 +100,30 @@ function RevenueChart() {
           <AreaChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
             <defs>
               <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%"  stopColor="#3b82f6" stopOpacity={0.25} />
+                <stop offset="5%"  stopColor="#3b82f6" stopOpacity={0.15} />
                 <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
               </linearGradient>
             </defs>
             <CartesianGrid
               strokeDasharray="3 3"
-              stroke="rgba(75,85,99,0.35)"
+              stroke="#F3F4F6"
               vertical={false}
             />
             <XAxis
               dataKey="month"
-              tick={{ fill: '#6b7280', fontSize: 11 }}
+              tick={{ fill: '#9CA3AF', fontSize: 11 }}
               axisLine={false}
               tickLine={false}
             />
             <YAxis
-              tick={{ fill: '#6b7280', fontSize: 11 }}
+              tick={{ fill: '#9CA3AF', fontSize: 11 }}
               axisLine={false}
               tickLine={false}
               tickFormatter={(v: number) => `$${(v / 1000).toFixed(0)}k`}
             />
             <Tooltip
               content={<AreaTooltip />}
-              cursor={{ stroke: 'rgba(59,130,246,0.15)', strokeWidth: 1 }}
+              cursor={{ stroke: 'rgba(59,130,246,0.12)', strokeWidth: 1 }}
             />
             <Area
               type="monotone"
@@ -156,7 +156,7 @@ function PipelineChart() {
     >
       {isLoading ? (
         <div className="h-52 flex items-center justify-center">
-          <Loader2 size={20} className="text-gray-600 animate-spin" />
+          <Loader2 size={20} className="text-gray-300 animate-spin" />
         </div>
       ) : (
         <PipelineFunnelChart data={data ?? []} height={208} />

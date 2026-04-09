@@ -5,9 +5,7 @@
 
 function Shimmer({ className = '' }: { className?: string }) {
   return (
-    <div
-      className={`animate-pulse bg-gray-700/40 rounded-lg ${className}`}
-    />
+    <div className={`animate-pulse bg-gray-200 rounded-lg ${className}`} />
   );
 }
 
@@ -21,15 +19,15 @@ export default function DashboardLoading() {
           {Array.from({ length: 4 }).map((_, i) => (
             <div
               key={i}
-              className="bg-[#1f2937] border border-gray-700/60 rounded-xl p-5 animate-pulse"
+              className="bg-white border border-gray-200 rounded-xl p-5 animate-pulse"
               style={{ animationDelay: `${i * 0.06}s` }}
             >
               <div className="flex items-start justify-between mb-4">
-                <div className="h-2.5 w-20 bg-gray-700/60 rounded-full" />
-                <div className="w-8 h-8 rounded-lg bg-gray-700/60" />
+                <div className="h-2.5 w-20 bg-gray-200 rounded-full" />
+                <div className="w-8 h-8 rounded-lg bg-gray-100" />
               </div>
-              <div className="h-7 w-24 bg-gray-700/60 rounded-md mb-3" />
-              <div className="h-2.5 w-28 bg-gray-700/40 rounded-full" />
+              <div className="h-7 w-24 bg-gray-200 rounded-md mb-3" />
+              <div className="h-2.5 w-28 bg-gray-100 rounded-full" />
             </div>
           ))}
         </div>
@@ -44,21 +42,21 @@ export default function DashboardLoading() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {/* Revenue skeleton */}
               <div
-                className="bg-[#1f2937] border border-gray-700/60 rounded-xl p-5 animate-pulse"
+                className="bg-white border border-gray-200 rounded-xl p-5 animate-pulse"
                 style={{ animationDelay: '0.25s' }}
               >
                 <div className="flex items-center justify-between mb-5">
                   <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg bg-gray-700/60" />
-                    <div className="h-2.5 w-16 bg-gray-700/60 rounded-full" />
+                    <div className="w-7 h-7 rounded-lg bg-gray-100" />
+                    <div className="h-2.5 w-16 bg-gray-200 rounded-full" />
                   </div>
-                  <div className="h-2 w-14 bg-gray-700/40 rounded-full" />
+                  <div className="h-2 w-14 bg-gray-100 rounded-full" />
                 </div>
                 <div className="h-52 flex items-end gap-1.5">
                   {[55, 70, 45, 88, 60, 75, 50, 90, 65, 80, 48, 85].map((h, i) => (
                     <div
                       key={i}
-                      className="flex-1 rounded-t-sm bg-blue-500/10"
+                      className="flex-1 rounded-t-sm bg-blue-50"
                       style={{ height: `${h}%` }}
                     />
                   ))}
@@ -67,19 +65,19 @@ export default function DashboardLoading() {
 
               {/* Pipeline skeleton */}
               <div
-                className="bg-[#1f2937] border border-gray-700/60 rounded-xl p-5 animate-pulse"
+                className="bg-white border border-gray-200 rounded-xl p-5 animate-pulse"
                 style={{ animationDelay: '0.35s' }}
               >
                 <div className="flex items-center gap-2 mb-5">
-                  <div className="w-7 h-7 rounded-lg bg-gray-700/60" />
-                  <div className="h-2.5 w-20 bg-gray-700/60 rounded-full" />
+                  <div className="w-7 h-7 rounded-lg bg-gray-100" />
+                  <div className="h-2.5 w-20 bg-gray-200 rounded-full" />
                 </div>
                 <div className="h-52 space-y-3 pt-2">
                   {[85, 65, 50, 35, 20].map((w, i) => (
                     <div key={i} className="flex items-center gap-2">
-                      <div className="h-2 w-16 bg-gray-700/40 rounded-full" />
+                      <div className="h-2 w-16 bg-gray-100 rounded-full" />
                       <div
-                        className="h-6 bg-blue-500/10 rounded-sm"
+                        className="h-6 bg-blue-50 rounded-sm"
                         style={{ width: `${w}%` }}
                       />
                     </div>
@@ -95,22 +93,22 @@ export default function DashboardLoading() {
 
             {/* Tasks skeleton */}
             <div
-              className="bg-[#1f2937] border border-gray-700/60 rounded-xl p-5 animate-pulse"
+              className="bg-white border border-gray-200 rounded-xl p-5 animate-pulse"
               style={{ animationDelay: '0.4s' }}
             >
               <div className="flex items-center justify-between mb-4">
-                <div className="h-3 w-28 bg-gray-700/60 rounded-full" />
-                <div className="h-4 w-5 bg-gray-700/40 rounded-full" />
+                <div className="h-3 w-28 bg-gray-200 rounded-full" />
+                <div className="h-4 w-5 bg-gray-100 rounded-full" />
               </div>
               <div className="space-y-3">
                 {Array.from({ length: 4 }).map((_, i) => (
                   <div key={i} className="flex items-center gap-3 py-1">
-                    <div className="w-4 h-4 rounded border border-gray-700" />
+                    <div className="w-4 h-4 rounded border border-gray-200" />
                     <div className="flex-1 space-y-1.5">
-                      <div className="h-2.5 bg-gray-700/60 rounded-full w-4/5" />
-                      <div className="h-2 bg-gray-700/40 rounded-full w-2/5" />
+                      <div className="h-2.5 bg-gray-200 rounded-full w-4/5" />
+                      <div className="h-2 bg-gray-100 rounded-full w-2/5" />
                     </div>
-                    <div className="h-4 w-10 bg-gray-700/40 rounded" />
+                    <div className="h-4 w-10 bg-gray-100 rounded" />
                   </div>
                 ))}
               </div>
@@ -118,17 +116,17 @@ export default function DashboardLoading() {
 
             {/* Activity skeleton */}
             <div
-              className="bg-[#1f2937] border border-gray-700/60 rounded-xl p-5 animate-pulse"
+              className="bg-white border border-gray-200 rounded-xl p-5 animate-pulse"
               style={{ animationDelay: '0.48s' }}
             >
-              <div className="h-3 w-28 bg-gray-700/60 rounded-full mb-4" />
+              <div className="h-3 w-28 bg-gray-200 rounded-full mb-4" />
               <div className="space-y-4">
                 {Array.from({ length: 4 }).map((_, i) => (
                   <div key={i} className="flex gap-3">
-                    <div className="w-2 h-2 rounded-full bg-gray-700 mt-1.5 shrink-0" />
+                    <div className="w-2 h-2 rounded-full bg-gray-200 mt-1.5 shrink-0" />
                     <div className="flex-1 space-y-1.5">
-                      <div className="h-2.5 bg-gray-700/60 rounded-full w-full" />
-                      <div className="h-2 bg-gray-700/40 rounded-full w-1/3" />
+                      <div className="h-2.5 bg-gray-200 rounded-full w-full" />
+                      <div className="h-2 bg-gray-100 rounded-full w-1/3" />
                     </div>
                   </div>
                 ))}
