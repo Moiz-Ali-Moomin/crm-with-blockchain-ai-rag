@@ -24,12 +24,6 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 221.2 83.2% 53.3%;
     --radius: 0.75rem;
-
-    /* Glass design tokens */
-    --glass-bg: rgba(255, 255, 255, 0.05);
-    --glass-border: rgba(255, 255, 255, 0.10);
-    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-    --glass-blur: 20px;
   }
 }
 
@@ -74,24 +68,6 @@
 }
 
 @layer components {
-  /* ── Glass surface — the core primitive ──────────────────────────────────── */
-  .glass {
-    background: rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.10);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  }
-
-  /* Elevated glass — for modals, dropdowns */
-  .glass-elevated {
-    background: rgba(255, 255, 255, 0.08);
-    backdrop-filter: blur(28px);
-    -webkit-backdrop-filter: blur(28px);
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.10);
-  }
-
   /* Sidebar */
   .glass-sidebar {
     background: #ffffff;
@@ -102,41 +78,6 @@
   .glass-navbar {
     background: #ffffff;
     border-bottom: 1px solid #E5E7EB;
-  }
-
-  /* Purple-tinted glass — for accented stat cards */
-  .glass-accent {
-    background: rgba(139, 92, 246, 0.12);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(139, 92, 246, 0.25);
-    box-shadow: 0 8px 32px rgba(139, 92, 246, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  }
-
-  /* Interactive glass — hover elevation */
-  .glass-interactive {
-    @apply glass transition-all duration-300;
-  }
-
-  .glass-interactive:hover {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 255, 255, 0.16);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.10);
-    transform: translateY(-1px);
-  }
-
-  /* Shimmer skeleton loading effect */
-  .glass-skeleton {
-    background: linear-gradient(
-      90deg,
-      rgba(255, 255, 255, 0.04) 25%,
-      rgba(255, 255, 255, 0.09) 50%,
-      rgba(255, 255, 255, 0.04) 75%
-    );
-    background-size: 200% 100%;
-    animation: glass-shimmer 1.6s ease-in-out infinite;
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: var(--radius);
   }
 }
 
@@ -150,52 +91,6 @@
     display: none;
   }
 
-  .text-glass {
-    color: rgba(248, 250, 252, 0.92);
-  }
-
-  .text-glass-muted {
-    color: rgba(148, 163, 184, 0.75);
-  }
-
-  .text-glass-subtle {
-    color: rgba(100, 116, 139, 0.70);
-  }
-
-  /* Gradient text — for headings */
-  .text-gradient {
-    background: linear-gradient(135deg, #e2e8f0 0%, #a78bfa 50%, #60a5fa 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  /* Glow ring for focus states */
-  .glow-purple {
-    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.35);
-  }
-
-  .glow-blue {
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.35);
-  }
-
-  .glow-cyan {
-    box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.35);
-  }
-
-  /* Sidebar active state — flat, no glow */
-  .nav-active-glow {
-    box-shadow: none;
-  }
-
-  /* Cyan accent for charts / highlights */
-  .text-cyan-neon { color: #22d3ee; }
-  .text-purple-neon { color: #a78bfa; }
-
-  /* Neon border */
-  .border-neon-purple { border-color: rgba(139, 92, 246, 0.5); }
-  .border-neon-cyan   { border-color: rgba(34, 211, 238, 0.4); }
-
   /* Side panel slide-in */
   .panel-slide {
     animation: panel-in 0.28s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
@@ -206,7 +101,7 @@
     to   { transform: translateX(0);    opacity: 1; }
   }
 
-  /* Row hover */
+  /* Table row hover */
   .row-hover {
     @apply transition-all duration-150;
   }
@@ -216,18 +111,7 @@
   }
 }
 
-/* Shimmer keyframe — outside @layer so it's always available */
-@keyframes glass-shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-
 @keyframes float {
   0%, 100% { transform: translateY(0px); }
   50% { transform: translateY(-6px); }
-}
-
-@keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 12px rgba(139, 92, 246, 0.3); }
-  50% { box-shadow: 0 0 24px rgba(139, 92, 246, 0.6); }
 }

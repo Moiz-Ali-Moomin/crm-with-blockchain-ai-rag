@@ -23,16 +23,16 @@ export function DataTable<T extends { id: string }>({
   onRowClick,
 }: DataTableProps<T>) {
   return (
-    <div className="w-full overflow-x-auto rounded-md border border-slate-200 dark:border-slate-700">
+    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
+          <tr className="border-b border-gray-200 bg-gray-50">
             {columns.map((col) => (
               <th
                 key={col.key}
                 className={cn(
-                  'px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400',
-                  col.className
+                  'px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-gray-400',
+                  col.className,
                 )}
               >
                 {col.header}
@@ -40,13 +40,13 @@ export function DataTable<T extends { id: string }>({
             ))}
           </tr>
         </thead>
-        <tbody>
+        <tbody className="divide-y divide-gray-100">
           {isLoading ? (
-            Array.from({ length: 5 }).map((_, i) => (
-              <tr key={i} className="border-b border-slate-100 dark:border-slate-800">
+            Array.from({ length: 6 }).map((_, i) => (
+              <tr key={i} className="animate-pulse" style={{ animationDelay: `${i * 0.05}s` }}>
                 {columns.map((col) => (
-                  <td key={col.key} className="px-4 py-3">
-                    <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded animate-pulse" />
+                  <td key={col.key} className="px-5 py-3">
+                    <div className="h-4 bg-gray-100 rounded-md" />
                   </td>
                 ))}
               </tr>
@@ -55,7 +55,7 @@ export function DataTable<T extends { id: string }>({
             <tr>
               <td
                 colSpan={columns.length}
-                className="px-4 py-10 text-center text-slate-400"
+                className="px-5 py-16 text-center text-sm text-gray-400"
               >
                 {emptyMessage}
               </td>
@@ -66,14 +66,14 @@ export function DataTable<T extends { id: string }>({
                 key={row.id}
                 onClick={() => onRowClick?.(row)}
                 className={cn(
-                  'border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors',
-                  onRowClick && 'cursor-pointer'
+                  'transition-colors duration-150',
+                  onRowClick && 'cursor-pointer hover:bg-gray-50',
                 )}
               >
                 {columns.map((col) => (
                   <td
                     key={col.key}
-                    className={cn('px-4 py-3 text-slate-700 dark:text-slate-200', col.className)}
+                    className={cn('px-5 py-3 text-[13px] text-gray-700', col.className)}
                   >
                     {col.render
                       ? col.render(row)

@@ -1,40 +1,53 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
-import { Mail, MessageSquare } from 'lucide-react';
+import { Mail, MessageSquare, X } from 'lucide-react';
 import { communicationsApi } from '@/lib/api/communications.api';
 import { queryKeys } from '@/lib/query/query-keys';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { DataTable } from '@/components/crm/data-table';
 import { Pagination } from '@/components/shared/pagination';
-import { formatRelativeTime } from '@/lib/utils';
-import type { Communication, PaginatedData } from '@/types';
+import { formatRelativeTime, cn } from '@/lib/utils';
+import type { Communication } from '@/types';
+
+// ─── Schemas ─────────────────────────────────────────────────────────────────
 
 const emailSchema = z.object({
-  toAddr: z.string().email('Invalid email'),
+  toAddr:  z.string().email('Invalid email'),
   subject: z.string().min(1, 'Required'),
-  body: z.string().min(1, 'Required'),
+  body:    z.string().min(1, 'Required'),
 });
 type EmailForm = z.infer<typeof emailSchema>;
 
 const smsSchema = z.object({
   toAddr: z.string().min(5, 'Enter a phone number'),
-  body: z.string().min(1, 'Required'),
+  body:   z.string().min(1, 'Required'),
 });
 type SmsForm = z.infer<typeof smsSchema>;
 
+// ─── Shared input styles ──────────────────────────────────────────────────────
+
+const inputClass =
+  'w-full h-9 rounded-md border border-gray-200 bg-white text-gray-900 px-3 text-sm ' +
+  'placeholder:text-gray-400 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10 transition-all';
+
+const textareaClass =
+  'w-full rounded-md border border-gray-200 bg-white text-gray-900 px-3 py-2 text-sm resize-none ' +
+  'placeholder:text-gray-400 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10 transition-all';
+
+// ─── Email Modal ──────────────────────────────────────────────────────────────
+
 function EmailModal({ onClose }: { onClose: () => void }) {
   const queryClient = useQueryClient();
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<EmailForm>({ resolver: zodResolver(emailSchema) });
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<EmailForm>({
+    resolver: zodResolver(emailSchema),
+  });
 
   const onSubmit = async (data: EmailForm) => {
     try {
@@ -48,20 +61,44 @@ function EmailModal({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white dark:bg-slate-900 rounded-lg shadow-xl w-full max-w-md p-6">
-        <h2 className="text-lg font-semibold mb-4">Send Email</h2>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
-          <div><Label>To</Label><Input type="email" {...register('toAddr')} />{errors.toAddr && <p className="text-xs text-red-500">{errors.toAddr.message}</p>}</div>
-          <div><Label>Subject</Label><Input {...register('subject')} />{errors.subject && <p className="text-xs text-red-500">{errors.subject.message}</p>}</div>
-          <div>
-            <Label>Body</Label>
-            <textarea {...register('body')} rows={4} className="w-full rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm resize-none" />
-            {errors.body && <p className="text-xs text-red-500">{errors.body.message}</p>}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white border border-gray-200 rounded-xl shadow-xl w-full max-w-md p-6">
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-lg bg-blue-50"><Mail size={14} className="text-blue-600" /></div>
+            <h2 className="text-[15px] font-semibold text-gray-900">Send Email</h2>
           </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit" isLoading={isSubmitting}>Send Email</Button>
+          <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+            <X size={15} />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <div>
+            <Label className="text-xs text-gray-600 font-medium mb-1.5 block">To</Label>
+            <input type="email" {...register('toAddr')} className={inputClass} placeholder="recipient@example.com" />
+            {errors.toAddr && <p className="text-[11px] text-rose-500 mt-1">{errors.toAddr.message}</p>}
+          </div>
+          <div>
+            <Label className="text-xs text-gray-600 font-medium mb-1.5 block">Subject</Label>
+            <input {...register('subject')} className={inputClass} placeholder="Email subject" />
+            {errors.subject && <p className="text-[11px] text-rose-500 mt-1">{errors.subject.message}</p>}
+          </div>
+          <div>
+            <Label className="text-xs text-gray-600 font-medium mb-1.5 block">Body</Label>
+            <textarea {...register('body')} rows={4} className={textareaClass} placeholder="Write your message…" />
+            {errors.body && <p className="text-[11px] text-rose-500 mt-1">{errors.body.message}</p>}
+          </div>
+          <div className="flex justify-end gap-2 pt-1">
+            <button type="button" onClick={onClose} className="px-3.5 h-8 rounded-md text-sm font-medium text-gray-700 border border-gray-200 hover:bg-gray-50 transition-colors">
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="px-3.5 h-8 rounded-md text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 transition-colors"
+            >
+              {isSubmitting ? 'Sending…' : 'Send Email'}
+            </button>
           </div>
         </form>
       </div>
@@ -69,9 +106,13 @@ function EmailModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+// ─── SMS Modal ────────────────────────────────────────────────────────────────
+
 function SmsModal({ onClose }: { onClose: () => void }) {
   const queryClient = useQueryClient();
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<SmsForm>({ resolver: zodResolver(smsSchema) });
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<SmsForm>({
+    resolver: zodResolver(smsSchema),
+  });
 
   const onSubmit = async (data: SmsForm) => {
     try {
@@ -85,19 +126,39 @@ function SmsModal({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white dark:bg-slate-900 rounded-lg shadow-xl w-full max-w-md p-6">
-        <h2 className="text-lg font-semibold mb-4">Send SMS</h2>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
-          <div><Label>To (phone number)</Label><Input {...register('toAddr')} placeholder="+1234567890" />{errors.toAddr && <p className="text-xs text-red-500">{errors.toAddr.message}</p>}</div>
-          <div>
-            <Label>Message</Label>
-            <textarea {...register('body')} rows={3} className="w-full rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm resize-none" />
-            {errors.body && <p className="text-xs text-red-500">{errors.body.message}</p>}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white border border-gray-200 rounded-xl shadow-xl w-full max-w-md p-6">
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-lg bg-emerald-50"><MessageSquare size={14} className="text-emerald-600" /></div>
+            <h2 className="text-[15px] font-semibold text-gray-900">Send SMS</h2>
           </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit" isLoading={isSubmitting}>Send SMS</Button>
+          <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+            <X size={15} />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <div>
+            <Label className="text-xs text-gray-600 font-medium mb-1.5 block">To (phone number)</Label>
+            <input {...register('toAddr')} className={inputClass} placeholder="+1 234 567 8900" />
+            {errors.toAddr && <p className="text-[11px] text-rose-500 mt-1">{errors.toAddr.message}</p>}
+          </div>
+          <div>
+            <Label className="text-xs text-gray-600 font-medium mb-1.5 block">Message</Label>
+            <textarea {...register('body')} rows={3} className={textareaClass} placeholder="Write your message…" />
+            {errors.body && <p className="text-[11px] text-rose-500 mt-1">{errors.body.message}</p>}
+          </div>
+          <div className="flex justify-end gap-2 pt-1">
+            <button type="button" onClick={onClose} className="px-3.5 h-8 rounded-md text-sm font-medium text-gray-700 border border-gray-200 hover:bg-gray-50 transition-colors">
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="px-3.5 h-8 rounded-md text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 transition-colors"
+            >
+              {isSubmitting ? 'Sending…' : 'Send SMS'}
+            </button>
           </div>
         </form>
       </div>
@@ -105,54 +166,138 @@ function SmsModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-const CHANNEL_COLORS: Record<string, string> = {
-  EMAIL: 'info', SMS: 'secondary', WHATSAPP: 'success', PHONE: 'warning',
+// ─── Channel badge ────────────────────────────────────────────────────────────
+
+const CHANNEL_STYLES: Record<string, string> = {
+  EMAIL:    'bg-blue-50 text-blue-700 border-blue-100',
+  SMS:      'bg-emerald-50 text-emerald-700 border-emerald-100',
+  WHATSAPP: 'bg-green-50 text-green-700 border-green-100',
+  PHONE:    'bg-amber-50 text-amber-700 border-amber-100',
 };
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function CommunicationsPage() {
   const router = useRouter();
-  const [filters, setFilters] = useState({ page: 1, limit: 20 });
-  const [emailModalOpen, setEmailModalOpen] = useState(false);
-  const [smsModalOpen, setSmsModalOpen] = useState(false);
+  const [filters, setFilters]         = useState({ page: 1, limit: 20 });
+  const [emailModalOpen, setEmailOpen] = useState(false);
+  const [smsModalOpen, setSmsOpen]     = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: queryKeys.communications.list(filters),
-    queryFn: () => communicationsApi.getAll(filters) as Promise<PaginatedData<Communication>>,
+    queryFn:  () => communicationsApi.getAll(filters) as Promise<any>,
   });
 
+  // API returns { data: Communication[], meta: { page, totalPages, total, limit } }
+  const rows = (data?.data ?? []) as Communication[];
+  const meta  = data?.meta as { page: number; totalPages: number; total: number; limit: number } | undefined;
+
   const columns = [
-    { key: 'channel', header: 'Channel', render: (row: Communication) => <Badge variant={(CHANNEL_COLORS[row.channel] ?? 'secondary') as any}>{row.channel}</Badge> },
-    { key: 'direction', header: 'Dir.', render: (row: Communication) => <span className="text-xs text-slate-500">{row.direction}</span> },
-    { key: 'status', header: 'Status', render: (row: Communication) => <span className="text-xs">{row.status}</span> },
-    { key: 'fromAddr', header: 'From', render: (row: Communication) => <span className="text-xs text-slate-500">{row.fromAddr}</span> },
-    { key: 'toAddr', header: 'To', render: (row: Communication) => <span className="text-xs text-slate-500">{row.toAddr}</span> },
-    { key: 'subject', header: 'Subject', render: (row: Communication) => row.subject ?? '—' },
+    {
+      key: 'channel',
+      header: 'Channel',
+      render: (row: Communication) => (
+        <span className={cn(
+          'inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold border',
+          CHANNEL_STYLES[row.channel] ?? 'bg-gray-100 text-gray-500 border-gray-200',
+        )}>
+          {row.channel}
+        </span>
+      ),
+    },
+    {
+      key: 'direction',
+      header: 'Dir.',
+      render: (row: Communication) => (
+        <span className="text-[12px] text-gray-500 uppercase tracking-wide">{row.direction}</span>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      render: (row: Communication) => (
+        <span className="text-[12px] text-gray-600">{row.status}</span>
+      ),
+    },
+    {
+      key: 'fromAddr',
+      header: 'From',
+      render: (row: Communication) => (
+        <span className="text-[12px] text-gray-500 truncate">{row.fromAddr}</span>
+      ),
+    },
+    {
+      key: 'toAddr',
+      header: 'To',
+      render: (row: Communication) => (
+        <span className="text-[12px] text-gray-500 truncate">{row.toAddr}</span>
+      ),
+    },
+    {
+      key: 'subject',
+      header: 'Subject',
+      render: (row: Communication) => (
+        <span className="text-[13px] text-gray-700">{row.subject ?? '—'}</span>
+      ),
+    },
     {
       key: 'contact',
       header: 'Contact',
       render: (row: Communication) =>
         row.contact ? (
-          <button onClick={(e) => { e.stopPropagation(); router.push(`/contacts/${row.contactId}`); }} className="text-blue-600 hover:underline text-sm">
+          <button
+            onClick={(e) => { e.stopPropagation(); router.push(`/contacts/${row.contactId}`); }}
+            className="text-[13px] text-blue-600 hover:text-blue-700 hover:underline transition-colors"
+          >
             {row.contact.firstName} {row.contact.lastName}
           </button>
-        ) : '—',
+        ) : <span className="text-gray-300 text-[13px]">—</span>,
     },
-    { key: 'createdAt', header: 'Date', render: (row: Communication) => <span className="text-xs text-slate-400">{formatRelativeTime(row.createdAt)}</span> },
+    {
+      key: 'createdAt',
+      header: 'Date',
+      render: (row: Communication) => (
+        <span className="text-[12px] text-gray-400">{formatRelativeTime(row.createdAt)}</span>
+      ),
+    },
   ];
 
   return (
     <div className="space-y-4">
       <div className="flex justify-end gap-2">
-        <Button variant="outline" onClick={() => setEmailModalOpen(true)}><Mail size={14} />Send Email</Button>
-        <Button variant="outline" onClick={() => setSmsModalOpen(true)}><MessageSquare size={14} />Send SMS</Button>
+        <button
+          onClick={() => setEmailOpen(true)}
+          className="flex items-center gap-1.5 px-3.5 h-9 rounded-md border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+        >
+          <Mail size={14} className="text-gray-400" /> Send Email
+        </button>
+        <button
+          onClick={() => setSmsOpen(true)}
+          className="flex items-center gap-1.5 px-3.5 h-9 rounded-md border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+        >
+          <MessageSquare size={14} className="text-gray-400" /> Send SMS
+        </button>
       </div>
 
-      <DataTable columns={columns} data={data?.data ?? []} isLoading={isLoading} emptyMessage="No communications found." />
+      <DataTable
+        columns={columns}
+        data={rows}
+        isLoading={isLoading}
+        emptyMessage="No communications found."
+      />
 
-      {data && <Pagination page={data.page} totalPages={data.totalPages} total={data.total} limit={data.limit} onPageChange={(p) => setFilters((f) => ({ ...f, page: p }))} />}
+      {meta && (
+        <Pagination
+          page={meta.page}
+          totalPages={meta.totalPages}
+          total={meta.total}
+          limit={meta.limit}
+          onPageChange={(p) => setFilters((f) => ({ ...f, page: p }))}
+        />
+      )}
 
-      {emailModalOpen && <EmailModal onClose={() => setEmailModalOpen(false)} />}
-      {smsModalOpen && <SmsModal onClose={() => setSmsModalOpen(false)} />}
+      {emailModalOpen && <EmailModal onClose={() => setEmailOpen(false)} />}
+      {smsModalOpen   && <SmsModal  onClose={() => setSmsOpen(false)} />}
     </div>
   );
 }

@@ -6,9 +6,8 @@ import { Trash2, CheckCheck } from 'lucide-react';
 import { notificationsApi } from '@/lib/api/notifications.api';
 import { queryKeys } from '@/lib/query/query-keys';
 import { useAuthStore } from '@/store/auth.store';
-import { Button } from '@/components/ui/button';
 import { formatRelativeTime, cn } from '@/lib/utils';
-import type { PaginatedData, Notification } from '@/types';
+import type { Notification } from '@/types';
 
 export default function NotificationsPage() {
   const queryClient = useQueryClient();
@@ -16,7 +15,7 @@ export default function NotificationsPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: queryKeys.notifications.list(user?.id ?? ''),
-    queryFn: () => notificationsApi.getAll() as Promise<PaginatedData<Notification>>,
+    queryFn: () => notificationsApi.getAll() as Promise<any>,
     enabled: !!user?.id,
   });
 
@@ -43,30 +42,29 @@ export default function NotificationsPage() {
     onError: (err: any) => toast.error(err?.response?.data?.message || 'Error'),
   });
 
-  const notifications = data?.data ?? [];
+  const notifications = (data?.data ?? []) as Notification[];
 
   return (
     <div className="space-y-4 max-w-2xl">
       <div className="flex justify-end">
-        <Button
-          variant="outline"
-          size="sm"
+        <button
           onClick={() => markAllReadMutation.mutate()}
-          isLoading={markAllReadMutation.isPending}
+          disabled={markAllReadMutation.isPending}
+          className="flex items-center gap-1.5 px-3.5 h-8 rounded-md border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60 transition-colors"
         >
           <CheckCheck size={14} />
           Mark All Read
-        </Button>
+        </button>
       </div>
 
       {isLoading ? (
         <div className="space-y-2">
           {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="h-16 bg-slate-200 dark:bg-slate-800 rounded-lg animate-pulse" />
+            <div key={i} className="h-16 bg-gray-100 rounded-xl animate-pulse" />
           ))}
         </div>
       ) : notifications.length === 0 ? (
-        <p className="text-sm text-slate-400 text-center py-8">No notifications.</p>
+        <p className="text-sm text-gray-400 text-center py-8">No notifications.</p>
       ) : (
         <div className="space-y-2">
           {notifications.map((n) => (
@@ -74,28 +72,28 @@ export default function NotificationsPage() {
               key={n.id}
               onClick={() => !n.isRead && markReadMutation.mutate(n.id)}
               className={cn(
-                'flex items-start gap-3 p-4 rounded-lg border cursor-pointer transition-colors',
+                'flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-colors',
                 n.isRead
-                  ? 'border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900'
-                  : 'border-blue-100 dark:border-blue-900/40 bg-blue-50 dark:bg-blue-900/20'
+                  ? 'border-gray-100 bg-white hover:bg-gray-50'
+                  : 'border-blue-100 bg-blue-50 hover:bg-blue-50/80'
               )}
             >
               {!n.isRead && (
                 <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0 mt-1.5" />
               )}
               <div className="flex-1 min-w-0">
-                <p className={cn('text-sm font-medium', n.isRead && 'text-slate-600 dark:text-slate-400')}>
+                <p className={cn('text-[13px] font-semibold', n.isRead ? 'text-gray-500' : 'text-gray-900')}>
                   {n.title}
                 </p>
-                <p className="text-sm text-slate-500 truncate">{n.body}</p>
-                <p className="text-xs text-slate-400 mt-0.5">{formatRelativeTime(n.createdAt)}</p>
+                <p className="text-[12px] text-gray-500 truncate mt-0.5">{n.body}</p>
+                <p className="text-[11px] text-gray-400 mt-1">{formatRelativeTime(n.createdAt)}</p>
               </div>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   deleteMutation.mutate(n.id);
                 }}
-                className="p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-slate-400 hover:text-red-500 shrink-0"
+                className="w-7 h-7 rounded-md flex items-center justify-center text-gray-400 hover:text-rose-500 hover:bg-rose-50 shrink-0 transition-colors"
               >
                 <Trash2 size={14} />
               </button>

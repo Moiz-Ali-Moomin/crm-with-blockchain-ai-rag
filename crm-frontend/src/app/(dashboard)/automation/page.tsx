@@ -27,12 +27,12 @@ export default function AutomationPage() {
   });
 
   const columns = [
-    { key: 'name', header: 'Name', render: (row: Workflow) => <span className="font-medium">{row.name}</span> },
+    { key: 'name', header: 'Name', render: (row: Workflow) => <span className="text-[13px] font-semibold text-gray-900">{row.name}</span> },
     {
       key: 'triggerType',
       header: 'Trigger',
       render: (row: Workflow) => (
-        <span className="text-sm text-slate-500">{row.triggerType.replace(/_/g, ' ')}</span>
+        <span className="text-[12px] text-gray-500">{row.triggerType.replace(/_/g, ' ')}</span>
       ),
     },
     {
@@ -46,7 +46,7 @@ export default function AutomationPage() {
             onChange={() => toggleMutation.mutate(row.id)}
             className="sr-only peer"
           />
-          <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600" />
+          <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600" />
         </label>
       ),
     },
@@ -55,7 +55,7 @@ export default function AutomationPage() {
       key: 'errorCount',
       header: 'Errors',
       render: (row: Workflow) => (
-        <span className={row.errorCount > 0 ? 'text-red-500 font-medium' : 'text-slate-400'}>
+        <span className={row.errorCount > 0 ? 'text-red-500 font-medium' : 'text-gray-400'}>
           {row.errorCount}
         </span>
       ),
@@ -64,7 +64,7 @@ export default function AutomationPage() {
       key: 'updatedAt',
       header: 'Last Updated',
       render: (row: Workflow) => (
-        <span className="text-xs text-slate-400">{formatRelativeTime(row.updatedAt)}</span>
+        <span className="text-[12px] text-gray-400">{formatRelativeTime(row.updatedAt)}</span>
       ),
     },
   ];

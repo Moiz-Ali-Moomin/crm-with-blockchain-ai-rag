@@ -11,7 +11,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus, Search, X, Pencil, Trash2, Mail, Phone,
   Building2, Clock, TrendingUp, ExternalLink, UserCircle,
-  ChevronRight, Users,
+  ChevronRight, Users, ArrowUpRight,
 } from 'lucide-react';
 import { contactsApi } from '@/lib/api/contacts.api';
 import { queryKeys } from '@/lib/query/query-keys';
@@ -35,26 +35,29 @@ type FormData = z.infer<typeof schema>;
 
 // ─── Avatar ───────────────────────────────────────────────────────────────────
 
-const AVATAR_GRADIENTS = [
-  'from-violet-500 to-purple-700',
-  'from-cyan-500 to-blue-600',
-  'from-emerald-500 to-teal-700',
-  'from-rose-500 to-pink-700',
-  'from-amber-500 to-orange-600',
-  'from-indigo-500 to-violet-700',
+const AVATAR_COLORS = [
+  'bg-blue-500',
+  'bg-violet-500',
+  'bg-emerald-500',
+  'bg-rose-500',
+  'bg-amber-500',
+  'bg-indigo-500',
 ];
 
 function ContactAvatar({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' | 'lg' }) {
-  const idx = name.charCodeAt(0) % AVATAR_GRADIENTS.length;
-  const sizeClass = size === 'sm' ? 'w-7 h-7 text-[11px]' : size === 'lg' ? 'w-12 h-12 text-base' : 'w-9 h-9 text-xs';
+  const idx       = name.charCodeAt(0) % AVATAR_COLORS.length;
+  const sizeClass = size === 'sm' ? 'w-7 h-7 text-[11px]'
+    : size === 'lg' ? 'w-11 h-11 text-sm'
+    : 'w-8 h-8 text-xs';
   const parts    = name.trim().split(' ');
   const initials = parts.length >= 2
     ? getInitials(parts[0], parts[parts.length - 1])
     : (parts[0]?.[0] ?? '?').toUpperCase();
+
   return (
     <div className={cn(
-      'rounded-full bg-gradient-to-br flex items-center justify-center font-bold text-white shrink-0',
-      AVATAR_GRADIENTS[idx],
+      'rounded-full flex items-center justify-center font-bold text-white shrink-0',
+      AVATAR_COLORS[idx],
       sizeClass,
     )}>
       {initials}
@@ -90,53 +93,58 @@ function ContactModal({ contact, onClose }: { contact?: Contact | null; onClose:
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 12 }}
+        initial={{ opacity: 0, scale: 0.97, y: 8 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 8 }}
-        transition={{ duration: 0.22, ease: [0.25, 0.46, 0.45, 0.94] }}
-        className="glass-elevated rounded-2xl w-full max-w-md p-6"
+        exit={{ opacity: 0, scale: 0.97, y: 6 }}
+        transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
+        className="bg-white border border-gray-200 rounded-xl shadow-xl w-full max-w-md p-6"
       >
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-base font-semibold text-white/90">
+          <h2 className="text-base font-semibold text-gray-900">
             {contact ? 'Edit Contact' : 'New Contact'}
           </h2>
-          <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-lg text-white/40 hover:text-white hover:bg-white/8 transition-colors">
+          <button
+            onClick={onClose}
+            className="w-7 h-7 flex items-center justify-center rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+          >
             <X size={15} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-3.5">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs text-white/50 mb-1.5 block">First Name</Label>
-              <Input {...register('firstName')} className="h-9" />
-              {errors.firstName && <p className="text-[11px] text-rose-400 mt-1">{errors.firstName.message}</p>}
+              <Label className="text-xs text-gray-600 mb-1.5 block font-medium">First Name</Label>
+              <Input {...register('firstName')} className="h-9 text-sm" />
+              {errors.firstName && <p className="text-[11px] text-rose-500 mt-1">{errors.firstName.message}</p>}
             </div>
             <div>
-              <Label className="text-xs text-white/50 mb-1.5 block">Last Name</Label>
-              <Input {...register('lastName')} className="h-9" />
-              {errors.lastName && <p className="text-[11px] text-rose-400 mt-1">{errors.lastName.message}</p>}
+              <Label className="text-xs text-gray-600 mb-1.5 block font-medium">Last Name</Label>
+              <Input {...register('lastName')} className="h-9 text-sm" />
+              {errors.lastName && <p className="text-[11px] text-rose-500 mt-1">{errors.lastName.message}</p>}
             </div>
           </div>
           <div>
-            <Label className="text-xs text-white/50 mb-1.5 block">Email</Label>
-            <Input type="email" {...register('email')} className="h-9" />
-            {errors.email && <p className="text-[11px] text-rose-400 mt-1">{errors.email.message}</p>}
+            <Label className="text-xs text-gray-600 mb-1.5 block font-medium">Email</Label>
+            <Input type="email" {...register('email')} className="h-9 text-sm" />
+            {errors.email && <p className="text-[11px] text-rose-500 mt-1">{errors.email.message}</p>}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs text-white/50 mb-1.5 block">Phone</Label>
-              <Input {...register('phone')} className="h-9" />
+              <Label className="text-xs text-gray-600 mb-1.5 block font-medium">Phone</Label>
+              <Input {...register('phone')} className="h-9 text-sm" />
             </div>
             <div>
-              <Label className="text-xs text-white/50 mb-1.5 block">Job Title</Label>
-              <Input {...register('jobTitle')} className="h-9" />
+              <Label className="text-xs text-gray-600 mb-1.5 block font-medium">Job Title</Label>
+              <Input {...register('jobTitle')} className="h-9 text-sm" />
             </div>
           </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" size="sm" onClick={onClose}>Cancel</Button>
+          <div className="flex justify-end gap-2 pt-1">
+            <Button type="button" variant="outline" size="sm" onClick={onClose}>
+              Cancel
+            </Button>
             <Button type="submit" size="sm" isLoading={isSubmitting}>
               {contact ? 'Save changes' : 'Create contact'}
             </Button>
@@ -158,7 +166,7 @@ function ContactPanel({
   onClose: () => void;
   onEdit: () => void;
 }) {
-  const router = useRouter();
+  const router   = useRouter();
   const fullName = `${contact.firstName} ${contact.lastName}`;
 
   return (
@@ -166,29 +174,30 @@ function ContactPanel({
       initial={{ x: '100%', opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       exit={{ x: '100%', opacity: 0 }}
-      transition={{ duration: 0.28, ease: [0.25, 0.46, 0.45, 0.94] }}
-      className="fixed right-0 top-0 h-full w-[360px] glass-elevated border-l border-white/8 z-40 flex flex-col overflow-hidden"
+      transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
+      className="fixed right-0 top-0 h-full w-[340px] bg-white border-l border-gray-200 z-40 flex flex-col shadow-xl"
     >
       {/* Header */}
-      <div className="relative px-5 pt-5 pb-4 border-b border-white/6">
-        {/* Top-edge highlight */}
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-violet-400/40 to-transparent" />
-        <div className="flex items-start justify-between mb-4">
-          <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-lg text-white/40 hover:text-white hover:bg-white/8 transition-colors">
+      <div className="px-5 pt-4 pb-4 border-b border-gray-100">
+        <div className="flex items-center justify-between mb-4">
+          <button
+            onClick={onClose}
+            className="w-7 h-7 flex items-center justify-center rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+          >
             <X size={15} />
           </button>
           <div className="flex items-center gap-1.5">
             <button
               onClick={onEdit}
-              className="flex items-center gap-1.5 px-2.5 h-7 rounded-lg text-xs text-white/60 hover:text-white hover:bg-white/8 border border-transparent hover:border-white/10 transition-all"
+              className="flex items-center gap-1.5 px-2.5 h-7 rounded-md text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-100 border border-gray-200 transition-all"
             >
-              <Pencil size={12} /> Edit
+              <Pencil size={11} strokeWidth={2} /> Edit
             </button>
             <button
               onClick={() => router.push(`/contacts/${contact.id}`)}
-              className="flex items-center gap-1.5 px-2.5 h-7 rounded-lg text-xs text-violet-300 hover:text-violet-200 hover:bg-violet-500/12 border border-violet-400/20 transition-all"
+              className="flex items-center gap-1.5 px-2.5 h-7 rounded-md text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 border border-blue-200 transition-all"
             >
-              Open <ExternalLink size={11} />
+              Open <ExternalLink size={10} />
             </button>
           </div>
         </div>
@@ -197,71 +206,86 @@ function ContactPanel({
         <div className="flex items-center gap-3">
           <ContactAvatar name={fullName} size="lg" />
           <div>
-            <h3 className="text-base font-semibold text-white/95">{fullName}</h3>
+            <h3 className="text-[15px] font-semibold text-gray-900">{fullName}</h3>
             {contact.jobTitle && (
-              <p className="text-xs text-white/45 mt-0.5">{contact.jobTitle}</p>
+              <p className="text-xs text-gray-500 mt-0.5">{contact.jobTitle}</p>
             )}
           </div>
         </div>
       </div>
 
       {/* Body */}
-      <div className="flex-1 overflow-y-auto py-4 px-5 space-y-4 scrollbar-none">
+      <div className="flex-1 overflow-y-auto py-4 px-5 space-y-5 scrollbar-none">
         {/* Contact info */}
-        <div className="space-y-2.5">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-white/25">Contact info</p>
-          {contact.email && (
-            <a href={`mailto:${contact.email}`} className="flex items-center gap-3 group">
-              <div className="w-7 h-7 rounded-lg bg-violet-500/15 flex items-center justify-center shrink-0">
-                <Mail size={13} className="text-violet-300" />
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-gray-400 mb-3">
+            Contact Info
+          </p>
+          <div className="space-y-2">
+            {contact.email && (
+              <a
+                href={`mailto:${contact.email}`}
+                className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-gray-50 transition-colors group"
+              >
+                <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
+                  <Mail size={13} className="text-blue-600" />
+                </div>
+                <span className="text-sm text-gray-600 group-hover:text-gray-900 transition-colors truncate">
+                  {contact.email}
+                </span>
+              </a>
+            )}
+            {contact.phone && (
+              <div className="flex items-center gap-3 p-2.5 rounded-lg">
+                <div className="w-7 h-7 rounded-lg bg-emerald-50 flex items-center justify-center shrink-0">
+                  <Phone size={13} className="text-emerald-600" />
+                </div>
+                <span className="text-sm text-gray-600">{contact.phone}</span>
               </div>
-              <span className="text-sm text-white/65 group-hover:text-white/90 transition-colors truncate">{contact.email}</span>
-            </a>
-          )}
-          {contact.phone && (
-            <div className="flex items-center gap-3">
-              <div className="w-7 h-7 rounded-lg bg-cyan-500/15 flex items-center justify-center shrink-0">
-                <Phone size={13} className="text-cyan-300" />
+            )}
+            {contact.company && (
+              <button
+                onClick={() => router.push(`/companies/${contact.companyId}`)}
+                className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-gray-50 transition-colors group w-full text-left"
+              >
+                <div className="w-7 h-7 rounded-lg bg-violet-50 flex items-center justify-center shrink-0">
+                  <Building2 size={13} className="text-violet-600" />
+                </div>
+                <span className="text-sm text-gray-600 group-hover:text-gray-900 transition-colors flex-1">
+                  {contact.company.name}
+                </span>
+                <ChevronRight size={13} className="text-gray-300 group-hover:text-gray-500 transition-colors" />
+              </button>
+            )}
+            {contact.lastContactedAt && (
+              <div className="flex items-center gap-3 p-2.5 rounded-lg">
+                <div className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center shrink-0">
+                  <Clock size={13} className="text-amber-600" />
+                </div>
+                <span className="text-sm text-gray-500">
+                  Last contacted {formatRelativeTime(contact.lastContactedAt)}
+                </span>
               </div>
-              <span className="text-sm text-white/65">{contact.phone}</span>
-            </div>
-          )}
-          {contact.company && (
-            <button
-              onClick={() => router.push(`/companies/${contact.companyId}`)}
-              className="flex items-center gap-3 group w-full text-left"
-            >
-              <div className="w-7 h-7 rounded-lg bg-blue-500/15 flex items-center justify-center shrink-0">
-                <Building2 size={13} className="text-blue-300" />
-              </div>
-              <span className="text-sm text-white/65 group-hover:text-white/90 transition-colors">{contact.company.name}</span>
-              <ChevronRight size={12} className="text-white/20 group-hover:text-white/50 ml-auto transition-colors" />
-            </button>
-          )}
-          {contact.lastContactedAt && (
-            <div className="flex items-center gap-3">
-              <div className="w-7 h-7 rounded-lg bg-emerald-500/15 flex items-center justify-center shrink-0">
-                <Clock size={13} className="text-emerald-300" />
-              </div>
-              <span className="text-sm text-white/65">Last contacted {formatRelativeTime(contact.lastContactedAt)}</span>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Stats */}
-        <div className="space-y-2.5">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-white/25">Stats</p>
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-gray-400 mb-3">
+            Stats
+          </p>
           <div className="grid grid-cols-2 gap-2.5">
-            <div className="rounded-xl bg-gradient-to-br from-violet-500/12 to-transparent border border-violet-400/15 p-3">
-              <p className="text-[10px] text-white/35 uppercase tracking-wide mb-1">Total Spent</p>
-              <p className="text-base font-bold text-violet-300">{formatCurrency(contact.totalSpent ?? 0)}</p>
+            <div className="bg-white border border-gray-200 rounded-xl p-3.5">
+              <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1.5">Total Spent</p>
+              <p className="text-base font-bold text-gray-900">{formatCurrency(contact.totalSpent ?? 0)}</p>
             </div>
-            <div className="rounded-xl bg-gradient-to-br from-cyan-500/12 to-transparent border border-cyan-400/15 p-3">
-              <div className="flex items-center gap-1.5 mb-1">
-                <TrendingUp size={10} className="text-cyan-300" />
-                <p className="text-[10px] text-white/35 uppercase tracking-wide">Deals</p>
+            <div className="bg-white border border-gray-200 rounded-xl p-3.5">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <TrendingUp size={10} className="text-gray-400" />
+                <p className="text-[10px] text-gray-400 uppercase tracking-wide">Deals</p>
               </div>
-              <p className="text-base font-bold text-cyan-300">—</p>
+              <p className="text-base font-bold text-gray-900">—</p>
             </div>
           </div>
         </div>
@@ -274,21 +298,25 @@ function ContactPanel({
 
 function EmptyState({ hasSearch, onAdd }: { hasSearch: boolean; onAdd: () => void }) {
   return (
-    <div className="flex flex-col items-center justify-center py-20 gap-4">
-      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500/20 to-cyan-500/10 border border-white/8 flex items-center justify-center mb-2"
-        style={{ boxShadow: '0 0 40px rgba(139,92,246,0.15)' }}>
-        <Users size={28} strokeWidth={1.2} className="text-violet-300" />
+    <div className="flex flex-col items-center justify-center py-20 gap-3">
+      <div className="w-14 h-14 rounded-xl bg-gray-100 border border-gray-200 flex items-center justify-center mb-1">
+        <Users size={24} strokeWidth={1.5} className="text-gray-400" />
       </div>
-      <p className="text-sm font-medium text-white/70">
-        {hasSearch ? 'No contacts match your search' : 'No contacts yet'}
+      <p className="text-sm font-semibold text-gray-700">
+        {hasSearch ? 'No contacts found' : 'No contacts yet'}
       </p>
-      <p className="text-xs text-white/30 text-center max-w-[220px]">
-        {hasSearch ? 'Try a different name or email.' : 'Add your first contact to start building relationships.'}
+      <p className="text-xs text-gray-400 text-center max-w-[220px]">
+        {hasSearch
+          ? 'Try a different name or email address.'
+          : 'Add your first contact to start building relationships.'}
       </p>
       {!hasSearch && (
-        <Button size="sm" onClick={onAdd} className="mt-2">
-          <Plus size={14} className="mr-1.5" /> Add Contact
-        </Button>
+        <button
+          onClick={onAdd}
+          className="mt-2 flex items-center gap-1.5 px-3.5 h-8 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-colors"
+        >
+          <Plus size={13} strokeWidth={2.5} /> Add Contact
+        </button>
       )}
     </div>
   );
@@ -315,64 +343,68 @@ function ContactRow({
     <tr
       onClick={onClick}
       className={cn(
-        'border-b border-white/4 cursor-pointer transition-all duration-150 group',
+        'border-b border-gray-100 cursor-pointer transition-colors duration-150 group',
         isSelected
-          ? 'bg-violet-500/10 border-b-violet-400/20'
-          : 'hover:bg-white/[0.03]',
+          ? 'bg-blue-50'
+          : 'hover:bg-gray-50',
       )}
     >
       {/* Name + avatar */}
-      <td className="px-4 py-3">
+      <td className="px-5 py-3">
         <div className="flex items-center gap-3">
           <ContactAvatar name={fullName} size="sm" />
           <div>
-            <p className="text-sm font-medium text-white/90 leading-tight">{fullName}</p>
+            <p className="text-[13px] font-semibold text-gray-900 leading-tight">{fullName}</p>
             {contact.jobTitle && (
-              <p className="text-[11px] text-white/35 leading-tight mt-0.5">{contact.jobTitle}</p>
+              <p className="text-[11px] text-gray-400 leading-tight mt-0.5">{contact.jobTitle}</p>
             )}
           </div>
         </div>
       </td>
 
       {/* Email */}
-      <td className="px-4 py-3">
-        <span className="text-sm text-white/50">{contact.email ?? '—'}</span>
+      <td className="px-5 py-3">
+        <span className="text-[13px] text-gray-500">{contact.email ?? '—'}</span>
       </td>
 
       {/* Company */}
-      <td className="px-4 py-3">
+      <td className="px-5 py-3">
         {contact.company ? (
-          <span className="inline-flex items-center gap-1.5 text-xs text-white/55 bg-white/5 px-2 py-0.5 rounded-full border border-white/8">
-            <Building2 size={10} />
+          <span className="inline-flex items-center gap-1.5 text-[12px] text-gray-600 bg-gray-100 px-2.5 py-1 rounded-full border border-gray-200">
+            <Building2 size={10} className="text-gray-400" />
             {contact.company.name}
           </span>
-        ) : <span className="text-white/25 text-sm">—</span>}
+        ) : (
+          <span className="text-gray-300 text-sm">—</span>
+        )}
       </td>
 
       {/* Total spent */}
-      <td className="px-4 py-3">
-        <span className="text-sm font-medium text-emerald-400">{formatCurrency(contact.totalSpent ?? 0)}</span>
+      <td className="px-5 py-3">
+        <span className="text-[13px] font-semibold text-gray-900 tabular-nums">
+          {formatCurrency(contact.totalSpent ?? 0)}
+        </span>
       </td>
 
       {/* Last contacted */}
-      <td className="px-4 py-3">
-        <span className="text-xs text-white/35">
+      <td className="px-5 py-3">
+        <span className="text-[12px] text-gray-400">
           {contact.lastContactedAt ? formatRelativeTime(contact.lastContactedAt) : '—'}
         </span>
       </td>
 
       {/* Actions */}
-      <td className="px-4 py-3">
+      <td className="px-5 py-3">
         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
           <button
             onClick={(e) => { e.stopPropagation(); onEdit(); }}
-            className="w-7 h-7 flex items-center justify-center rounded-lg text-white/40 hover:text-white hover:bg-white/8 transition-all"
+            className="w-7 h-7 flex items-center justify-center rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-all"
           >
             <Pencil size={13} />
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); onDelete(); }}
-            className="w-7 h-7 flex items-center justify-center rounded-lg text-white/40 hover:text-rose-400 hover:bg-rose-500/10 transition-all"
+            className="w-7 h-7 flex items-center justify-center rounded-md text-gray-400 hover:text-rose-600 hover:bg-rose-50 transition-all"
           >
             <Trash2 size={13} />
           </button>
@@ -382,13 +414,35 @@ function ContactRow({
   );
 }
 
+// ─── Loading skeleton ─────────────────────────────────────────────────────────
+
+function TableSkeleton() {
+  return (
+    <div className="divide-y divide-gray-100">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <div key={i} className="flex items-center gap-4 px-5 py-3 animate-pulse" style={{ animationDelay: `${i * 0.04}s` }}>
+          <div className="w-7 h-7 rounded-full bg-gray-200 shrink-0" />
+          <div className="flex-1 space-y-1.5">
+            <div className="h-3 w-32 bg-gray-200 rounded-full" />
+            <div className="h-2.5 w-20 bg-gray-100 rounded-full" />
+          </div>
+          <div className="h-3 w-40 bg-gray-200 rounded-full" />
+          <div className="h-6 w-24 bg-gray-100 rounded-full" />
+          <div className="h-3 w-16 bg-gray-100 rounded-full" />
+          <div className="h-3 w-14 bg-gray-100 rounded-full" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── Page ──────────────────────────────────────────────────────────────────────
 
 export default function ContactsPage() {
   const queryClient = useQueryClient();
   const [filters, setFilters] = useState({ page: 1, limit: 20, search: '' });
-  const [modalOpen, setModalOpen]         = useState(false);
-  const [editContact, setEditContact]     = useState<Contact | null>(null);
+  const [modalOpen, setModalOpen]             = useState(false);
+  const [editContact, setEditContact]         = useState<Contact | null>(null);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
 
   const { data, isLoading } = useQuery({
@@ -409,74 +463,65 @@ export default function ContactsPage() {
   const openAdd  = () => { setEditContact(null); setModalOpen(true); };
   const openEdit = (c: Contact) => { setEditContact(c); setModalOpen(true); setSelectedContact(null); };
 
-  const contacts = data?.data ?? [];
+  const contacts  = data?.data ?? [];
   const hasSearch = !!filters.search;
 
   return (
     <div className="flex gap-5 min-h-0">
       {/* ── Main panel ─────────────────────────────────────────────────────── */}
       <div className="flex-1 min-w-0 space-y-4">
+
         {/* Toolbar */}
         <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             {/* Search */}
             <div className="relative">
-              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none" />
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
               <input
                 type="text"
                 placeholder="Search contacts…"
                 value={filters.search}
                 onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value, page: 1 }))}
                 className={cn(
-                  'h-9 pl-8 pr-3 text-sm rounded-xl w-52',
-                  'bg-white/5 border border-white/10 text-white/80 placeholder:text-white/25',
-                  'focus:outline-none focus:border-violet-400/50 focus:bg-white/8',
+                  'h-9 pl-8 pr-3 text-sm rounded-md w-56',
+                  'bg-white border border-gray-200 text-gray-900 placeholder:text-gray-400',
+                  'focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10',
                   'transition-all duration-150',
                 )}
               />
             </div>
 
             {data && (
-              <span className="text-xs text-white/30 font-medium">
+              <span className="text-xs text-gray-400 font-medium tabular-nums">
                 {data.meta.total.toLocaleString()} contact{data.meta.total !== 1 ? 's' : ''}
               </span>
             )}
           </div>
 
-          <Button size="sm" onClick={openAdd}>
-            <Plus size={14} className="mr-1.5" /> Add Contact
-          </Button>
+          <button
+            onClick={openAdd}
+            className="flex items-center gap-1.5 px-3.5 h-9 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-colors"
+          >
+            <Plus size={14} strokeWidth={2.5} />
+            Add Contact
+          </button>
         </div>
 
-        {/* Table */}
-        <div className="glass rounded-2xl overflow-hidden">
-          {/* Top edge highlight */}
-          <div className="h-px bg-gradient-to-r from-transparent via-violet-400/20 to-transparent" />
-
+        {/* Table card */}
+        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
           {isLoading ? (
-            <div className="space-y-0">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-4 px-4 py-3 border-b border-white/4">
-                  <div className="w-9 h-9 rounded-full glass-skeleton shrink-0" />
-                  <div className="flex-1 space-y-1.5">
-                    <div className="h-3 w-32 glass-skeleton rounded-full" />
-                    <div className="h-2.5 w-20 glass-skeleton rounded-full" />
-                  </div>
-                  <div className="h-3 w-40 glass-skeleton rounded-full" />
-                  <div className="h-5 w-24 glass-skeleton rounded-full" />
-                  <div className="h-3 w-16 glass-skeleton rounded-full" />
-                  <div className="h-3 w-14 glass-skeleton rounded-full" />
-                </div>
-              ))}
-            </div>
+            <TableSkeleton />
           ) : contacts.length === 0 ? (
             <EmptyState hasSearch={hasSearch} onAdd={openAdd} />
           ) : (
             <table className="w-full">
               <thead>
-                <tr className="border-b border-white/6">
+                <tr className="border-b border-gray-200 bg-gray-50">
                   {['Name', 'Email', 'Company', 'Total Spent', 'Last Contacted', ''].map((h) => (
-                    <th key={h} className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-widest text-white/25">
+                    <th
+                      key={h}
+                      className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-gray-400"
+                    >
                       {h}
                     </th>
                   ))}
