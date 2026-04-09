@@ -21,8 +21,6 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 @Controller('blockchain')
 @UseGuards(RolesGuard)
 @Roles(UserRole.SALES_MANAGER, UserRole.ADMIN, UserRole.SUPER_ADMIN)
-
-
 export class BlockchainController {
   constructor(
     private readonly blockchainService: BlockchainService,
@@ -35,7 +33,6 @@ export class BlockchainController {
    */
   @Get('verify')
   @ApiOperation({ summary: 'Verify a deal hash on-chain' })
-  
   verifyDeal(
     @CurrentUser() user: { tenantId: string },
     @Query(new ZodValidationPipe(VerifyDealSchema)) dto: VerifyDealDto,
