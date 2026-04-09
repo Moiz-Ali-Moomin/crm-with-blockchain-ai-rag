@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Bell, ChevronDown, Settings, LogOut, User,
-  Search, Command,
+  Search, Command, Plus,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useAuthStore } from '@/store/auth.store';
@@ -112,23 +112,36 @@ export function Navbar({ onMenuToggle }: NavbarProps) {
         </h1>
       </div>
 
-      {/* Right: search + bell + user */}
+      {/* Right: search + new + bell + user */}
       <div className="flex items-center gap-1.5">
-        {/* Command search */}
+        {/* Search bar */}
         <button
           className={cn(
-            'hidden sm:flex items-center gap-2 px-3 h-8 rounded-lg',
-            'bg-white/5 border border-white/8 hover:bg-white/8',
-            'text-white/40 hover:text-white/70',
-            'transition-all duration-150 text-xs',
+            'hidden md:flex items-center gap-2 px-3 h-8 rounded-lg w-56',
+            'bg-gray-800/80 border border-gray-700/60 hover:border-gray-600',
+            'text-gray-500 hover:text-gray-400',
+            'transition-all duration-150',
           )}
         >
-          <Search size={13} />
-          <span>Search</span>
-          <div className="flex items-center gap-0.5 ml-2 opacity-60">
+          <Search size={13} className="shrink-0" />
+          <span className="flex-1 text-left text-xs truncate">Search or ask AI…</span>
+          <div className="flex items-center gap-0.5 shrink-0 opacity-50">
             <Command size={10} />
-            <span>K</span>
+            <span className="text-[11px]">K</span>
           </div>
+        </button>
+
+        {/* Add New */}
+        <button
+          className={cn(
+            'hidden sm:flex items-center gap-1.5 px-3 h-8 rounded-lg',
+            'bg-blue-600 hover:bg-blue-500 text-white',
+            'text-xs font-semibold',
+            'transition-colors duration-150',
+          )}
+        >
+          <Plus size={14} strokeWidth={2.5} />
+          <span>New</span>
         </button>
 
         {/* Notifications */}
@@ -152,10 +165,9 @@ export function Navbar({ onMenuToggle }: NavbarProps) {
                   className={cn(
                     'absolute -top-0.5 -right-0.5',
                     'min-w-[16px] h-4 px-0.5',
-                    'bg-gradient-to-br from-violet-500 to-blue-500',
+                    'bg-blue-600',
                     'text-white text-[9px] font-bold rounded-full',
                     'flex items-center justify-center',
-                    'shadow-[0_8px_18px_rgba(99,102,241,0.35)]',
                   )}
                 >
                   {unreadCount > 99 ? '99+' : unreadCount}
@@ -183,7 +195,7 @@ export function Navbar({ onMenuToggle }: NavbarProps) {
             >
               <div className="relative">
                 <Avatar className="h-8 w-8 ring-1 ring-white/10">
-                  <AvatarFallback className="bg-gradient-to-br from-violet-500 to-blue-600 text-[11px] font-bold text-white">
+                  <AvatarFallback className="bg-blue-600 text-[11px] font-bold text-white">
                     {initials}
                   </AvatarFallback>
                 </Avatar>
@@ -219,7 +231,7 @@ export function Navbar({ onMenuToggle }: NavbarProps) {
               <DropdownMenuLabel className="px-3 pb-3 pt-2 normal-case tracking-normal text-inherit">
                 <div className="flex items-start gap-3">
                   <Avatar className="mt-0.5 h-10 w-10 ring-1 ring-white/10">
-                    <AvatarFallback className="bg-gradient-to-br from-violet-500 to-blue-600 text-xs font-semibold text-white">
+                    <AvatarFallback className="bg-blue-600 text-xs font-semibold text-white">
                       {initials}
                     </AvatarFallback>
                   </Avatar>

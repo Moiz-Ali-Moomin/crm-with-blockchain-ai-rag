@@ -27,12 +27,37 @@ export function PipelineFunnelChart({ data, height = 240 }: Props) {
 
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={data} layout="vertical">
-        <CartesianGrid strokeDasharray="3 3" />
-        <XAxis type="number" tick={{ fontSize: 11 }} />
-        <YAxis dataKey="stage" type="category" tick={{ fontSize: 11 }} width={80} />
-        <Tooltip />
-        <Bar dataKey="count" fill="#6366f1" radius={[0, 4, 4, 0]} />
+      <BarChart data={data} layout="vertical" margin={{ top: 0, right: 8, left: 0, bottom: 0 }}>
+        <CartesianGrid
+          strokeDasharray="3 3"
+          stroke="rgba(75,85,99,0.35)"
+          horizontal={false}
+        />
+        <XAxis
+          type="number"
+          tick={{ fill: '#6b7280', fontSize: 11 }}
+          axisLine={false}
+          tickLine={false}
+        />
+        <YAxis
+          dataKey="stage"
+          type="category"
+          tick={{ fill: '#9ca3af', fontSize: 11 }}
+          axisLine={false}
+          tickLine={false}
+          width={88}
+        />
+        <Tooltip
+          cursor={{ fill: 'rgba(255,255,255,0.03)' }}
+          contentStyle={{
+            background: '#111827',
+            border: '1px solid rgba(75,85,99,0.6)',
+            borderRadius: '8px',
+            fontSize: '12px',
+            color: '#f9fafb',
+          }}
+        />
+        <Bar dataKey="count" fill="#3b82f6" radius={[0, 4, 4, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );

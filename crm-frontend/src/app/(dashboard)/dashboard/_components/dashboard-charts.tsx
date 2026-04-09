@@ -4,22 +4,17 @@ import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend,
+  Tooltip, ResponsiveContainer,
 } from 'recharts';
 import { analyticsApi } from '@/lib/api/analytics.api';
 import { queryKeys } from '@/lib/query/query-keys';
-import { GlassCard, GlassCardHeader, GlassCardTitle, GlassCardContent } from '@/components/ui/glass-card';
+import { PipelineFunnelChart } from '@/components/charts/pipeline-funnel-chart';
 import { formatCurrency } from '@/lib/utils';
-import { TrendingUp, PieChartIcon, Loader2 } from 'lucide-react';
+import { TrendingUp, BarChart2, Loader2 } from 'lucide-react';
 
-const PIE_COLORS = [
-  '#8b5cf6', '#3b82f6', '#10b981', '#f59e0b',
-  '#ef4444', '#ec4899', '#14b8a6', '#f97316',
-];
+// ── Tooltip ──────────────────────────────────────────────────────────────────
 
-// ── Custom Tooltip ───────────────────────────────────────────────────────────
-
-function CustomAreaTooltip({
+function AreaTooltip({
   active, payload, label,
 }: {
   active?: boolean;
@@ -28,56 +23,59 @@ function CustomAreaTooltip({
 }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="glass-elevated rounded-xl px-3 py-2 text-sm">
-      <p className="text-white/50 text-xs mb-1">{label}</p>
-      <p className="text-white font-semibold">{formatCurrency(payload[0].value)}</p>
+    <div className="bg-[#111827] border border-gray-700/80 rounded-lg px-3 py-2 shadow-xl">
+      <p className="text-gray-400 text-[11px] mb-1">{label}</p>
+      <p className="text-white text-sm font-semibold">{formatCurrency(payload[0].value)}</p>
     </div>
   );
 }
 
-function CustomPieTooltip({
-  active, payload,
-}: {
-  active?: boolean;
-  payload?: Array<{ name: string; value: number }>;
-}) {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="glass-elevated rounded-xl px-3 py-2 text-sm">
-      <p className="text-white/60 text-xs">{payload[0].name}</p>
-      <p className="text-white font-semibold">{payload[0].value.toLocaleString()}</p>
-    </div>
-  );
-}
-
-// ── Empty state ──────────────────────────────────────────────────────────────
-
-function ChartEmpty({ label }: { label: string }) {
-  return (
-    <div className="h-56 flex flex-col items-center justify-center gap-2 text-white/25">
-      <PieChartIcon size={28} strokeWidth={1} />
-      <span className="text-sm">{label}</span>
-    </div>
-  );
-}
-
-// ── Skeleton bars inside chart area ─────────────────────────────────────────
+// ── Skeleton ─────────────────────────────────────────────────────────────────
 
 function ChartSkeleton() {
   return (
-    <div className="h-56 flex items-end gap-2 px-2">
+    <div className="h-52 flex items-end gap-1.5 px-2 pt-4">
       {[60, 80, 45, 90, 70, 55, 85, 40, 75, 65, 50, 88].map((h, i) => (
         <div
           key={i}
-          className="flex-1 glass-skeleton rounded-t-md"
-          style={{ height: `${h}%`, animationDelay: `${i * 0.05}s` }}
+          className="flex-1 bg-gray-700/40 rounded-t-sm animate-pulse"
+          style={{ height: `${h}%`, animationDelay: `${i * 0.04}s` }}
         />
       ))}
     </div>
   );
 }
 
-// ── Revenue chart ────────────────────────────────────────────────────────────
+// ── Shared card shell ─────────────────────────────────────────────────────────
+
+function ChartCard({
+  title,
+  icon,
+  children,
+  badge,
+}: {
+  title: string;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+  badge?: React.ReactNode;
+}) {
+  return (
+    <div className="bg-[#1f2937] border border-gray-700/60 rounded-xl p-5">
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-400">
+            {icon}
+          </div>
+          <span className="text-sm font-semibold text-white">{title}</span>
+        </div>
+        {badge}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// ── Revenue area chart ───────────────────────────────────────────────────────
 
 function RevenueChart() {
   const { data, isLoading } = useQuery({
@@ -86,158 +84,98 @@ function RevenueChart() {
   });
 
   return (
-    <GlassCard variant="default" padding="md" className="h-full">
-      <GlassCardHeader>
-        <div className="flex items-center gap-2">
-          <div className="p-1.5 rounded-lg bg-violet-500/20 text-violet-300">
-            <TrendingUp size={14} strokeWidth={2} />
-          </div>
-          <GlassCardTitle>Revenue</GlassCardTitle>
+    <ChartCard
+      title="Revenue"
+      icon={<TrendingUp size={14} strokeWidth={2} />}
+      badge={<span className="text-[11px] text-gray-500 font-medium">12 months</span>}
+    >
+      {isLoading ? (
+        <ChartSkeleton />
+      ) : !data?.length ? (
+        <div className="h-52 flex items-center justify-center text-gray-500 text-sm">
+          No revenue data yet
         </div>
-        <span className="text-[11px] text-white/30 font-medium">12 months</span>
-      </GlassCardHeader>
-
-      <GlassCardContent>
-        {isLoading ? (
-          <ChartSkeleton />
-        ) : !data?.length ? (
-          <ChartEmpty label="No revenue data yet" />
-        ) : (
-          <ResponsiveContainer width="100%" height={224}>
-            <AreaChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-              <defs>
-                <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor="#8b5cf6" stopOpacity={0.5} />
-                  <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid
-                strokeDasharray="3 3"
-                stroke="rgba(255,255,255,0.06)"
-                vertical={false}
-              />
-              <XAxis
-                dataKey="month"
-                tick={{ fill: 'rgba(255,255,255,0.35)', fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                tick={{ fill: 'rgba(255,255,255,0.35)', fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-                tickFormatter={(v: number) => `$${(v / 1000).toFixed(0)}k`}
-              />
-              <Tooltip content={<CustomAreaTooltip />} cursor={{ stroke: 'rgba(139,92,246,0.25)', strokeWidth: 1 }} />
-              <Area
-                type="monotone"
-                dataKey="revenue"
-                stroke="#8b5cf6"
-                strokeWidth={2}
-                fill="url(#revGrad)"
-                dot={false}
-                activeDot={{ r: 4, fill: '#8b5cf6', strokeWidth: 0 }}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        )}
-      </GlassCardContent>
-    </GlassCard>
+      ) : (
+        <ResponsiveContainer width="100%" height={208}>
+          <AreaChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+            <defs>
+              <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%"  stopColor="#3b82f6" stopOpacity={0.25} />
+                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke="rgba(75,85,99,0.35)"
+              vertical={false}
+            />
+            <XAxis
+              dataKey="month"
+              tick={{ fill: '#6b7280', fontSize: 11 }}
+              axisLine={false}
+              tickLine={false}
+            />
+            <YAxis
+              tick={{ fill: '#6b7280', fontSize: 11 }}
+              axisLine={false}
+              tickLine={false}
+              tickFormatter={(v: number) => `$${(v / 1000).toFixed(0)}k`}
+            />
+            <Tooltip
+              content={<AreaTooltip />}
+              cursor={{ stroke: 'rgba(59,130,246,0.15)', strokeWidth: 1 }}
+            />
+            <Area
+              type="monotone"
+              dataKey="revenue"
+              stroke="#3b82f6"
+              strokeWidth={2}
+              fill="url(#revGrad)"
+              dot={false}
+              activeDot={{ r: 4, fill: '#3b82f6', strokeWidth: 0 }}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      )}
+    </ChartCard>
   );
 }
 
-// ── Lead Sources pie ─────────────────────────────────────────────────────────
+// ── Pipeline funnel chart ────────────────────────────────────────────────────
 
-function LeadSourcesChart() {
+function PipelineChart() {
   const { data, isLoading } = useQuery({
-    queryKey: queryKeys.analytics.leadSources,
-    queryFn:  analyticsApi.getLeadSources,
+    queryKey: queryKeys.analytics.pipelineFunnel,
+    queryFn:  () => analyticsApi.getPipelineFunnel(),
   });
 
   return (
-    <GlassCard variant="default" padding="md" className="h-full">
-      <GlassCardHeader>
-        <div className="flex items-center gap-2">
-          <div className="p-1.5 rounded-lg bg-blue-500/20 text-blue-300">
-            <PieChartIcon size={14} strokeWidth={2} />
-          </div>
-          <GlassCardTitle>Lead Sources</GlassCardTitle>
+    <ChartCard
+      title="Pipeline Funnel"
+      icon={<BarChart2 size={14} strokeWidth={2} />}
+    >
+      {isLoading ? (
+        <div className="h-52 flex items-center justify-center">
+          <Loader2 size={20} className="text-gray-600 animate-spin" />
         </div>
-      </GlassCardHeader>
-
-      <GlassCardContent>
-        {isLoading ? (
-          <div className="h-56 flex items-center justify-center">
-            <Loader2 size={24} className="text-violet-400 animate-spin" />
-          </div>
-        ) : !data?.length ? (
-          <ChartEmpty label="No source data yet" />
-        ) : (
-          <ResponsiveContainer width="100%" height={224}>
-            <PieChart>
-              <Pie
-                data={data}
-                dataKey="count"
-                nameKey="source"
-                cx="50%"
-                cy="45%"
-                outerRadius={80}
-                innerRadius={44}
-                paddingAngle={2}
-                label={false}
-              >
-                {data.map((_, i) => (
-                  <Cell
-                    key={i}
-                    fill={PIE_COLORS[i % PIE_COLORS.length]}
-                    opacity={0.9}
-                  />
-                ))}
-              </Pie>
-              <Legend
-                iconType="circle"
-                iconSize={8}
-                formatter={(value: string) =>
-                  <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: 11 }}>
-                    {value.replace(/_/g, ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase())}
-                  </span>
-                }
-              />
-              <Tooltip content={<CustomPieTooltip />} />
-            </PieChart>
-          </ResponsiveContainer>
-        )}
-      </GlassCardContent>
-    </GlassCard>
+      ) : (
+        <PipelineFunnelChart data={data ?? []} height={208} />
+      )}
+    </ChartCard>
   );
 }
 
-// ── Composed export ──────────────────────────────────────────────────────────
-
-const containerVariants = {
-  hidden:  {},
-  visible: { transition: { staggerChildren: 0.1 } },
-};
-
-const itemVariants = {
-  hidden:  { opacity: 0, y: 18 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.45, ease: [0.25, 0.46, 0.45, 0.94] } },
-};
+// ── Export ───────────────────────────────────────────────────────────────────
 
 export function DashboardCharts() {
   return (
     <motion.div
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-      className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-full"
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] } }}
+      className="grid grid-cols-1 lg:grid-cols-2 gap-4"
     >
-      <motion.div variants={itemVariants}>
-        <RevenueChart />
-      </motion.div>
-      <motion.div variants={itemVariants}>
-        <LeadSourcesChart />
-      </motion.div>
+      <RevenueChart />
+      <PipelineChart />
     </motion.div>
   );
 }
