@@ -44,14 +44,23 @@ export default function ActivitiesPage() {
     entityType: '',
   });
 
-  // ✅ FIXED TYPE
+  // ✅ Correct type
   const { data, isLoading } = useQuery<PaginatedData<Activity>>({
     queryKey: queryKeys.activities.list(filters),
     queryFn: () => activitiesApi.getAll(filters),
   });
 
   const rows = data?.data ?? [];
-  const meta = data?.meta;
+
+  // ✅ FIX: map actual API shape (no meta)
+  const meta = data
+    ? {
+        page: data.page,
+        totalPages: data.totalPages,
+        total: data.total,
+        limit: data.limit,
+      }
+    : undefined;
 
   const columns = [
     {
