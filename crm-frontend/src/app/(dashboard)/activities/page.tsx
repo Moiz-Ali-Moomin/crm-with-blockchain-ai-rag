@@ -8,7 +8,7 @@ import { queryKeys } from '@/lib/query/query-keys';
 import { DataTable } from '@/components/crm/data-table';
 import { Pagination } from '@/components/shared/pagination';
 import { formatRelativeTime } from '@/lib/utils';
-import type { Activity } from '@/types';
+import type { Activity, PaginatedData } from '@/types';
 
 const ACTIVITY_TYPES = ['CALL', 'EMAIL', 'MEETING', 'NOTE', 'TASK', 'SMS', 'WHATSAPP'];
 const ENTITY_TYPES   = ['LEAD', 'CONTACT', 'COMPANY', 'DEAL', 'TICKET'];
@@ -30,17 +30,6 @@ type Filters = {
   entityType: string;
 };
 
-// ✅ Proper API response type
-type ActivitiesResponse = {
-  data: Activity[];
-  meta: {
-    page: number;
-    totalPages: number;
-    total: number;
-    limit: number;
-  };
-};
-
 const selectClass =
   'h-9 rounded-md border border-gray-200 bg-white text-gray-700 px-3 text-sm ' +
   'focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10 transition-all';
@@ -55,7 +44,8 @@ export default function ActivitiesPage() {
     entityType: '',
   });
 
-  const { data, isLoading } = useQuery<ActivitiesResponse>({
+  // ✅ FIXED TYPE
+  const { data, isLoading } = useQuery<PaginatedData<Activity>>({
     queryKey: queryKeys.activities.list(filters),
     queryFn: () => activitiesApi.getAll(filters),
   });
@@ -105,6 +95,7 @@ export default function ActivitiesPage() {
 
   return (
     <div className="space-y-4">
+      {/* Filters */}
       <div className="flex items-center gap-2.5">
         <select
           value={filters.type}
@@ -141,6 +132,7 @@ export default function ActivitiesPage() {
         </select>
       </div>
 
+      {/* Table */}
       <DataTable
         columns={columns}
         data={rows}
@@ -153,6 +145,7 @@ export default function ActivitiesPage() {
         }}
       />
 
+      {/* Pagination */}
       {meta && (
         <Pagination
           page={meta.page}
