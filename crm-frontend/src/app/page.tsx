@@ -99,15 +99,15 @@ function LandingNav() {
           {[
             { label: 'Features', href: '#features' },
             { label: 'AI',       href: '#ai' },
-            { label: 'Pricing',  href: '#pricing' },
+            { label: 'Pricing',  href: '/pricing' },
           ].map(({ label, href }) => (
-            <a
+            <Link
               key={label}
               href={href}
               className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors duration-150"
             >
               {label}
-            </a>
+            </Link>
           ))}
         </nav>
 
@@ -524,8 +524,8 @@ function CtaSection() {
             className="bg-blue-600 hover:bg-blue-500 text-white gap-2 transition-colors"
             asChild
           >
-            <Link href="/login">
-              Start free trial — no credit card
+            <Link href="/pricing">
+              View pricing & plans
               <ArrowRight size={16} />
             </Link>
           </Button>
@@ -535,7 +535,7 @@ function CtaSection() {
             className="bg-transparent border-slate-700 text-slate-300 hover:bg-slate-800 hover:border-slate-600 hover:text-white transition-colors"
             asChild
           >
-            <Link href="/login">Talk to sales</Link>
+            <Link href="/register">Start free trial</Link>
           </Button>
         </div>
 

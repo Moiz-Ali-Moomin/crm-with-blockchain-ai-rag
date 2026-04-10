@@ -5,8 +5,8 @@ export const authApi = {
     apiPost<{ user: any; accessToken: string }>('/auth/login', { email, password }),
 
   register: (data: {
-    tenantName: string;
-    tenantSlug: string;
+    organizationName: string;
+    organizationSlug: string;
     email: string;
     password: string;
     firstName: string;

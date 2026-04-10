@@ -21,7 +21,10 @@ const schema = z
     email: z.string().email('Invalid email'),
     firstName: z.string().min(1, 'First name is required'),
     lastName: z.string().min(1, 'Last name is required'),
-    password: z.string().min(8, 'Password must be at least 8 characters'),
+    password: z
+      .string()
+      .min(8, 'Password must be at least 8 characters')
+      .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, 'Must contain uppercase, lowercase, and a number'),
     confirmPassword: z.string(),
   })
   .refine((d) => d.password === d.confirmPassword, {
@@ -53,8 +56,8 @@ export default function RegisterPage() {
   const onSubmit = async (data: FormData) => {
     try {
       const result = await authApi.register({
-        tenantName: data.tenantName,
-        tenantSlug: slugify(data.tenantName),
+        organizationName: data.tenantName,
+        organizationSlug: slugify(data.tenantName),
         email: data.email,
         firstName: data.firstName,
         lastName: data.lastName,
