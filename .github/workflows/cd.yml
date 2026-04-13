@@ -157,7 +157,22 @@ jobs:
               echo "  ✅ Networks already exist — skipping infra bootstrap"
             fi
 
-            # ── [5b] Start idle slot with new image ──────────────────────────
+            # ── [5b] Tear down idle slot (idempotent cleanup) ────────────────
+            # WHY: a previous failed deploy or manual intervention may have left
+            # containers in the idle slot. Docker cannot reuse a container name
+            # that already exists — this step guarantees a clean slate before
+            # bringing up the new version.
+            echo "[3/7] Cleaning up any existing $IDLE slot containers"
+            docker compose \
+              -f "docker-compose.${IDLE}.yml" \
+              --project-name "crm-${IDLE}" \
+              down --remove-orphans || true
+
+            # Belt-and-suspenders: remove by name in case compose didn't track them
+            # (e.g. containers created outside of compose context)
+            docker rm -f "crm_api_${IDLE}" "crm_web_${IDLE}" 2>/dev/null || true
+
+            # ── [5c] Start idle slot with new image ──────────────────────────
             # WHY only the slot file: docker-compose.yml defines shared infra
             # (postgres, redis, nginx) already managed by crm-infra. Including
             # it here would cause container name conflicts. The slot files declare
