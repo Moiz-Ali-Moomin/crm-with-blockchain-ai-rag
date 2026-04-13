@@ -91,7 +91,7 @@ jobs:
             echo " Canary weight: $CANARY_WEIGHT%"
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-            DEPLOY_PATH="${DEPLOY_PATH:-/opt/crm}"
+            DEPLOY_PATH="${DEPLOY_PATH:-/opt/crm-with-blockchain-rag}"
             cd "$DEPLOY_PATH"
 
             # ── [0] Pull deploy helpers ──────────────────────────────────────
@@ -112,7 +112,7 @@ jobs:
             # ── [3] Determine active/idle slot ──────────────────────────────
             # We maintain two stacks: blue and green.
             # The ACTIVE slot serves real traffic; IDLE is where we deploy.
-            ACTIVE=$(cat /opt/crm/.active_slot 2>/dev/null || echo "blue")
+            ACTIVE=$(cat "$DEPLOY_PATH"/.active_slot 2>/dev/null || echo "blue")
             if [ "$ACTIVE" = "blue" ]; then
               IDLE="green"
             else
@@ -122,12 +122,12 @@ jobs:
 
             # ── [4] Load secrets via Docker secrets / env file ──────────────
             # WHY: .env files are readable by anyone with shell access.
-            # We store secrets in /opt/crm/.secrets (mode 600, root-only)
+            # We store secrets in "$DEPLOY_PATH"/.secrets (mode 600, root-only)
             # and pass them via --env-file only to the containers that need them.
             # For AWS-style setups, replace this block with:
             #   aws secretsmanager get-secret-value ...
-            if [ ! -f /opt/crm/.secrets ]; then
-              echo "ERROR: /opt/crm/.secrets not found — provision it first" && exit 1
+            if [ ! -f "$DEPLOY_PATH"/.secrets ]; then
+              echo "ERROR: "$DEPLOY_PATH"/.secrets not found — provision it first" && exit 1
             fi
 
             # ── [5] Start idle slot with new image ──────────────────────────
@@ -140,7 +140,7 @@ jobs:
               -f docker-compose.yml \
               -f "docker-compose.${IDLE}.yml" \
               --project-name "crm-${IDLE}" \
-              --env-file /opt/crm/.secrets \
+              --env-file "$DEPLOY_PATH"/.secrets \
               up -d --no-build --pull never
 
             # ── [6] Health-gate new slot ─────────────────────────────────────
@@ -170,7 +170,7 @@ jobs:
               echo "  ✅ Canary traffic shifted"
               echo "  ℹ️  Monitor Grafana, then re-run CD with canary_weight=100 to promote"
               # Record canary state — do NOT update .active_slot yet
-              echo "$IDLE" > /opt/crm/.canary_slot
+              echo "$IDLE" > "$DEPLOY_PATH"/.canary_slot
               exit 0
             else
               # ── Full cutover (blue-green) ──────────────────────────────────
@@ -196,8 +196,8 @@ jobs:
               down --remove-orphans
 
             # Persist new active slot
-            echo "$IDLE" > /opt/crm/.active_slot
-            rm -f /opt/crm/.canary_slot
+            echo "$IDLE" > "$DEPLOY_PATH"/.active_slot
+            rm -f "$DEPLOY_PATH"/.canary_slot
 
             # Clean up dangling images (keep last 3 tags)
             docker image prune -f --filter "until=72h" || true
@@ -225,10 +225,10 @@ jobs:
           port: ${{ secrets.DEPLOY_SSH_PORT || 22 }}
           script: |
             set -euo pipefail
-            DEPLOY_PATH="${DEPLOY_PATH:-/opt/crm}"
+            DEPLOY_PATH="${DEPLOY_PATH:-/opt/crm-with-blockchain-rag}"
             cd "$DEPLOY_PATH"
 
-            ACTIVE=$(cat /opt/crm/.active_slot 2>/dev/null || echo "blue")
+            ACTIVE=$(cat "$DEPLOY_PATH"/.active_slot 2>/dev/null || echo "blue")
             if [ "$ACTIVE" = "blue" ]; then PREV="green"; else PREV="blue"; fi
 
             echo "Rolling back from $ACTIVE → $PREV"
@@ -239,5 +239,5 @@ jobs:
               > "$DEPLOY_PATH/nginx/conf.d/app.conf"
             docker exec crm_nginx nginx -s reload
 
-            echo "$PREV" > /opt/crm/.active_slot
+            echo "$PREV" > "$DEPLOY_PATH"/.active_slot
             echo "✅ Rollback complete — now serving: $PREV"
