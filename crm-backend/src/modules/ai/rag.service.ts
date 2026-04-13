@@ -87,8 +87,13 @@ export class RagService {
     private readonly aiLogRepo: AiLogRepository,
     private readonly redis: RedisService,
   ) {
+    // WHY get() not getOrThrow(): OPENAI_API_KEY is z.optional() in env.validation.ts.
+    // Throwing in the constructor crashes NestJS bootstrap for ALL modules — auth,
+    // leads, deals — even though they have no dependency on OpenAI whatsoever.
+    // Instead we defer the guard to call time in query(), where it belongs.
+    const apiKey = this.config.get<string>('OPENAI_API_KEY');
     this.openai = new OpenAI({
-      apiKey: this.config.getOrThrow<string>('OPENAI_API_KEY'),
+      apiKey: apiKey ?? 'not-configured',
     });
   }
 
@@ -100,6 +105,11 @@ export class RagService {
    * @returns       - LLM answer with source attribution and confidence score
    */
   async query(params: RagQueryParams): Promise<RagResponse> {
+    // Guard here, not in constructor — fail the specific request, not the entire process.
+    if (!this.config.get<string>('OPENAI_API_KEY')) {
+      throw new Error('RAG queries are unavailable: OPENAI_API_KEY is not configured.');
+    }
+
     const {
       tenantId,
       query,

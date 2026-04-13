@@ -378,7 +378,7 @@
     <span>Last updated: 2026-04-14</span>
     <span>Auditor: Claude Code (claude-sonnet-4-6)</span>
     <span>Project: crm-with-blockchain-rag</span>
-    <span>10 code bugs · 9 deployment incidents</span>
+    <span>10 code bugs · 10 deployment incidents</span>
   </p>
 </header>
 
@@ -1561,6 +1561,195 @@ DATABASE_URL=<span class="str">"postgresql://test:test@smoke_postgres:5432/test"
       <div class="fix-block">
         <p class="field-label">Result</p>
         <p class="field-value">The smoke test now starts a real Postgres, applies migrations, boots the API, and validates both <code>/health/live</code> (process up) and <code>/health/ready</code> (DB connected). A broken image — startup crash, bad env, failed migration, broken health endpoint — is caught in CI before the image is ever consumed by CD. On failure, both API and Postgres logs are dumped for fast diagnosis.</p>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- INC-10 -->
+  <div class="incident-card">
+    <div class="incident-header">
+      <span class="bug-id">INC-10</span>
+      <div class="incident-meta">
+        <div class="incident-title">Smoke test crash — <code>getOrThrow("MONGO_URI")</code> throws at bootstrap, port never opens, health check returns HTTP 000</div>
+        <div class="incident-subtitle">
+          Date: 2026-04-14 · Files: src/core/database/mongo.module.ts · src/modules/ai/rag.service.ts · .github/workflows/ci.yml · Type: Eager dependency / bootstrap crash
+        </div>
+      </div>
+      <span class="incident-pill">⚠ Pipeline Bug</span>
+    </div>
+
+    <div class="incident-body">
+
+      <div>
+        <p class="field-label">Error</p>
+        <div class="code-wrap" style="margin-top:6px;">
+          <div class="code-title">API container stdout — startup crash</div>
+          <pre><span class="hl">Configuration key "MONGO_URI" does not exist</span>
+TypeError: Configuration key "MONGO_URI" does not exist
+    at ConfigService.getOrThrow (...)
+    at MongooseModule.forRootAsync.useFactory (mongo.module.ts:32)
+    at NestFactory.create (...)
+<span class="comment">
+# Health check returns 000 because curl cannot connect — port 3001 was
+# never bound. The process exited during bootstrap, before listen().</span></pre>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div>
+          <p class="field-label">Root cause — two independent bootstrap crashes</p>
+          <p class="field-value">
+            <strong>1. <code>mongo.module.ts:32</code> — <code>config.getOrThrow('MONGO_URI')</code></strong><br>
+            <code>MongooseModule.forRootAsync</code> factory runs synchronously during NestJS DI graph construction. <code>getOrThrow</code> throws immediately when the key is absent. NestJS catches the exception during module initialisation, logs it, and exits the process — before <code>app.listen()</code> is ever called. Port 3001 is never opened. curl gets connection refused → HTTP 000, not 500.<br><br>
+            <strong>2. <code>rag.service.ts:91</code> — <code>config.getOrThrow('OPENAI_API_KEY')</code></strong><br>
+            Same pattern in the <code>RagService</code> constructor. Even if <code>MONGO_URI</code> were fixed, the absence of <code>OPENAI_API_KEY</code> would produce an identical crash on the next bootstrap attempt. Both keys are declared <code>z.optional()</code> in <code>env.validation.ts</code> — Zod allows them to be absent, but the services immediately override that contract by using <code>getOrThrow</code>.
+          </p>
+        </div>
+        <div>
+          <p class="field-label">Why HTTP 000, not 500</p>
+          <p class="field-value">HTTP 000 is curl's sentinel for <em>no response received</em> — the TCP connection itself was refused (ECONNREFUSED) or timed out. This only happens when no process is listening on the target port. It is categorically different from an HTTP 500 (server running, handler threw). The process died during NestJS bootstrap before <code>app.listen(3001)</code>, so the port is closed. curl never exchanges a single byte — it exits with code 7 (failed to connect) and writes "000" via <code>-w "%{http_code}"</code>.</p>
+        </div>
+      </div>
+
+      <div>
+        <p class="field-label">Bootstrap sequence — where the crash occurs</p>
+        <div class="root-cause-chain" style="margin-top:8px;">
+          <div class="rca-step">
+            <div class="rca-num">1</div>
+            <p>NestJS resolves the DI graph. <code>AppModule</code> → <code>CoreModule</code> → <code>MongoModule</code>.</p>
+          </div>
+          <div class="rca-step">
+            <div class="rca-num">2</div>
+            <p><code>MongooseModule.forRootAsync</code> factory executes. <code>config.getOrThrow('MONGO_URI')</code> throws synchronously — <code>MONGO_URI</code> is not in the environment.</p>
+          </div>
+          <div class="rca-step">
+            <div class="rca-num">3</div>
+            <p>NestJS propagates the exception, logs <em>"Configuration key MONGO_URI does not exist"</em>, and terminates the process via <code>process.exit(1)</code>.</p>
+          </div>
+          <div class="rca-step">
+            <div class="rca-num">4</div>
+            <p><code>app.listen(3001)</code> is never reached. Port 3001 is never opened. The Docker healthcheck and the CI curl both get ECONNREFUSED → HTTP 000.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Fix 1 — Production fix -->
+      <div>
+        <p class="field-label">Fix 1 — Production (recommended) · <code>mongo.module.ts</code></p>
+        <p class="field-value" style="margin-bottom:8px;">Replace <code>getOrThrow</code> with <code>get</code> and degrade gracefully when <code>MONGO_URI</code> is absent. MongoDB backs AI audit logs — fire-and-forget writes. The core CRM (Postgres) must not be held hostage by an optional secondary datastore.</p>
+        <div class="code-wrap">
+          <div class="code-title">src/core/database/mongo.module.ts — useFactory (fixed)</div>
+          <pre>useFactory: (config: ConfigService) => {
+  <span class="kw">const</span> uri = config.<span class="fn">get</span>&lt;<span class="cls">string</span>&gt;(<span class="str">'MONGO_URI'</span>);   <span class="comment">// get(), not getOrThrow()</span>
+
+  if (!uri) {
+    logger.warn(
+      <span class="str">'MONGO_URI is not set — MongoDB disabled. '</span> +
+      <span class="str">'AI audit logging and RAG features will not function.'</span>
+    );
+    <span class="comment">// Sentinel URI: Mongoose attempts connection, fails fast (1s timeout),</span>
+    <span class="comment">// logs an error — but does NOT throw, does NOT crash the process.</span>
+    <span class="kw">return</span> {
+      uri: <span class="str">'mongodb://127.0.0.1:27017/__disabled__'</span>,
+      serverSelectionTimeoutMS: 1000,
+      connectTimeoutMS: 1000,
+    };
+  }
+
+  <span class="kw">return</span> { uri, maxPoolSize: 10, minPoolSize: 2, ... };
+}</pre>
+        </div>
+      </div>
+
+      <!-- Fix 2 — Code-level fix for RagService -->
+      <div>
+        <p class="field-label">Fix 2 — Code-level · <code>rag.service.ts</code> constructor + <code>query()</code></p>
+        <p class="field-value" style="margin-bottom:8px;">Move the <code>OPENAI_API_KEY</code> guard from the constructor (crashes all modules) to <code>query()</code> (fails only the specific request). Fail the feature, not the process.</p>
+        <div class="code-wrap">
+          <div class="code-title">src/modules/ai/rag.service.ts — constructor + query() (fixed)</div>
+          <pre><span class="comment">// Constructor — use get(), defer guard to call time</span>
+constructor(...) {
+  <span class="kw">const</span> apiKey = this.config.<span class="fn">get</span>&lt;<span class="cls">string</span>&gt;(<span class="str">'OPENAI_API_KEY'</span>);
+  this.openai = <span class="kw">new</span> <span class="cls">OpenAI</span>({ apiKey: apiKey ?? <span class="str">'not-configured'</span> });
+}
+
+<span class="comment">// query() — guard here, fail the request not the process</span>
+async <span class="fn">query</span>(params: RagQueryParams): Promise&lt;RagResponse&gt; {
+  if (!this.config.<span class="fn">get</span>(<span class="str">'OPENAI_API_KEY'</span>)) {
+    <span class="kw">throw new</span> <span class="cls">Error</span>(<span class="str">'RAG queries unavailable: OPENAI_API_KEY is not configured.'</span>);
+  }
+  ...
+}</pre>
+        </div>
+      </div>
+
+      <!-- Fix 3 — Minimal CI fix -->
+      <div>
+        <p class="field-label">Fix 3 — Minimal CI-only (without code changes)</p>
+        <p class="field-value" style="margin-bottom:8px;">Start a MongoDB container in the smoke test network alongside Postgres. No code changes required — trades infrastructure complexity for code simplicity. Acceptable as a temporary bridge while Fix 1 is reviewed.</p>
+        <div class="code-wrap">
+          <div class="code-title">ci.yml — add MongoDB to smoke test (alternative, no code changes)</div>
+          <pre><span class="comment"># Start MongoDB (no auth needed for CI — no data persisted)</span>
+docker run -d \
+  --name smoke_mongo \
+  --network smoke_net \
+  mongo:7-jammy
+
+<span class="comment"># Add to docker run for smoke_api:</span>
+-e MONGO_URI=<span class="str">"mongodb://smoke_mongo:27017/test"</span> \
+-e OPENAI_API_KEY=<span class="str">"sk-not-real-ci-placeholder"</span> \</pre>
+        </div>
+      </div>
+
+      <!-- Updated CI env block -->
+      <div>
+        <p class="field-label">Updated CI smoke test env — after Fix 1 + Fix 2 (no MongoDB container needed)</p>
+        <div class="code-wrap" style="margin-top:6px;">
+          <div class="code-title">ci.yml — docker run smoke_api (final)</div>
+          <pre>docker run -d \
+  --name smoke_api \
+  --network smoke_net \
+  -e NODE_ENV=production \
+  -e PORT=3001 \
+  -e DATABASE_URL=<span class="str">"postgresql://test:test@smoke_postgres:5432/test"</span> \
+  -e REDIS_URL=<span class="str">"redis://localhost:6379"</span> \
+  <span class="comment"># Required — Zod enforces min(32) — these are CI-only values</span>
+  -e JWT_SECRET=<span class="str">"ci-smoke-test-not-for-prod-pad-to-32-chars!!"</span> \
+  -e JWT_REFRESH_SECRET=<span class="str">"ci-smoke-refresh-not-for-prod-pad-32chars"</span> \
+  <span class="comment"># MONGO_URI omitted — MongoModule now degrades gracefully (sentinel URI)</span>
+  <span class="comment"># OPENAI_API_KEY omitted — RagService guards at query() call time, not constructor</span>
+  -p 3001:3001 \
+  "${IMAGE_API}:${IMAGE_TAG}"</pre>
+        </div>
+      </div>
+
+      <!-- Architecture improvements -->
+      <div>
+        <p class="field-label">Architecture improvements — what this incident reveals</p>
+        <div class="root-cause-chain" style="margin-top:8px;">
+          <div class="rca-step">
+            <div class="rca-num">1</div>
+            <p><strong>env.validation.ts and service constructors disagree.</strong> Zod marks <code>MONGO_URI</code> and <code>OPENAI_API_KEY</code> as <code>z.optional()</code>, but service code uses <code>getOrThrow</code>. The contract should be consistent: if it's optional in the schema, every consumer must handle its absence. Audit all <code>getOrThrow</code> calls — only use it for keys that are <code>z.string()</code> (required) in the schema.</p>
+          </div>
+          <div class="rca-step">
+            <div class="rca-num">2</div>
+            <p><strong>Feature modules should be conditionally loaded.</strong> <code>AiModule</code> and <code>MongoModule</code> are always imported regardless of whether AI features are enabled. Use a feature-flag pattern: <code>...(process.env.MONGO_URI ? [MongoModule, AiModule] : [])</code> in <code>CoreModule</code> and <code>AppModule</code>. Cleaner than sentinel URIs and avoids Mongoose error noise entirely.</p>
+          </div>
+          <div class="rca-step">
+            <div class="rca-num">3</div>
+            <p><strong><code>/health/live</code> must be dependency-free — enforce it structurally.</strong> The liveness endpoint currently works correctly (no DB calls), but it depends on the process surviving bootstrap. Any constructor-level <code>getOrThrow</code> for an optional var can silence the liveness probe forever. Consider a minimal <code>LivenessModule</code> that imports nothing from CoreModule and is registered first.</p>
+          </div>
+          <div class="rca-step">
+            <div class="rca-num">4</div>
+            <p><strong>Smoke test should enumerate and explain every env var.</strong> An undocumented <code>docker run</code> with 4 env vars that silently omits required ones creates exactly this class of bug. The updated CI snippet (above) comments each var against its Zod schema type so future maintainers know why each is or isn't included.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="fix-block">
+        <p class="field-label">Result</p>
+        <p class="field-value">After Fix 1 (<code>mongo.module.ts</code>) and Fix 2 (<code>rag.service.ts</code>): the API bootstraps cleanly with only Postgres + the two JWT secrets. <code>/health/live</code> returns 200. MongoDB and OpenAI absence is surfaced as a logged warning and a <code>/health/ready</code> degradation — not a process crash. The smoke test passes without requiring a MongoDB container in CI.</p>
       </div>
 
     </div>

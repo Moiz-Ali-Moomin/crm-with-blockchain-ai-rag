@@ -325,12 +325,25 @@ jobs:
             prisma migrate deploy
 
           # ── [5] Start the API container ───────────────────────────────────────
-          # Minimal required env (from env.validation.ts — Zod enforces these):
-          #   DATABASE_URL  — valid URL, reachable postgres
-          #   JWT_SECRET    — min 32 chars
-          #   JWT_REFRESH_SECRET — min 32 chars
-          # Optional vars (sendgrid, stripe, twilio, etc.) are all z.optional()
-          # and will not cause a startup crash when absent.
+          # Env var audit against env.validation.ts (Zod schema):
+          #
+          #   REQUIRED (no default, crashes if absent):
+          #     DATABASE_URL       — z.string().url()          → real postgres on smoke_net
+          #     JWT_SECRET         — z.string().min(32)        → 42-char CI value
+          #     JWT_REFRESH_SECRET — z.string().min(32)        → 38-char CI value
+          #
+          #   OPTIONAL with defaults (won't crash if absent):
+          #     NODE_ENV           — defaults to 'development'
+          #     PORT               — defaults to '3001'
+          #     REDIS_URL          — defaults to redis://localhost:6379
+          #                          RedisService uses lazyConnect — won't crash bootstrap
+          #                          if Redis is unreachable, but will log errors.
+          #
+          #   OPTIONAL, no default (z.optional() — safe to omit):
+          #     MONGO_URI          — MongoModule falls back to sentinel URI when absent
+          #                          after the mongo.module.ts fix. No crash, just a warn.
+          #     OPENAI_API_KEY     — RagService defers guard to query() call time.
+          #     SENDGRID_*, TWILIO_*, STRIPE_*, BLOCKCHAIN_* — all z.optional().
           docker run -d \
             --name smoke_api \
             --network smoke_net \
@@ -338,8 +351,8 @@ jobs:
             -e PORT=3001 \
             -e DATABASE_URL="postgresql://test:test@smoke_postgres:5432/test" \
             -e REDIS_URL="redis://localhost:6379" \
-            -e JWT_SECRET="ci-smoke-test-not-for-prod-pad-to-32-chars" \
-            -e JWT_REFRESH_SECRET="ci-smoke-refresh-not-for-prod-pad-32c" \
+            -e JWT_SECRET="ci-smoke-test-not-for-prod-pad-to-32-chars!!" \
+            -e JWT_REFRESH_SECRET="ci-smoke-refresh-not-for-prod-pad-32chars" \
             -p 3001:3001 \
             "${IMAGE_API}:${IMAGE_TAG}"
 
