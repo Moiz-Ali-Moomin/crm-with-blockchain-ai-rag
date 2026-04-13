@@ -50,7 +50,7 @@ services:
     networks:
       - crm_internal
     healthcheck:
-      test: ["CMD-SHELL", "mongosh -u \"$MONGO_USER\" -p \"$MONGO_PASSWORD\" --authenticationDatabase admin --quiet --eval \"db.adminCommand('ping').ok\" || exit 1"]
+      test: ["CMD-SHELL", "mongosh -u \"$MONGO_USER\" -p \"$MONGO_PASSWORD\" --authenticationDatabase admin --quiet --eval \"db.adminCommand('ping').ok\" 2>&1 | grep -q 1"]
       interval: 10s
       timeout: 5s
       retries: 5
