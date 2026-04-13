@@ -36,8 +36,19 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   }
 
   async onModuleInit() {
-    await this.client.connect();
-    this.logger.log('Redis connected');
+    try {
+      await this.client.connect();
+      this.logger.log('Redis connected');
+    } catch (err) {
+      // ioredis throws on first connect() if the server is unreachable.
+      // We catch here so bootstrap completes — the 'error' event listener
+      // above will keep logging reconnect attempts. Features that require
+      // Redis (caching, BullMQ, JWT blacklist) will fail at call time, not
+      // at startup, allowing /health/live to remain reachable.
+      this.logger.error(
+        `Redis initial connection failed — running without cache: ${(err as Error).message}`,
+      );
+    }
   }
 
   async onModuleDestroy() {

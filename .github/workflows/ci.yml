@@ -291,7 +291,18 @@ jobs:
             -e POSTGRES_DB=test \
             pgvector/pgvector:pg16
 
-          # ── [3] Wait for Postgres to accept connections ────────────────────────
+          # ── [3] Start Redis ───────────────────────────────────────────────────────
+          # WHY: RedisService connects at bootstrap (BullMQ queues, JWT blacklist,
+          # response caching all use Redis). Without a real Redis on the network,
+          # ioredis throws on connect() and NestJS re-throws it, killing the process
+          # before /health/live can bind — same failure mode as missing Postgres.
+          # redis:7-alpine is tiny (~30MB) and starts in <1s — no readiness wait needed.
+          docker run -d \
+            --name smoke_redis \
+            --network smoke_net \
+            redis:7-alpine
+
+          # ── [4] Wait for Postgres to accept connections ────────────────────────
           # pg_isready probes the TCP port; we run it inside the same container
           # to avoid needing a host-side psql install.
           echo "Waiting for Postgres to be ready..."
@@ -335,9 +346,10 @@ jobs:
           #   OPTIONAL with defaults (won't crash if absent):
           #     NODE_ENV           — defaults to 'development'
           #     PORT               — defaults to '3001'
-          #     REDIS_URL          — defaults to redis://localhost:6379
-          #                          RedisService uses lazyConnect — won't crash bootstrap
-          #                          if Redis is unreachable, but will log errors.
+          #
+          #   REQUIRED in practice (BullMQ + JWT blacklist):
+          #     REDIS_URL          — points to smoke_redis container on smoke_net.
+          #                          localhost:6379 is wrong inside a container (loopback).
           #
           #   OPTIONAL, no default (z.optional() — safe to omit):
           #     MONGO_URI          — MongoModule falls back to sentinel URI when absent
@@ -350,7 +362,7 @@ jobs:
             -e NODE_ENV=production \
             -e PORT=3001 \
             -e DATABASE_URL="postgresql://test:test@smoke_postgres:5432/test" \
-            -e REDIS_URL="redis://localhost:6379" \
+            -e REDIS_URL="redis://smoke_redis:6379" \
             -e JWT_SECRET="ci-smoke-test-not-for-prod-pad-to-32-chars!!" \
             -e JWT_REFRESH_SECRET="ci-smoke-refresh-not-for-prod-pad-32chars" \
             -p 3001:3001 \
@@ -387,7 +399,7 @@ jobs:
                 docker logs smoke_api --tail 30
               fi
 
-              docker rm -f smoke_api smoke_postgres
+              docker rm -f smoke_api smoke_postgres smoke_redis
               docker network rm smoke_net
               exit 0
             fi
@@ -400,6 +412,6 @@ jobs:
           docker logs smoke_api --tail 60
           echo "--- Postgres logs ---"
           docker logs smoke_postgres --tail 20
-          docker rm -f smoke_api smoke_postgres || true
+          docker rm -f smoke_api smoke_postgres smoke_redis || true
           docker network rm smoke_net || true
           exit 1

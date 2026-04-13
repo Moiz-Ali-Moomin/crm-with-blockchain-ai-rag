@@ -60,6 +60,14 @@ const logger = new Logger('MongoModule');
             uri: 'mongodb://127.0.0.1:27017/__disabled__',
             serverSelectionTimeoutMS: 1000, // Fail fast — don't hold up health checks
             connectTimeoutMS: 1000,
+            // Suppress the exception that @nestjs/mongoose re-throws after
+            // exhausting retries. Without this, the process exits during
+            // bootstrap even though no code path requires MongoDB at startup.
+            // Repositories that write to Mongo use fire-and-forget .catch() —
+            // they will simply log a warning at call time.
+            connectionErrorHandler: (err) => {
+              logger.warn(`MongoDB connection failed (disabled mode): ${err.message}`);
+            },
           };
         }
 
