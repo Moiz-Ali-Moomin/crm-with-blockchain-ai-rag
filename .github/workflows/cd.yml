@@ -142,11 +142,20 @@ jobs:
             # docker-compose.yml and must exist before slot containers start.
             # --no-recreate makes this idempotent — running containers are untouched.
             echo "[3/7] Ensuring shared infra is up"
-            docker compose \
-              -f docker-compose.yml \
-              --project-name "crm-infra" \
-              --env-file "$DEPLOY_PATH"/.secrets \
-              up -d --no-recreate --no-build --pull missing
+            # WHY docker network check first: if infra was ever started (manually
+            # or by a previous deploy), the named networks already exist and the
+            # containers are running. Running compose up again risks container_name
+            # conflicts even with --no-recreate because compose tracks ownership
+            # by project label — containers started outside the current project
+            # are invisible to it. Skip infra bootstrap if networks already exist.
+            if ! docker network inspect crm_internal >/dev/null 2>&1; then
+              docker compose \
+                -f docker-compose.yml \
+                --env-file "$DEPLOY_PATH"/.secrets \
+                up -d --no-recreate --no-build --pull missing
+            else
+              echo "  ✅ Networks already exist — skipping infra bootstrap"
+            fi
 
             # ── [5b] Start idle slot with new image ──────────────────────────
             # WHY only the slot file: docker-compose.yml defines shared infra
