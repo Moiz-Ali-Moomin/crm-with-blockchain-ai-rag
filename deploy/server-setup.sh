@@ -8,7 +8,7 @@ set -euo pipefail
 
 DEPLOY_USER="${1:?Provide deploy username}"
 SSH_PUBKEY="${2:?Provide SSH public key}"
-DEPLOY_PATH="/opt/crm"
+DEPLOY_PATH="/opt/crm-with-blockchain-rag"
 
 echo "═══════════════════════════════════════════════════════════"
 echo " Server setup for CRM production deployment"

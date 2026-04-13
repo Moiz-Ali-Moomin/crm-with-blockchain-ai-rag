@@ -75,12 +75,14 @@ jobs:
           CANARY_WEIGHT: ${{ steps.resolve.outputs.canary_weight }}
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
           GHCR_USER: ${{ secrets.GHCR_USER }}
+          GIT_REPO: ${{ github.repository }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: ${{ secrets.DEPLOY_SSH_PORT || 22 }}
-          envs: IMAGE_TAG,IMAGE_API,IMAGE_WEB,CANARY_WEIGHT,GHCR_TOKEN,GHCR_USER
+          envs: IMAGE_TAG,IMAGE_API,IMAGE_WEB,CANARY_WEIGHT,GHCR_TOKEN,GHCR_USER,GIT_REPO,DEPLOY_PATH
           # Timeout generous — health checks can take up to 3 min
           command_timeout: 18m
           script: |
@@ -95,7 +97,9 @@ jobs:
             cd "$DEPLOY_PATH"
 
             # ── [0] Pull deploy helpers ──────────────────────────────────────
-            # The scripts live in the repo; sync only the infra files
+            # The scripts live in the repo; sync only the infra files.
+            # Repo is public — no auth needed for fetch.
+            git remote set-url origin "https://github.com/${GIT_REPO}.git"
             git fetch origin main --quiet
             git checkout origin/main -- deploy/ nginx/ docker-compose.yml docker-compose.blue.yml docker-compose.green.yml
 
@@ -218,11 +222,14 @@ jobs:
     steps:
       - name: Rollback to previous slot
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: ${{ secrets.DEPLOY_SSH_PORT || 22 }}
+          envs: DEPLOY_PATH
           script: |
             set -euo pipefail
             DEPLOY_PATH="${DEPLOY_PATH:-/opt/crm-with-blockchain-rag}"
