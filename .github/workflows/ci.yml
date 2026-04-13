@@ -113,7 +113,47 @@ jobs:
           NEXT_PUBLIC_API_URL: http://localhost:3001
 
   # ────────────────────────────────────────────────────────────────────────────
-  # Build immutable, versioned Docker images and push to GHCR
+  # Docker build validation (all branches / PRs)
+  #
+  # WHY separate from push: secrets are only available on main. On PRs/branches
+  # we use a placeholder URL so the Dockerfile's fail-fast guard passes, but we
+  # never push the image — it's purely a build-succeeds check.
+  # ────────────────────────────────────────────────────────────────────────────
+  docker-validate:
+    name: Docker build validation
+    runs-on: ubuntu-latest
+    needs:
+      - backend-quality
+      - backend-tests
+      - frontend-quality
+    # Skip on main — the push job below covers it
+    if: github.ref != 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Validate — API
+        uses: docker/build-push-action@v5
+        with:
+          context: ./crm-backend
+          push: false
+          tags: crm-api:ci
+          cache-from: type=gha,scope=api
+
+      - name: Validate — Web
+        uses: docker/build-push-action@v5
+        with:
+          context: ./crm-frontend
+          push: false
+          tags: crm-web:ci
+          # Use a real-looking placeholder so the Dockerfile fail-fast passes
+          build-args: |
+            NEXT_PUBLIC_API_URL=https://placeholder.local
+            NEXT_PUBLIC_APP_URL=https://placeholder.local
+          cache-from: type=gha,scope=web
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Build immutable, versioned Docker images and push to GHCR (main only)
   #
   # WHY: Building on the server is dangerous — if the build fails mid-way the
   # server is left in a broken state. CI builds are hermetic, cached, and the
@@ -127,8 +167,8 @@ jobs:
       - backend-quality
       - backend-tests
       - frontend-quality
+    if: github.ref == 'refs/heads/main'
 
-    # Only publish images from the main branch (PRs just validate the build)
     outputs:
       image_tag: ${{ steps.meta.outputs.version }}
       api_image: ${{ env.IMAGE_API }}
@@ -149,7 +189,6 @@ jobs:
       # Tags produced:
       #   ghcr.io/owner/crm-api:sha-abc1234   ← immutable, used for deploy
       #   ghcr.io/owner/crm-api:main           ← "latest on main" pointer
-      #   ghcr.io/owner/crm-api:pr-42          ← PR preview (not pushed to prod)
       - name: Docker metadata — API
         id: meta-api
         uses: docker/metadata-action@v5
@@ -158,7 +197,6 @@ jobs:
           tags: |
             type=sha,prefix=sha-,format=short
             type=ref,event=branch
-            type=ref,event=pr
 
       - name: Docker metadata — Web
         id: meta-web
@@ -168,7 +206,6 @@ jobs:
           tags: |
             type=sha,prefix=sha-,format=short
             type=ref,event=branch
-            type=ref,event=pr
 
       # Expose the sha tag so CD can reference the exact image
       - name: Export image tag
@@ -183,18 +220,20 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: ./crm-backend
-          push: ${{ github.ref == 'refs/heads/main' }}
+          push: true
           tags: ${{ steps.meta-api.outputs.tags }}
           labels: ${{ steps.meta-api.outputs.labels }}
           cache-from: type=gha,scope=api
           cache-to: type=gha,mode=max,scope=api
 
       # ── Build Web ─────────────────────────────────────────────────────────
+      # WHY: NEXT_PUBLIC_* vars are baked into the Next.js bundle at build time.
+      # They must come from secrets here — never from a .env file on the server.
       - name: Build & push — Web
         uses: docker/build-push-action@v5
         with:
           context: ./crm-frontend
-          push: ${{ github.ref == 'refs/heads/main' }}
+          push: true
           tags: ${{ steps.meta-web.outputs.tags }}
           labels: ${{ steps.meta-web.outputs.labels }}
           build-args: |
