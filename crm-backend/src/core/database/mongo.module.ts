@@ -41,53 +41,46 @@ const logger = new Logger('MongoModule');
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => {
+      useFactory: async (config: ConfigService) => {
         const uri = config.get<string>('MONGO_URI');
 
+        // 🟡 CASE 1 — Mongo disabled (CI / local without RAG)
         if (!uri) {
-          // MONGO_URI not set — MongoDB features (AI audit logs, RAG) are disabled.
-          // We do NOT crash bootstrap: the sentinel URI causes Mongoose to attempt
-          // a connection that immediately fails, but Mongoose handles this gracefully
-          // (logs an error, does not throw). All MongoDB repositories will fail at
-          // call time, not at startup — callers use fire-and-forget with .catch().
-          // /health/ready will reflect the disconnected state if it checks Mongoose.
           logger.warn(
-            'MONGO_URI is not set — MongoDB connection disabled. ' +
-            'AI audit logging and RAG features will not function. ' +
-            'Set MONGO_URI in production.',
+            'MONGO_URI not set — MongoDB disabled. ' +
+            'RAG, AI logs, and audit features will not work.',
           );
+
           return {
-            uri: 'mongodb://127.0.0.1:27017/__disabled__',
-            serverSelectionTimeoutMS: 1000, // Fail fast — don't hold up health checks
-            connectTimeoutMS: 1000,
-            // Suppress the exception that @nestjs/mongoose re-throws after
-            // exhausting retries. Without this, the process exits during
-            // bootstrap even though no code path requires MongoDB at startup.
-            // Repositories that write to Mongo use fire-and-forget .catch() —
-            // they will simply log a warning at call time.
-            connectionErrorHandler: (err) => {
-              logger.warn(`MongoDB connection failed (disabled mode): ${err.message}`);
-            },
+            uri: undefined,        // ✅ prevents parsing
+            autoConnect: false,    // ✅ prevents connection attempt
           };
         }
 
+        // 🟢 CASE 2 — Mongo enabled (production / dev with RAG)
         return {
           uri,
-          // Connection pool — matches Prisma's default pool size
+
+          // Connection pool
           maxPoolSize: 10,
           minPoolSize: 2,
-          // Timeout settings aligned with NestJS lifecycle
+
+          // Timeouts
           serverSelectionTimeoutMS: 5000,
           connectTimeoutMS: 10000,
           socketTimeoutMS: 45000,
-          // Automatically retry writes once on transient network errors
+
+          // Reliability
           retryWrites: true,
+          retryReads: true,
+
+          // App metadata
           appName: 'crm-saas',
+
+          // ✅ Important: no deprecated / invalid options
         };
       },
     }),
   ],
-  // MongooseModule connection is available globally — no exports needed here.
-  // Each feature module calls MongooseModule.forFeature([...]) independently.
 })
 export class MongoModule {}
