@@ -4,8 +4,26 @@ import { PrismaService } from '../../core/database/prisma.service';
 import { RedisService } from '../../core/cache/redis.service';
 import { CACHE_KEYS, CACHE_TTL } from '../../core/cache/cache-keys';
 import { AiLogRepository } from './repositories/ai-log.repository';
-import { AiOperationType } from './types/ai-operation-type.enum'; 
+import { AiOperationType } from './types/ai-operation-type.enum';
 import OpenAI from 'openai';
+import { Prisma } from '@prisma/client';
+
+type CommunicationContext = Prisma.CommunicationGetPayload<{
+  select: {
+    id: true;
+    subject: true;
+    body: true;
+    fromAddr: true;
+    channel: true;
+  };
+}>;
+
+function buildCommunicationContext(comm: CommunicationContext): string {
+  const lines: string[] = [`Channel: ${comm.channel}`, `From: ${comm.fromAddr}`];
+  if (comm.subject) lines.push(`Subject: ${comm.subject}`);
+  lines.push(`Body:\n${comm.body}`);
+  return lines.join('\n');
+}
 
 @Injectable()
 export class CopilotService {
@@ -17,7 +35,7 @@ export class CopilotService {
     private readonly config: ConfigService,
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
-    @Optional() private readonly aiLogRepo?: AiLogRepository, // ✅ optional
+    @Optional() private readonly aiLogRepo?: AiLogRepository,
   ) {
     this.openai = new OpenAI({
       apiKey: this.config.get<string>('OPENAI_API_KEY') ?? '',
@@ -25,7 +43,7 @@ export class CopilotService {
   }
 
   // ─────────────────────────────────────────────────────────────
-  // PUBLIC METHODS
+  // CONTACT SUMMARY
   // ─────────────────────────────────────────────────────────────
 
   async summarizeContactHistory(
@@ -36,20 +54,13 @@ export class CopilotService {
     const cacheKey = CACHE_KEYS.aiSummary(tenantId, 'contact', contactId);
     const cached = await this.redis.get<any>(cacheKey);
 
-    if (cached) {
-      this.logFireAndForget({
-        tenantId,
-        operationType: AiOperationType.SUMMARIZE_CONTACT,
-        entityType: 'contact',
-        entityId: contactId,
-        prompt: `[cached] contact:${contactId}`,
-        response: JSON.stringify(cached),
-        metadata: { contextLimit },
-      });
-      return cached;
-    }
+    if (cached) return cached;
 
-    const context = await this.buildContactContext(tenantId, contactId, contextLimit);
+    const context = await this.buildContactContext(
+      tenantId,
+      contactId,
+      contextLimit,
+    );
 
     if (!context.hasData) {
       return {
@@ -81,48 +92,139 @@ export class CopilotService {
 
     await this.redis.set(cacheKey, result, CACHE_TTL.AI_SUMMARY);
 
-    this.logFireAndForget({
-      tenantId,
-      operationType: AiOperationType.SUMMARIZE_CONTACT,
-      entityType: 'contact',
-      entityId: contactId,
-      prompt: context.narrative,
-      response: raw,
-    });
-
     return result;
   }
 
   // ─────────────────────────────────────────────────────────────
-  // SAFE LOGGING (Mongo optional)
+  // EMAIL REPLY
   // ─────────────────────────────────────────────────────────────
 
-  private logFireAndForget(params: {
-    tenantId: string;
-    operationType: AiOperationType;
-    entityType?: string;
-    entityId?: string;
-    prompt: string;
-    response: string;
-    latencyMs?: number;
-    metadata?: Record<string, unknown>;
-  }): void {
-    if (!this.aiLogRepo) return; // ✅ Mongo disabled → skip
+  async generateEmailReply(
+    tenantId: string,
+    communicationId: string,
+    instruction?: string,
+  ): Promise<{ reply: string }> {
+    const comm = await this.prisma.communication.findFirst({
+      where: { id: communicationId, tenantId },
+      select: {
+        id: true,
+        subject: true,
+        body: true,
+        fromAddr: true,
+        channel: true,
+      },
+    });
 
-    this.aiLogRepo
-      .create({
-        tenantId: params.tenantId,
-        operationType: params.operationType,
-        entityType: params.entityType,
-        entityId: params.entityId,
-        prompt: params.prompt,
-        response: params.response,
-        latencyMs: params.latencyMs,
-        metadata: params.metadata ?? {},
-      })
-      .catch((err) => {
-        this.logger.warn(`AI log failed: ${(err as Error).message}`);
-      });
+    if (!comm) {
+      return { reply: 'Communication not found.' };
+    }
+
+    const emailContext = buildCommunicationContext(comm);
+
+    const completion = await this.openai.chat.completions.create({
+      model: this.model,
+      temperature: 0.3,
+      max_tokens: 500,
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a CRM assistant writing email replies.',
+        },
+        {
+          role: 'user',
+          content: `${emailContext}\n\nInstruction: ${
+            instruction ?? 'Reply professionally'
+          }`,
+        },
+      ],
+    });
+
+    return {
+      reply: completion.choices[0].message.content ?? '',
+    };
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // FOLLOW-UP
+  // ─────────────────────────────────────────────────────────────
+
+  async suggestFollowUp(
+    tenantId: string,
+    entityType: string,
+    entityId: string,
+  ): Promise<{ suggestion: string }> {
+    const activities = await this.prisma.activity.findMany({
+      where: { tenantId, entityId },
+      take: 10,
+    });
+
+    if (!activities.length) {
+      return { suggestion: 'No recent activity found.' };
+    }
+
+    const context = activities.map((a) => a.subject).join('\n');
+
+    const completion = await this.openai.chat.completions.create({
+      model: this.model,
+      temperature: 0.2,
+      max_tokens: 300,
+      messages: [
+        {
+          role: 'system',
+          content: 'You suggest next best follow-up actions in CRM.',
+        },
+        {
+          role: 'user',
+          content: `Activity:\n${context}\n\nSuggest next action.`,
+        },
+      ],
+    });
+
+    return {
+      suggestion: completion.choices[0].message.content ?? '',
+    };
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // ACTIVITY SUMMARY
+  // ─────────────────────────────────────────────────────────────
+
+  async summarizeActivityTimeline(
+    tenantId: string,
+    entityType: string,
+    entityId: string,
+    limit = 20,
+  ): Promise<{ summary: string }> {
+    const activities = await this.prisma.activity.findMany({
+      where: { tenantId, entityId },
+      take: limit,
+    });
+
+    if (!activities.length) {
+      return { summary: 'No activity timeline found.' };
+    }
+
+    const timeline = activities.map((a) => a.subject).join('\n');
+
+    const completion = await this.openai.chat.completions.create({
+      model: this.model,
+      temperature: 0.2,
+      max_tokens: 400,
+      messages: [
+        {
+          role: 'system',
+          content: 'You summarize CRM timelines clearly.',
+        },
+        {
+          role: 'user',
+          content: `Timeline:\n${timeline}\n\nSummarize.`,
+        },
+      ],
+    });
+
+    return {
+      summary: completion.choices[0].message.content ?? '',
+    };
   }
 
   // ─────────────────────────────────────────────────────────────
