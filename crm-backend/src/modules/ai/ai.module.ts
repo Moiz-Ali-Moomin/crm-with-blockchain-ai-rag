@@ -47,24 +47,35 @@ import { AiLogRepository } from './repositories/ai-log.repository';
 import { QUEUE_NAMES } from '../../core/queue/queue.constants';
 import { BlockchainModule } from '../blockchain/blockchain.module';
 
+// 🔥 same flag as CoreModule
+const isMongoEnabled = !!process.env.MONGO_URI;
+
 @Module({
   imports: [
     BullModule.registerQueue({ name: QUEUE_NAMES.AI_EMBEDDING }),
-    MongooseModule.forFeature([{ name: AiLog.name, schema: AiLogSchema }]),
+
+    // ✅ ONLY register Mongo schema if Mongo exists
+    ...(isMongoEnabled
+      ? [
+          MongooseModule.forFeature([
+            { name: AiLog.name, schema: AiLogSchema },
+          ]),
+        ]
+      : []),
+
     BlockchainModule,
     ConfigModule,
   ],
+
   controllers: [AiController],
+
   providers: [
-    // ── EMBEDDING_SERVICE — the only place AI enablement is decided ──────────
-    // Every other provider depends on the token, not the concrete class.
-    // This factory runs once at bootstrap — never on the request path.
     {
       provide: EMBEDDING_SERVICE,
       inject: [ConfigService, PrismaService],
       useFactory: (config: ConfigService, prisma: PrismaService) => {
         const enabled = config.get<string>('ENABLE_AI') === 'true';
-        const hasKey  = !!config.get<string>('OPENAI_API_KEY');
+        const hasKey = !!config.get<string>('OPENAI_API_KEY');
 
         if (enabled && hasKey) {
           return new RealEmbeddingService(config, prisma);
@@ -78,8 +89,17 @@ import { BlockchainModule } from '../blockchain/blockchain.module';
     VectorSearchService,
     CopilotService,
     RagService,
-    AiLogRepository,
+
+    // ✅ ONLY provide repository if Mongo exists
+    ...(isMongoEnabled ? [AiLogRepository] : []),
   ],
-  exports: [EMBEDDING_SERVICE, RagService, BullModule, AiLogRepository],
+
+  exports: [
+    EMBEDDING_SERVICE,
+    RagService,
+    BullModule,
+
+    ...(isMongoEnabled ? [AiLogRepository] : []),
+  ],
 })
 export class AiModule {}
