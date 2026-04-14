@@ -82,7 +82,10 @@ services:
       - crm_public
       - crm_internal   # needs to reach both blue and green app containers
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/api/v1/health/live || exit 1"]
+      # /healthz is served by nginx itself (no upstream dependency).
+      # Using the app health endpoint here would report unhealthy during bootstrap
+      # before any app slot is running, causing misleading container state.
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/healthz || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3

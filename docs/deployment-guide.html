@@ -783,36 +783,87 @@ Docker Compose version v2.x.x</code></pre>
         <span class="status-badge pending">Pending</span>
       </div>
 
+      <div class="callout info">
+        <span class="callout-icon">ℹ</span>
+        <p>This project uses <strong>host-installed certbot</strong> with the webroot method. Nginx starts HTTP-only first (no SSL directives in the initial <code>app.conf</code>), certbot completes the ACME challenge, then the CD pipeline renders the full SSL config on first deploy. DNS must be pointed at your server before running these commands.</p>
+      </div>
+
+      <h3>Step 1 — Install certbot</h3>
       <div class="code-block">
         <div class="code-header">
           <span class="code-label"><span class="dot"></span>bash</span>
           <button class="copy-btn" onclick="copy(this)">Copy</button>
         </div>
-        <pre><code><span class="cmd">cd</span> /opt/nexus-crm
+        <pre><code><span class="cmd">apt-get</span> update &amp;&amp; apt-get install -y certbot</code></pre>
+      </div>
 
-<span class="cmd">docker</span> compose -f docker-compose.prod.yml run --rm certbot certonly \
+      <h3>Step 2 — Start Nginx (HTTP only, no certs needed yet)</h3>
+      <div class="code-block">
+        <div class="code-header">
+          <span class="code-label"><span class="dot"></span>bash</span>
+          <button class="copy-btn" onclick="copy(this)">Copy</button>
+        </div>
+        <pre><code><span class="cmd">cd</span> /opt/crm-with-blockchain-rag
+<span class="cmd">docker</span> compose up -d nginx
+<span class="cmd">docker</span> exec crm_nginx nginx -t</code></pre>
+      </div>
+
+      <h3>Step 3 — Get the certbot webroot path</h3>
+      <div class="code-block">
+        <div class="code-header">
+          <span class="code-label"><span class="dot"></span>bash</span>
+          <button class="copy-btn" onclick="copy(this)">Copy</button>
+        </div>
+        <pre><code>WEBROOT=$(docker volume inspect crm-with-blockchain-rag_certbot_www \
+  --format '{{ .Mountpoint }}')
+<span class="cmd">echo</span> "Webroot: $WEBROOT"
+
+<span class="c"># If the volume name doesn't match, find it with:</span>
+<span class="cmd">docker</span> volume ls | grep certbot</code></pre>
+      </div>
+
+      <h3>Step 4 — Issue the SSL certificate</h3>
+      <div class="code-block">
+        <div class="code-header">
+          <span class="code-label"><span class="dot"></span>bash</span>
+          <button class="copy-btn" onclick="copy(this)">Copy</button>
+        </div>
+        <pre><code><span class="cmd">certbot</span> certonly \
   --webroot \
-  --webroot-path=/var/www/certbot \
-  -d your-domain.com \
-  -d www.your-domain.com \
-  --email your@email.com \
+  --webroot-path "$WEBROOT" \
+  --non-interactive \
   --agree-tos \
-  --no-eff-email</code></pre>
+  --email admin@bestpurchasestore.com \
+  -d bestpurchasestore.com \
+  -d www.bestpurchasestore.com</code></pre>
       </div>
 
-      <p>After the certificate is issued, re-enable the HTTPS server block in <code>nginx/conf.d/app.conf</code>, then reload Nginx:</p>
-
+      <h3>Step 5 — Verify certs exist</h3>
       <div class="code-block">
         <div class="code-header">
           <span class="code-label"><span class="dot"></span>bash</span>
           <button class="copy-btn" onclick="copy(this)">Copy</button>
         </div>
-        <pre><code><span class="c"># Uncomment the HTTPS server block</span>
-<span class="cmd">nano</span> /opt/nexus-crm/nginx/conf.d/app.conf
-
-<span class="c"># Reload Nginx</span>
-<span class="cmd">docker</span> compose -f docker-compose.prod.yml restart nginx</code></pre>
+        <pre><code><span class="cmd">ls</span> -la /etc/letsencrypt/live/bestpurchasestore.com/
+<span class="c"># You should see fullchain.pem and privkey.pem</span></code></pre>
       </div>
+
+      <h3>Step 6 — Set up auto-renew cron</h3>
+      <div class="code-block">
+        <div class="code-header">
+          <span class="code-label"><span class="dot"></span>bash</span>
+          <button class="copy-btn" onclick="copy(this)">Copy</button>
+        </div>
+        <pre><code><span class="c"># Renews on the 1st and 15th of every month at 02:30</span>
+<span class="c"># Reloads nginx in-place after renewal (zero-downtime — no restart)</span>
+(crontab -l 2>/dev/null; echo "30 2 1,15 * * certbot renew --quiet &amp;&amp; docker exec crm_nginx nginx -s reload") | crontab -
+
+<span class="c"># Verify it was added</span>
+<span class="cmd">crontab</span> -l</code></pre>
+      </div>
+
+      <h3>Step 7 — Trigger the CD pipeline</h3>
+      <p>Push to <code>main</code> or manually trigger the CD workflow in GitHub Actions. The deploy script renders <code>single-slot.conf.template</code> → <code>app.conf</code> with the real cert paths and reloads Nginx. After that, HTTPS is live.</p>
 
       <h3>Verify SSL is working</h3>
       <div class="code-block">
@@ -820,8 +871,8 @@ Docker Compose version v2.x.x</code></pre>
           <span class="code-label"><span class="dot"></span>bash</span>
           <button class="copy-btn" onclick="copy(this)">Copy</button>
         </div>
-        <pre><code><span class="cmd">curl</span> -I https://your-domain.com
-<span class="c"># Look for: HTTP/2 200 and Server: nginx</span></code></pre>
+        <pre><code><span class="cmd">curl</span> -I https://bestpurchasestore.com
+<span class="c"># Look for: HTTP/2 200 and server: nginx</span></code></pre>
       </div>
     </section>
 
