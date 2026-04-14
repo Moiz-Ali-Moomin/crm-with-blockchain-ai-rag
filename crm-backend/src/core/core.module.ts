@@ -25,10 +25,14 @@ import { MongoModule } from './database/mongo.module';
 import { EventLog, EventLogSchema } from './database/schemas/event-log.schema';
 import { EventLogRepository } from './database/repositories/event-log.repository';
 
+// 🔥 THIS decides if Mongo is enabled
+const isMongoEnabled = !!process.env.MONGO_URI;
+
 @Global()
 @Module({
   imports: [
     QueueModule,
+
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -36,11 +40,20 @@ import { EventLogRepository } from './database/repositories/event-log.repository
         secret: config.get<string>('JWT_SECRET'),
       }),
     }),
-    // Establishes the MongoDB connection (global, shared across all modules)
-    MongoModule,
-    // Register the EventLog collection — available globally via EventLogRepository
-    MongooseModule.forFeature([{ name: EventLog.name, schema: EventLogSchema }]),
+
+    // ✅ ONLY load Mongo if URI exists
+    ...(isMongoEnabled ? [MongoModule] : []),
+
+    // ✅ ONLY register schemas if Mongo is enabled
+    ...(isMongoEnabled
+      ? [
+          MongooseModule.forFeature([
+            { name: EventLog.name, schema: EventLogSchema },
+          ]),
+        ]
+      : []),
   ],
+
   providers: [
     PrismaService,
     PrismaTransactionService,
@@ -48,8 +61,11 @@ import { EventLogRepository } from './database/repositories/event-log.repository
     WsGateway,
     WsService,
     AuditLogInterceptor,
-    EventLogRepository,
+
+    // ⚠️ Optional: only provide repo if Mongo enabled
+    ...(isMongoEnabled ? [EventLogRepository] : []),
   ],
+
   exports: [
     PrismaService,
     PrismaTransactionService,
@@ -58,9 +74,8 @@ import { EventLogRepository } from './database/repositories/event-log.repository
     WsGateway,
     WsService,
     AuditLogInterceptor,
-    // EventLogRepository exported globally — automation, webhook, activity modules
-    // can inject it directly without importing CoreModule (it's @Global())
-    EventLogRepository,
+
+    ...(isMongoEnabled ? [EventLogRepository] : []),
   ],
 })
 export class CoreModule {}
