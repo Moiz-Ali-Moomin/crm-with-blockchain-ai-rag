@@ -200,6 +200,7 @@ export interface Deal {
   tenantId: string;
   title: string;
   value: number;
+  currency?: string;
   status: DealStatus;
   pipelineId: string;
   pipeline?: Pipeline;
