@@ -32,9 +32,12 @@ function processQueue(error: AxiosError | null, token: string | null = null) {
   failedQueue = [];
 }
 
-// Request interceptor: attach access token from auth store
+// Request interceptor: attach access token + start request timer
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
+    // Track request start time for latency measurement
+    (config as any)._startTime = Date.now();
+
     // Dynamically import to avoid circular dependencies at module load time
     const { useAuthStore } = require('@/store/auth.store');
     const token: string | null = useAuthStore.getState().accessToken;
@@ -46,9 +49,23 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor: handle 401 by refreshing token and retrying
+// Response interceptor: handle 401 by refreshing token and retrying + capture latency
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Capture API latency for observability
+    const startTime = (response.config as any)._startTime;
+    if (startTime) {
+      const { observe } = require('@/lib/observability');
+      observe.apiLatency(
+        response.config.url ?? '',
+        response.config.method?.toUpperCase() ?? 'GET',
+        Date.now() - startTime,
+        response.status,
+        response.headers?.['x-request-id'],
+      );
+    }
+    return response;
+  },
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 

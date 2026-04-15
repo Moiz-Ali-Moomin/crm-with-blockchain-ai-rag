@@ -30,7 +30,7 @@ export class BullMqEventPublisher implements EventPublisherPort {
     tenantId: string,
     event: string,
     entityId: string,
-    data: unknown,
+    data: Record<string, unknown>,
   ): Promise<void> {
     await this.automationQueue.add(
       'evaluate',
@@ -42,7 +42,7 @@ export class BullMqEventPublisher implements EventPublisherPort {
   async publishWebhook(
     tenantId: string,
     event: string,
-    payload: unknown,
+    payload: Record<string, unknown>,
   ): Promise<void> {
     await this.webhookQueue.add(
       'deliver',
@@ -63,7 +63,7 @@ export class BullMqEventPublisher implements EventPublisherPort {
     await this.notificationQueue.add('create', payload, QUEUE_JOB_OPTIONS.notification);
   }
 
-  emitWebSocket(tenantId: string, wsEvent: string, data: unknown): void {
+  emitWebSocket(tenantId: string, wsEvent: string, data: Record<string, unknown>): void {
     try {
       this.ws.emitToTenant(tenantId, wsEvent, data);
     } catch (err) {

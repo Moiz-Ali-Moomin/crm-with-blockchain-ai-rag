@@ -22,6 +22,9 @@ import {
 } from '../ports/event-publisher.port';
 import { NotFoundError } from '../../../../shared/errors/domain.errors';
 import { UpdateDealDto } from '../../deals.dto';
+import { DealReadModel } from '../ports/deal.repository.port';
+import { toEventPayload } from '../mappers/deal-event-payload.mapper';
+
 
 @Injectable()
 export class UpdateDealUseCase {
@@ -44,8 +47,8 @@ export class UpdateDealUseCase {
 
     // 3. Async side-effects (non-blocking)
     this.events
-      .publishWebhook(tenantId, 'DEAL_UPDATED', updated)
-      .catch((err) =>
+      .publishWebhook(tenantId, 'DEAL_UPDATED', toEventPayload(updated))
+      .catch((err: Error) =>
         this.logger.error(`Webhook publish failed for deal ${id}: ${err.message}`),
       );
 

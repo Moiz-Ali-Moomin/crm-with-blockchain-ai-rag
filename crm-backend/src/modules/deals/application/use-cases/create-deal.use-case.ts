@@ -25,6 +25,8 @@ import {
 import { StagePipelineMismatchError } from '../../domain/errors/deal.errors';
 import { CreateDealDto } from '../../deals.dto';
 import { WS_EVENTS } from '../../../../core/websocket/ws.service';
+import { DealReadModel } from '../ports/deal.repository.port';
+import { toEventPayload } from '../mappers/deal-event-payload.mapper';
 
 @Injectable()
 export class CreateDealUseCase {
@@ -74,12 +76,12 @@ export class CreateDealUseCase {
 
     // 3. Fire async side-effects (non-blocking — failures don't roll back deal creation)
     await Promise.all([
-      this.events.publishAutomation(tenantId, 'DEAL_CREATED', deal.id, deal),
-      this.events.publishWebhook(tenantId, 'DEAL_CREATED', deal),
+      this.events.publishAutomation(tenantId, 'DEAL_CREATED', deal.id, toEventPayload(deal)),
+      this.events.publishWebhook(tenantId, 'DEAL_CREATED', toEventPayload(deal)),
     ]);
 
     // 4. WebSocket broadcast
-    this.events.emitWebSocket(tenantId, WS_EVENTS.DEAL_CREATED, { deal });
+    this.events.emitWebSocket(tenantId, WS_EVENTS.DEAL_CREATED, { deal: toEventPayload(deal) });
 
     this.logger.log(`Deal created: ${deal.id} (tenant: ${tenantId})`);
 

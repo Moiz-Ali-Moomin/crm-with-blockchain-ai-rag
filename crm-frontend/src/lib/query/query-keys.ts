@@ -94,4 +94,11 @@ export const queryKeys = {
     plans: ['billing', 'plans'] as const,
     usage: ['billing', 'usage'] as const,
   },
+
+  blockchain: {
+    all: ['blockchain'] as const,
+    record: (dealId: string) => ['blockchain', 'record', dealId] as const,
+    verify: (dealId: string) => ['blockchain', 'verify', dealId] as const,
+  },
 };
+

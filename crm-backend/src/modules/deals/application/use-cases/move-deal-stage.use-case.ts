@@ -59,6 +59,8 @@ import {
 } from '../../domain/events/deal.events';
 import { MoveDealStageDto } from '../../deals.dto';
 import { WS_EVENTS } from '../../../../core/websocket/ws.service';
+import { DealReadModel } from '../ports/deal.repository.port';
+import { toEventPayload } from '../mappers/deal-event-payload.mapper';
 
 @Injectable()
 export class MoveDealStageUseCase {
@@ -175,11 +177,11 @@ export class MoveDealStageUseCase {
 
     await Promise.all([
       this.events.publishAutomation(tenantId, automationEvent, dealId, {
-        deal: updatedDeal,
+        deal:        toEventPayload(updatedDeal),
         fromStageId: dealRecord.stageId,
-        toStageId: dto.stageId,
+        toStageId:   dto.stageId,
       }),
-      this.events.publishWebhook(tenantId, 'DEAL_UPDATED', updatedDeal),
+      this.events.publishWebhook(tenantId, 'DEAL_UPDATED', toEventPayload(updatedDeal)),
     ]);
 
     if ((wonEvent || lostEvent) && updatedDeal.ownerId) {
@@ -202,7 +204,7 @@ export class MoveDealStageUseCase {
       ? WS_EVENTS.DEAL_LOST
       : WS_EVENTS.DEAL_STAGE_CHANGED;
 
-    this.events.emitWebSocket(tenantId, wsEvent, { deal: updatedDeal });
+    this.events.emitWebSocket(tenantId, wsEvent, { deal: toEventPayload(updatedDeal) });
 
     return updatedDeal;
   }
@@ -216,7 +218,7 @@ export class MoveDealStageUseCase {
   private async enqueuePaymentIntentSafely(
     tenantId: string,
     dealId: string,
-    deal: Record<string, any>,
+    deal: DealReadModel,
   ): Promise<void> {
     try {
       const wallet = await this.wallets.findTenantWalletOnChain(
@@ -242,7 +244,7 @@ export class MoveDealStageUseCase {
         dealId,
         metadata: {
           dealTitle: deal.title,
-          wonAt: deal.wonAt?.toISOString(),
+          wonAt:     deal.wonAt?.toISOString() ?? null,
         },
       });
 

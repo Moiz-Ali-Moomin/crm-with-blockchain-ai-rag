@@ -16,13 +16,13 @@ export const EVENT_PUBLISHER_PORT = Symbol('EVENT_PUBLISHER_PORT');
 export interface DealCreatedEventData {
   tenantId: string;
   dealId: string;
-  deal: unknown;
+  deal: Record<string, unknown>;
 }
 
 export interface DealWonEventData {
   tenantId: string;
   dealId: string;
-  deal: unknown;
+  deal: Record<string, unknown>;
   ownerId: string | null;
   title: string;
 }
@@ -30,7 +30,7 @@ export interface DealWonEventData {
 export interface DealLostEventData {
   tenantId: string;
   dealId: string;
-  deal: unknown;
+  deal: Record<string, unknown>;
   ownerId: string | null;
   title: string;
 }
@@ -38,7 +38,7 @@ export interface DealLostEventData {
 export interface DealStageChangedEventData {
   tenantId: string;
   dealId: string;
-  deal: unknown;
+  deal: Record<string, unknown>;
   fromStageId: string;
   toStageId: string;
 }
@@ -49,11 +49,15 @@ export interface EventPublisherPort {
     tenantId: string,
     event: string,
     entityId: string,
-    data: unknown,
+    data: Record<string, unknown>,
   ): Promise<void>;
 
   /** Deliver webhook for a deal event */
-  publishWebhook(tenantId: string, event: string, payload: unknown): Promise<void>;
+  publishWebhook(
+    tenantId: string,
+    event: string,
+    payload: Record<string, unknown>,
+  ): Promise<void>;
 
   /** Send in-app notification to a user */
   publishNotification(payload: {
@@ -66,6 +70,9 @@ export interface EventPublisherPort {
     entityId: string;
   }): Promise<void>;
 
-  /** Emit a WebSocket event to all sockets in the tenant room */
-  emitWebSocket(tenantId: string, wsEvent: string, data: unknown): void;
+  /**
+   * Emit a WebSocket event to all sockets in the tenant room.
+   * `data` must be a plain object — WsService builds the envelope internally.
+   */
+  emitWebSocket(tenantId: string, wsEvent: string, data: Record<string, unknown>): void;
 }
