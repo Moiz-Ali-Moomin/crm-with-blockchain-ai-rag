@@ -66,6 +66,19 @@ export class PaymentsRepository {
     return this.prisma.payment.findUnique({ where: { txHash } });
   }
 
+  /**
+   * Bulk fetch for the reconciliation worker.
+   * Returns PENDING payments that have not yet expired — these are candidates
+   * for a chain scan to detect deposits missed by the live listener.
+   */
+  findAllPending(): Promise<Payment[]> {
+    return this.prisma.payment.findMany({
+      where: { status: 'PENDING', expiresAt: { gt: new Date() } },
+      orderBy: { createdAt: 'asc' },
+      take: 500,
+    });
+  }
+
   /** Bulk fetch for the confirmation polling worker. */
   findAllConfirming(): Promise<Payment[]> {
     return this.prisma.payment.findMany({

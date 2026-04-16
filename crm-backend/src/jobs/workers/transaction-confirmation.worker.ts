@@ -16,15 +16,21 @@
  * because we want precise timing control without counting polling rounds as failures.
  */
 
-import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { Processor, WorkerHost, OnWorkerEvent } from '@nestjs/bullmq';
 import { InjectQueue } from '@nestjs/bullmq';
+import { Injectable, Logger } from '@nestjs/common';
 import { Job, Queue } from 'bullmq';
-import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ethers } from 'ethers';
+import { trace, SpanStatusCode, context as otelContext } from '@opentelemetry/api';
 import { QUEUE_NAMES, QUEUE_JOB_OPTIONS } from '../../core/queue/queue.constants';
 import { PaymentsService } from '../../modules/payments/payments.service';
 import { PrismaService } from '../../core/database/prisma.service';
+import { DlqPublisherService } from '../services/dlq-publisher.service';
+import { BusinessMetricsService } from '../../core/metrics/business-metrics.service';
+import { extractTraceContext } from '../../tracing';
+
+const tracer = trace.getTracer('crm-backend');
 
 export interface ConfirmationJobPayload {
   paymentId: string;
@@ -51,6 +57,7 @@ const POLL_DELAY_MS = (confirmations: number, target: number): number => {
   return 30_000;                    // Early stage — check every 30s
 };
 
+@Injectable()
 @Processor(QUEUE_NAMES.TRANSACTION_CONFIRMATION, { concurrency: 10 })
 export class TransactionConfirmationWorker extends WorkerHost {
   private readonly logger = new Logger(TransactionConfirmationWorker.name);
@@ -60,6 +67,8 @@ export class TransactionConfirmationWorker extends WorkerHost {
     private readonly paymentsService: PaymentsService,
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly dlqPublisher: DlqPublisherService,
+    private readonly metrics: BusinessMetricsService,
     @InjectQueue(QUEUE_NAMES.TRANSACTION_CONFIRMATION)
     private readonly confirmationQueue: Queue,
   ) {
@@ -67,6 +76,31 @@ export class TransactionConfirmationWorker extends WorkerHost {
   }
 
   async process(job: Job<ConfirmationJobPayload>): Promise<void> {
+    return otelContext.with(extractTraceContext(job.data as unknown as Record<string, unknown>), () =>
+      tracer.startActiveSpan('payment.poll_confirmation', async (span) => {
+        const { paymentId, txHash, chain } = job.data;
+        span.setAttributes({
+          'payment.id':    paymentId,
+          'payment.chain': chain,
+          'payment.tx_hash': txHash,
+          'job.name':      job.name,
+        });
+        try {
+          await this.pollConfirmation(job);
+          span.setStatus({ code: SpanStatusCode.OK });
+        } catch (err) {
+          const error = err as Error;
+          span.recordException(error);
+          span.setStatus({ code: SpanStatusCode.ERROR, message: error.message });
+          throw err;
+        } finally {
+          span.end();
+        }
+      }),
+    );
+  }
+
+  private async pollConfirmation(job: Job<ConfirmationJobPayload>): Promise<void> {
     const { paymentId, txHash, chain, targetConfirmations } = job.data;
 
     const payment = await this.paymentsService.findAllConfirming().then(
@@ -129,6 +163,7 @@ export class TransactionConfirmationWorker extends WorkerHost {
         confirmations,
         currentBlockNumber: BigInt(currentBlock),
       });
+      this.metrics.recordPaymentSuccess(job.data.tenantId, chain);
       this.logger.log(
         `Payment ${paymentId} confirmed: ${confirmations}/${targetConfirmations} blocks`,
       );
@@ -156,6 +191,7 @@ export class TransactionConfirmationWorker extends WorkerHost {
       data: { status: 'FAILED' },
     });
     await this.paymentsService.failPayment(paymentId, tenantId, reason);
+    this.metrics.recordPaymentFailed(tenantId, 'on_chain_failure');
   }
 
   private async scheduleRecheck(
@@ -181,5 +217,12 @@ export class TransactionConfirmationWorker extends WorkerHost {
     const provider = new ethers.JsonRpcProvider(rpcUrl);
     this.providerCache.set(chain, provider);
     return provider;
+  }
+
+  @OnWorkerEvent('failed')
+  async onFailed(job: Job<ConfirmationJobPayload> | undefined, error: Error): Promise<void> {
+    if (!job) return;
+    this.metrics.recordPaymentFailed(job.data.tenantId ?? 'unknown', 'worker_exhausted');
+    await this.dlqPublisher.publishIfExhausted(job, error, true);
   }
 }

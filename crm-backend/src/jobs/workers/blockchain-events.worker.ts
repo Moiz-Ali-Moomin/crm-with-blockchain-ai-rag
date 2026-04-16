@@ -15,17 +15,22 @@
  * duplicate processing if the listener replays an event on reconnect.
  */
 
-import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { Job } from 'bullmq';
-import { Logger } from '@nestjs/common';
+import { Processor, WorkerHost, OnWorkerEvent } from '@nestjs/bullmq';
+import { Injectable, Logger } from '@nestjs/common';
+import { Job, Queue } from 'bullmq';
 import { InjectQueue } from '@nestjs/bullmq';
-import { Queue } from 'bullmq';
 import { Chain, Prisma } from '@prisma/client';
+import { trace, SpanStatusCode, context as otelContext } from '@opentelemetry/api';
 import { QUEUE_NAMES, QUEUE_JOB_OPTIONS } from '../../core/queue/queue.constants';
 import { PaymentsService } from '../../modules/payments/payments.service';
 import { BlockchainTransferEvent } from '../../modules/blockchain/listener/blockchain-listener.service';
 import { PrismaService } from '../../core/database/prisma.service';
+import { DlqPublisherService } from '../services/dlq-publisher.service';
+import { extractTraceContext } from '../../tracing';
 
+const tracer = trace.getTracer('crm-backend');
+
+@Injectable()
 @Processor(QUEUE_NAMES.BLOCKCHAIN_EVENTS, { concurrency: 5 })
 export class BlockchainEventsWorker extends WorkerHost {
   private readonly logger = new Logger(BlockchainEventsWorker.name);
@@ -33,6 +38,7 @@ export class BlockchainEventsWorker extends WorkerHost {
   constructor(
     private readonly paymentsService: PaymentsService,
     private readonly prisma: PrismaService,
+    private readonly dlqPublisher: DlqPublisherService,
     @InjectQueue(QUEUE_NAMES.TRANSACTION_CONFIRMATION)
     private readonly confirmationQueue: Queue,
   ) {
@@ -40,12 +46,38 @@ export class BlockchainEventsWorker extends WorkerHost {
   }
 
   async process(job: Job<BlockchainTransferEvent>): Promise<void> {
-    const event = job.data;
+    return otelContext.with(extractTraceContext(job.data as unknown as Record<string, unknown>), () =>
+      tracer.startActiveSpan('blockchain.process_transfer', async (span) => {
+        const event = job.data;
+        span.setAttributes({
+          'blockchain.chain':       event.chain,
+          'blockchain.tx_hash':     event.txHash,
+          'blockchain.from_address': event.fromAddress,
+          'blockchain.to_address':  event.toAddress,
+          'job.name':               job.name,
+        });
+        try {
+          await this.handleTransfer(event, job);
+          span.setStatus({ code: SpanStatusCode.OK });
+        } catch (err) {
+          const error = err as Error;
+          span.recordException(error);
+          span.setStatus({ code: SpanStatusCode.ERROR, message: error.message });
+          throw err;
+        } finally {
+          span.end();
+        }
+      }),
+    );
+  }
+
+  private async handleTransfer(event: BlockchainTransferEvent, _job: Job): Promise<void> {
 
     this.logger.debug(
       `Processing Transfer: ${event.fromAddress} → ${event.toAddress} ` +
         `${event.amountRaw} (${event.chain}, tx: ${event.txHash.slice(0, 12)}...)`,
     );
+
 
     // 1. Match to a pending payment by destination address
     const payment = await this.paymentsService.findPendingByAddress(
@@ -126,5 +158,11 @@ export class BlockchainEventsWorker extends WorkerHost {
     this.logger.log(
       `Payment ${payment.id} matched to tx ${event.txHash} — CONFIRMING enqueued`,
     );
+  }
+
+  @OnWorkerEvent('failed')
+  async onFailed(job: Job<BlockchainTransferEvent> | undefined, error: Error): Promise<void> {
+    if (!job) return;
+    await this.dlqPublisher.publishIfExhausted(job, error, true);
   }
 }

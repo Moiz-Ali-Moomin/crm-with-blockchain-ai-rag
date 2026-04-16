@@ -39,6 +39,9 @@ import { QUEUE_NAMES } from './queue.constants';
     BullModule.registerQueue({ name: QUEUE_NAMES.PAYMENT_PROCESSING }),
     BullModule.registerQueue({ name: QUEUE_NAMES.BLOCKCHAIN_EVENTS }),
     BullModule.registerQueue({ name: QUEUE_NAMES.TRANSACTION_CONFIRMATION }),
+    BullModule.registerQueue({ name: QUEUE_NAMES.WITHDRAWALS }),
+    BullModule.registerQueue({ name: QUEUE_NAMES.RECONCILIATION }),
+    BullModule.registerQueue({ name: QUEUE_NAMES.DLQ }),
   ],
   exports: [BullModule],
 })

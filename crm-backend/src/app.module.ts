@@ -11,6 +11,9 @@ import { Module, MiddlewareConsumer, NestModule, RequestMethod } from '@nestjs/c
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerStorageRedisService } from '@nestjs/throttler-storage-redis';
+import { ConfigService } from '@nestjs/config';
+import Redis from 'ioredis';
 import { ConfigModule } from '@nestjs/config';
 import { WinstonModule } from 'nest-winston';
 import * as winston from 'winston';
@@ -112,23 +115,24 @@ import { TenantThrottlerGuard } from './common/guards/tenant-throttler.guard';
     }),
 
     // ── Rate Limiting (Redis-backed for distributed deployments) ─────────────
-    ThrottlerModule.forRoot([
-      {
-        name: 'short',
-        ttl: 1000,       // 1 second
-        limit: 20,       // 20 req/sec per IP
-      },
-      {
-        name: 'medium',
-        ttl: 60000,      // 1 minute
-        limit: 200,      // 200 req/min per IP
-      },
-      {
-        name: 'long',
-        ttl: 3600000,    // 1 hour
-        limit: 1000,     // 1000 req/hr per IP
-      },
-    ]),
+    ThrottlerModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        throttlers: [
+          { name: 'short',  ttl: 1_000,     limit: 20    },
+          { name: 'medium', ttl: 60_000,    limit: 200   },
+          { name: 'long',   ttl: 3_600_000, limit: 1_000 },
+        ],
+        storage: new ThrottlerStorageRedisService(
+          new Redis(config.get<string>('REDIS_URL', 'redis://localhost:6379'), {
+            lazyConnect: false,
+            maxRetriesPerRequest: 3,
+            retryStrategy: (times) => (times > 10 ? null : Math.min(times * 100, 3_000)),
+          }),
+        ),
+      }),
+    }),
 
     // ── Core Infrastructure ──────────────────────────────────────────────────
     CoreModule,

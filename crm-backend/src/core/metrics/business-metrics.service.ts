@@ -43,6 +43,9 @@ export class BusinessMetricsService implements OnModuleInit {
   private readonly aiTokensTotal: Counter<string>;
   private readonly aiCostTotal: Counter<string>;
   private readonly paymentSettledTotal: Counter<string>;
+  private readonly paymentSuccessTotal: Counter<string>;
+  private readonly paymentFailedTotal: Counter<string>;
+  private readonly reconciliationRecoveredTotal: Counter<string>;
   private readonly dlqJobsTotal: Counter<string>;
 
   // ─── Histograms ───────────────────────────────────────────────────────────
@@ -83,6 +86,27 @@ export class BusinessMetricsService implements OnModuleInit {
       name: 'crm_payment_settled_usd_total',
       help: 'Total USDC settled on-chain per tenant',
       labelNames: ['tenant_id', 'chain'],
+      registers: [this.registry],
+    });
+
+    this.paymentSuccessTotal = new Counter({
+      name: 'payment_success_total',
+      help: 'Total payments successfully confirmed on-chain per tenant and chain',
+      labelNames: ['tenant_id', 'chain'],
+      registers: [this.registry],
+    });
+
+    this.paymentFailedTotal = new Counter({
+      name: 'payment_failed_total',
+      help: 'Total failed payments per tenant and failure reason category',
+      labelNames: ['tenant_id', 'reason'],
+      registers: [this.registry],
+    });
+
+    this.reconciliationRecoveredTotal = new Counter({
+      name: 'reconciliation_recovered_total',
+      help: 'Total payments recovered by the reconciliation worker after listener miss',
+      labelNames: [],
       registers: [this.registry],
     });
 
@@ -148,6 +172,18 @@ export class BusinessMetricsService implements OnModuleInit {
 
   recordPaymentSettled(tenantId: string, amountUsdc: number, chain: string): void {
     this.paymentSettledTotal.inc({ tenant_id: tenantId, chain }, amountUsdc);
+  }
+
+  recordPaymentSuccess(tenantId: string, chain: string): void {
+    this.paymentSuccessTotal.inc({ tenant_id: tenantId, chain });
+  }
+
+  recordPaymentFailed(tenantId: string, reason: string): void {
+    this.paymentFailedTotal.inc({ tenant_id: tenantId, reason });
+  }
+
+  recordReconciliationRecovered(count: number): void {
+    this.reconciliationRecoveredTotal.inc(count);
   }
 
   recordDlqAlert(queueName: string, critical: boolean): void {

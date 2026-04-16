@@ -12,14 +12,19 @@
  * This worker does NOT process incoming blockchain events — that's BlockchainEventsWorker.
  */
 
-import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { Processor, WorkerHost, OnWorkerEvent } from '@nestjs/bullmq';
+import { Injectable, Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
-import { Logger } from '@nestjs/common';
+import { trace, SpanStatusCode, context as otelContext } from '@opentelemetry/api';
 import { QUEUE_NAMES } from '../../core/queue/queue.constants';
 import { PaymentsService } from '../../modules/payments/payments.service';
 import { WalletsService } from '../../modules/wallets/wallets.service';
 import { CreatePaymentDto } from '../../modules/payments/payments.dto';
 import { Chain } from '@prisma/client';
+import { DlqPublisherService } from '../services/dlq-publisher.service';
+import { extractTraceContext } from '../../tracing';
+
+const tracer = trace.getTracer('crm-backend');
 
 export type PaymentJobName = 'create_intent' | 'expire_sweep' | 'balance_sync';
 
@@ -38,6 +43,7 @@ export interface BalanceSyncJobPayload {
   walletId: string;
 }
 
+@Injectable()
 @Processor(QUEUE_NAMES.PAYMENT_PROCESSING, { concurrency: 3 })
 export class PaymentProcessingWorker extends WorkerHost {
   private readonly logger = new Logger(PaymentProcessingWorker.name);
@@ -45,11 +51,33 @@ export class PaymentProcessingWorker extends WorkerHost {
   constructor(
     private readonly paymentsService: PaymentsService,
     private readonly walletsService: WalletsService,
+    private readonly dlqPublisher: DlqPublisherService,
   ) {
     super();
   }
 
   async process(
+    job: Job<CreateIntentJobPayload | BalanceSyncJobPayload | Record<string, never>>,
+  ): Promise<void> {
+    return otelContext.with(extractTraceContext(job.data as Record<string, unknown>), () =>
+      tracer.startActiveSpan('payment.create_intent', async (span) => {
+        span.setAttributes({ 'job.name': job.name, 'queue.name': job.queueName });
+        try {
+          await this.dispatch(job);
+          span.setStatus({ code: SpanStatusCode.OK });
+        } catch (err) {
+          const error = err as Error;
+          span.recordException(error);
+          span.setStatus({ code: SpanStatusCode.ERROR, message: error.message });
+          throw err;
+        } finally {
+          span.end();
+        }
+      }),
+    );
+  }
+
+  private async dispatch(
     job: Job<CreateIntentJobPayload | BalanceSyncJobPayload | Record<string, never>>,
   ): Promise<void> {
     switch (job.name as PaymentJobName) {
@@ -62,6 +90,12 @@ export class PaymentProcessingWorker extends WorkerHost {
       default:
         this.logger.warn(`Unknown payment job: ${job.name}`);
     }
+  }
+
+  @OnWorkerEvent('failed')
+  async onFailed(job: Job | undefined, error: Error): Promise<void> {
+    if (!job) return;
+    await this.dlqPublisher.publishIfExhausted(job, error, true);
   }
 
   private async handleCreateIntent(job: Job<CreateIntentJobPayload>): Promise<void> {

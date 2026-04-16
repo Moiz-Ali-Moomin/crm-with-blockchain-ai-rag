@@ -31,32 +31,27 @@ import { SlidingWindowRateLimiter } from '../rate-limit/sliding-window.service';
 
 type TenantTier = 'free' | 'starter' | 'pro' | 'enterprise';
 
-const TIER_LIMITS: Record<TenantTier, { rpm: number; rph: number }> = {
-  free:       { rpm: 30,    rph: 200    },
-  starter:    { rpm: 100,   rph: 1_000  },
-  pro:        { rpm: 500,   rph: 10_000 },
-  enterprise: { rpm: 2_000, rph: 50_000 },
+const TIER_LIMITS: Record<TenantTier, { rpm: number }> = {
+  free:       { rpm: 30    },
+  starter:    { rpm: 100   },
+  pro:        { rpm: 500   },
+  enterprise: { rpm: 2_000 },
 };
 
 @Injectable()
 export class TenantThrottlerGuard extends ThrottlerGuard {
   constructor(
-    // ThrottlerGuard injects its own deps via NestJS DI — we just pass them through
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     @Inject('THROTTLER:MODULE_OPTIONS') options: any,
     @Inject('THROTTLER_STORAGE') storage: any,
     reflector: Reflector,
+    private readonly slidingWindow: SlidingWindowRateLimiter,
   ) {
     super(options, storage, reflector);
   }
 
-  // Override: key by tenantId instead of IP
   protected async getTracker(req: Request): Promise<string> {
-    const user = (req as any).user as { tenantId?: string } | undefined;
-    if (user?.tenantId) {
-      return `tenant:${user.tenantId}`;
-    }
-    // Unauthenticated: fall back to IP (handles /auth/* endpoints)
+    const tenantId = (req as any).user?.tenantId as string | undefined;
+    if (tenantId) return `tenant:${tenantId}`;
     return (
       (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ??
       req.ip ??
@@ -64,9 +59,7 @@ export class TenantThrottlerGuard extends ThrottlerGuard {
     );
   }
 
-  // Override: add sliding-window check on top of built-in fixed-window check
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    // Run the built-in ThrottlerGuard logic first
     const baseAllowed = await super.canActivate(context);
     if (!baseAllowed) return false;
 
@@ -74,24 +67,19 @@ export class TenantThrottlerGuard extends ThrottlerGuard {
     const res = context.switchToHttp().getResponse<Response>();
     const user = (req as any).user as { tenantId?: string; tier?: TenantTier } | undefined;
 
-    if (!user?.tenantId) return true; // unauthenticated — base guard already handled it
+    if (!user?.tenantId) return true;
 
     const tier = user.tier ?? 'free';
-    const limits = TIER_LIMITS[tier] ?? TIER_LIMITS.free;
+    const { rpm } = TIER_LIMITS[tier] ?? TIER_LIMITS.free;
 
-    // Inject SlidingWindowRateLimiter via the module context
-    // It is available because CoreModule exports it globally
-    const limiter: SlidingWindowRateLimiter = (this as any).slidingWindow;
-    if (!limiter) return true; // guard against misconfiguration — fail open
-
-    const result = await limiter.check(
+    const result = await this.slidingWindow.check(
       `swrl:tenant:${user.tenantId}:rpm`,
-      limits.rpm,
-      60_000, // 1-minute window
+      rpm,
+      60_000,
     );
 
     if (!result.allowed) {
-      res.setHeader('X-RateLimit-Limit', limits.rpm);
+      res.setHeader('X-RateLimit-Limit', rpm);
       res.setHeader('X-RateLimit-Remaining', 0);
       res.setHeader('X-RateLimit-Reset', Math.ceil(Date.now() / 1000) + 60);
       res.setHeader('Retry-After', '60');
@@ -100,13 +88,13 @@ export class TenantThrottlerGuard extends ThrottlerGuard {
         {
           statusCode: HttpStatus.TOO_MANY_REQUESTS,
           error: 'Too Many Requests',
-          message: `Rate limit exceeded for tier [${tier}]: ${limits.rpm} req/min. Upgrade your plan for higher limits.`,
+          message: `Rate limit exceeded for tier [${tier}]: ${rpm} req/min.`,
         },
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }
 
-    res.setHeader('X-RateLimit-Limit', limits.rpm);
+    res.setHeader('X-RateLimit-Limit', rpm);
     res.setHeader('X-RateLimit-Remaining', result.remaining);
 
     return true;

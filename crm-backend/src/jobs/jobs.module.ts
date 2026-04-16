@@ -23,6 +23,12 @@ import { BlockchainWorker } from './workers/blockchain.worker';
 import { PaymentProcessingWorker } from './workers/payment-processing.worker';
 import { BlockchainEventsWorker } from './workers/blockchain-events.worker';
 import { TransactionConfirmationWorker } from './workers/transaction-confirmation.worker';
+import { WithdrawalWorker } from './workers/withdrawal.worker';
+import { ReconciliationWorker } from './workers/reconciliation.worker';
+import { DlqWorker } from './workers/dlq.worker';
+import { DlqPublisherService } from './services/dlq-publisher.service';
+import { ReconciliationScheduler } from './services/reconciliation.scheduler';
+import { AdminRetryController } from './controllers/admin-retry.controller';
 import { AutomationModule } from '../modules/automation/automation.module';
 import { AiModule } from '../modules/ai/ai.module';
 import { BlockchainModule } from '../modules/blockchain/blockchain.module';
@@ -30,7 +36,6 @@ import { PaymentsModule } from '../modules/payments/payments.module';
 import { WalletsModule } from '../modules/wallets/wallets.module';
 import { DealsModule } from '../modules/deals/deals.module';
 import { QUEUE_NAMES } from '../core/queue/queue.constants';
-import { DlqProcessorService } from './workers/dlq-processor.service';
 import { DealWonSaga } from '../modules/deals/sagas/deal-won.saga';
 
 @Module({
@@ -47,6 +52,9 @@ import { DealWonSaga } from '../modules/deals/sagas/deal-won.saga';
       { name: QUEUE_NAMES.PAYMENT_PROCESSING },
       { name: QUEUE_NAMES.BLOCKCHAIN_EVENTS },
       { name: QUEUE_NAMES.TRANSACTION_CONFIRMATION },
+      { name: QUEUE_NAMES.WITHDRAWALS },
+      { name: QUEUE_NAMES.RECONCILIATION },
+      { name: QUEUE_NAMES.DLQ },
     ),
     AutomationModule,
     AiModule,
@@ -55,7 +63,12 @@ import { DealWonSaga } from '../modules/deals/sagas/deal-won.saga';
     WalletsModule,
     DealsModule,
   ],
+  controllers: [AdminRetryController],
   providers: [
+    // Shared services
+    DlqPublisherService,
+    ReconciliationScheduler,
+    DealWonSaga,
     // Existing workers
     EmailWorker,
     NotificationWorker,
@@ -68,9 +81,9 @@ import { DealWonSaga } from '../modules/deals/sagas/deal-won.saga';
     PaymentProcessingWorker,
     BlockchainEventsWorker,
     TransactionConfirmationWorker,
-    // ── New infrastructure workers ────────────────────────────────────────
-    DlqProcessorService,
-    DealWonSaga,
+    WithdrawalWorker,
+    ReconciliationWorker,
+    DlqWorker,
   ],
 })
 export class JobsModule {}

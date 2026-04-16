@@ -8,7 +8,7 @@
  │                                                                            │
  │ - React Query (API state)                                                  │
  │ - WebSocket Client (real-time updates)                                     │
- │ - Wagmi + RainbowKit (Wallet UI)                                           │
+ │ - Wagmi + RainbowKit / Web3Modal (Wallet UI)                               │
  │ - viem / ethers.js (contract interaction)                                  │
  │                                                                            │
  │ ⚠️ Client-side signing ONLY (Non-custodial)                                │
@@ -23,11 +23,11 @@
  │ Wallet Providers                                                           │
  │                                                                            │
  │ - MetaMask                                                                 │
- │ - WalletConnect                                                            │
+ │ - WalletConnect (Mobile wallets)                                           │
  │ - Coinbase Wallet                                                          │
  │                                                                            │
  │ - Transaction Signing (Client-side)                                        │
- │ - ABI-based Smart Contract Calls                                           │
+ │ - ERC20 (USDC) contract interaction                                        │
  └───────────────┬────────────────────────────────────────────────────────────┘
                  │ JSON-RPC
                  ▼
@@ -41,6 +41,9 @@
  │ - Alchemy (Primary)                                                        │
  │ - Fallback RPC Provider                                                    │
  │                                                                            │
+ │ - WebSocket (real-time events)                                             │
+ │ - HTTP (fallback + reconciliation)                                         │
+ │                                                                            │
  │ Chains: Ethereum | Polygon (EVM)                                           │
  └───────────────┬────────────────────────────────────────────────────────────┘
                  │ JSON-RPC
@@ -51,15 +54,21 @@
 ================================================================================
  ┌────────────────────────────────────────────────────────────────────────────┐
  │ Smart Contracts                                                            │
+ │ - USDC (ERC20)                                                             │
  │ - DealHashRegistry.sol                                                     │
  │                                                                            │
  │ Transaction Flow:                                                          │
  │ Frontend → Wallet → RPC → Blockchain                                       │
  │                                                                            │
- │ Event Flow:                                                                │
- │ Blockchain → Alchemy Webhooks → Backend                                    │
+ │ Event Flow (PRIMARY):                                                      │
+ │ Blockchain → WebSocket Listener → Backend                                  │
+ │                                                                            │
+ │ Event Flow (FALLBACK):                                                     │
+ │ Blockchain → Reconciliation Worker (log scan)                              │
+ │                                                                            │
+ │ ⚠️ Webhooks optional (NOT source of truth)                                 │
  └───────────────┬────────────────────────────────────────────────────────────┘
-                 │ Webhooks / Events
+                 │ Events (WS / Logs)
                  ▼
 
 ================================================================================
@@ -80,27 +89,27 @@
  │ - SIWE (wallet signature verification)                                     │
  │                                                                            │
  │ Deals Module (DDD)                                                         │
- │ - Domain | Application | Infrastructure                                    │
  │                                                                            │
  │ Payments Module                                                            │
- │ - State Machine                                                            │
+ │ - Payment State Machine                                                    │
+ │ - Idempotency (txHash uniqueness)                                          │
  │                                                                            │
  │ Blockchain Module                                                          │
- │ - Smart contract interaction                                               │
- │ - Custody Layer:                                                           │
- │     • Fireblocks (Custodial)                                               │
- │     • Local Wallet Adapter                                                 │
- │ - Blockchain Listener                                                      │
+ │ - BlockchainService (ethers.js abstraction)                                │
+ │ - BlockchainListener (WebSocket primary)                                   │
+ │ - Reconciliation Worker (CRITICAL)                                         │
  │                                                                            │
- │ AI Module                                                                  │
- │ - RAG Pipeline                                                             │
- │ - Embeddings + Vector Search                                               │
- │ - Copilot Service                                                          │
+ │ Custody Layer (ABSTRACTION)                                                │
+ │ - CustodyProvider Interface                                                │
+ │     • MockCustodyProvider (dev)                                            │
+ │     • FireblocksCustodyProvider (prod)                                     │
  │                                                                            │
  │ Notifications Module                                                       │
  │ Webhooks Module                                                            │
  │                                                                            │
- │ ⚠️ Backend DOES NOT sign non-custodial transactions                        │
+ │ AI Module                                                                  │
+ │                                                                            │
+ │ ⚠️ Backend NEVER signs non-custodial tx                                    │
  └───────────────┬────────────────────────────────────────────────────────────┘
                  │
      ┌───────────┴────────────┐
@@ -115,18 +124,28 @@ Frontend → API Gateway → Modules → Database / Response
 
                  ┌──────────────────────────────┐
                  │     BullMQ + Redis Queue     │
-                 │  (Retry, Backoff, DLQ)       │
+                 │  Retry | Backoff | DLQ       │
                  └──────────────┬──────────────┘
                                 │
-      ┌──────────────┬──────────────┬──────────────┬──────────────┐
-      ▼              ▼              ▼              ▼              ▼
+   ┌──────────────┬──────────────┬──────────────┬──────────────┬──────────────┐
+   ▼              ▼              ▼              ▼              ▼              ▼
 
-┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐
-│ Payment      │ │ Blockchain   │ │ Transaction  │ │ Notification │ │ AI Embedding │
-│ Worker       │ │ Events Worker│ │ Confirmation │ │ Worker       │ │ Worker       │
-└──────┬───────┘ └──────┬───────┘ └──────┬───────┘ └──────┬───────┘ └──────┬───────┘
-       │                │                │                │                │
-       ▼                ▼                ▼                ▼                ▼
+┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐
+│ Payment      │ │ Blockchain   │ │ Transaction  │ │ Withdrawal   │ │ Notification │ │ Reconciliation│
+│ Worker       │ │ Events Worker│ │ Confirmation │ │ Worker       │ │ Worker       │ │ Worker        │
+└──────┬───────┘ └──────┬───────┘ └──────┬───────┘ └──────┬───────┘ └──────┬───────┘ └──────┬───────┘
+       │                │                │                │                │                │
+       ▼                ▼                ▼                ▼                ▼                ▼
+
+====================== 💀 FAILURE HANDLING ======================
+
+ Retry → (6 attempts)
+        ↓
+ DLQ (dead-letter queue)
+        ↓
+ Admin Retry API / Dashboard
+        ↓
+ Manual Recovery
 
 
 ================================================================================
@@ -138,27 +157,31 @@ Frontend → API Gateway → Modules → Database / Response
         ↓
  Vector DB (Embeddings Storage)
         ↓
- Retrieval Layer (Similarity Search)
+ Retrieval Layer
         ↓
  RAG Engine
         ↓
  AI Copilot (API + WebSocket Streaming)
+
 
 ================================================================================
                             🗄️ DATA LAYER
 ================================================================================
  ┌──────────────┐   ┌──────────────┐   ┌──────────────┐   ┌──────────────┐
  │ PostgreSQL   │   │ MongoDB      │   │ Redis        │   │ Vector DB    │
- │ (Prisma)     │   │ (Logs/AI)    │   │ Cache/Queue  │   │ Embeddings   │
+ │ (Ledger)     │   │ (Logs/AI)    │   │ Cache/Queue  │   │ Embeddings   │
  └──────────────┘   └──────────────┘   └──────────────┘   └──────────────┘
+
 
 ================================================================================
                            📡 REAL-TIME SYSTEM
 ================================================================================
  WebSocket Gateway (NestJS)
+ - Payment status updates
  - Deal updates
  - Notifications
- - AI streaming responses
+ - AI streaming
+
 
 ================================================================================
                            🔐 SECURITY
@@ -169,23 +192,33 @@ Frontend → API Gateway → Modules → Database / Response
  - Rate limiting
  - Secrets management (Vault)
 
+
 ================================================================================
                            🔁 SAGA ORCHESTRATION
 ================================================================================
  1. Create Deal
- 2. Process Payment
- 3. Verify on Blockchain
- 4. Send Notification
+ 2. Generate Payment Intent
+ 3. Detect USDC Transfer
+ 4. Confirm Transaction
+ 5. Settle Ledger
+ 6. Send Notification
 
- Failure:
- - Refund Payment
- - Rollback Deal
+ Failure Handling:
+ - Compensation (refund / rollback)
+ - Retry via DLQ
+
 
 ================================================================================
                            📊 OBSERVABILITY
 ================================================================================
+ - OpenTelemetry → Distributed tracing (API + Workers)
  - Prometheus → Metrics
  - Grafana → Dashboards
  - Loki → Logs
- - Request ID → Distributed tracing
+
+ Metrics:
+ - payment_success_total
+ - payment_failed_total
+ - dlq_jobs_total
+ - reconciliation_recovered_total
 ================================================================================

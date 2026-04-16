@@ -18,6 +18,9 @@ export const QUEUE_NAMES = {
   PAYMENT_PROCESSING: 'payment-processing',             // Payment intent lifecycle
   BLOCKCHAIN_EVENTS: 'blockchain-events',               // Raw on-chain transfer events
   TRANSACTION_CONFIRMATION: 'transaction-confirmation', // Confirmation count polling
+  WITHDRAWALS: 'withdrawals',                           // Outbound USDC transfers
+  RECONCILIATION: 'reconciliation',                     // Periodic chain-scan recovery
+  DLQ: 'dlq',                                          // Dead-letter queue for exhausted jobs
 } as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];
@@ -90,6 +93,19 @@ export const QUEUE_JOB_OPTIONS = {
     removeOnComplete: { count: 500 },
     removeOnFail: { count: 1000 },
   },
+} as const;
+
+/**
+ * Standard options applied to every financial-rail job.
+ * 6 attempts with 5 s exponential base gives ~21 min total retry window:
+ *   5s → 10s → 20s → 40s → 80s → 160s (≈ 5.25 min total)
+ * removeOnFail: false keeps the record for DLQ sweep and post-mortems.
+ */
+export const FINANCIAL_JOB_DEFAULTS = {
+  attempts: 6,
+  backoff: { type: 'exponential' as const, delay: 5_000 },
+  removeOnComplete: true,
+  removeOnFail: false,
 } as const;
 
 /**
