@@ -156,13 +156,7 @@ export class TransactionConfirmationWorker extends WorkerHost {
       where: { txHash },
       data: { status: 'FAILED' },
     });
-    // Access through service to ensure event is written
-    const repo = (this.paymentsService as any).paymentsRepo;
-    await repo.transition(paymentId, 'FAILED', {
-      failedAt: new Date(),
-      failureReason: reason,
-    });
-    await repo.appendEvent(paymentId, tenantId, 'CONFIRMING', 'FAILED', 'tx_failed', { reason });
+    await this.paymentsService.failPayment(paymentId, tenantId, reason);
   }
 
   private async scheduleRecheck(

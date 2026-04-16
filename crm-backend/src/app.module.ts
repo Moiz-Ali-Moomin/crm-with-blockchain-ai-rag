@@ -10,9 +10,8 @@
 import { Module, MiddlewareConsumer, NestModule, RequestMethod } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
-import { ThrottlerGuard } from '@nestjs/throttler';
-import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { ConfigModule } from '@nestjs/config';
 import { WinstonModule } from 'nest-winston';
 import * as winston from 'winston';
 
@@ -51,6 +50,8 @@ import { HealthModule } from './health/health.module';
 // Middleware
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 import { TenantContextMiddleware } from './common/middleware/tenant-context.middleware';
+import { IdempotencyMiddleware } from './common/middleware/idempotency.middleware';
+import { TenantThrottlerGuard } from './common/guards/tenant-throttler.guard';
 
 @Module({
   imports: [
@@ -170,8 +171,8 @@ import { TenantContextMiddleware } from './common/middleware/tenant-context.midd
   providers: [
     // Apply JwtAuthGuard globally — all routes protected unless @Public() is set
     { provide: APP_GUARD, useClass: JwtAuthGuard },
-    // Apply rate limiting globally — configured in ThrottlerModule above
-    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    // Tenant-aware throttler (sliding window per tier) replaces plain ThrottlerGuard
+    { provide: APP_GUARD, useClass: TenantThrottlerGuard },
   ],
 })
 export class AppModule implements NestModule {
@@ -191,5 +192,14 @@ export class AppModule implements NestModule {
         { path: 'api/v1/health', method: RequestMethod.GET },
       )
       .forRoutes({ path: '*', method: RequestMethod.ALL });
+
+    // Idempotency enforcement on financial + deal mutation routes
+    consumer
+      .apply(IdempotencyMiddleware)
+      .forRoutes(
+        { path: 'api/v1/payments*', method: RequestMethod.POST },
+        { path: 'api/v1/deals*',    method: RequestMethod.POST },
+        { path: 'api/v1/deals*',    method: RequestMethod.PATCH },
+      );
   }
 }

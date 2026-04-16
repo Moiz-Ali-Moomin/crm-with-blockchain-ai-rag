@@ -35,7 +35,7 @@ export function useUpdateLead() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<CreateLeadDto> }) =>
       leadsApi.update(id, data),
-    onSuccess: (_r, { id }) => {
+    onSuccess: (_r: unknown, { id }: { id: string; data: Partial<CreateLeadDto> }) => {
       qc.invalidateQueries({ queryKey: queryKeys.leads.all });
       qc.invalidateQueries({ queryKey: queryKeys.leads.detail(id) });
       toast.success('Lead updated');

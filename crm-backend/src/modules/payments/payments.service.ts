@@ -34,6 +34,7 @@ import { LedgerService } from '../ledger/ledger.service';
 import { WalletsRepository } from '../wallets/wallets.repository';
 import { QUEUE_NAMES, QUEUE_JOB_OPTIONS } from '../../core/queue/queue.constants';
 import { CreatePaymentDto } from './payments.dto';
+import { Cron } from '@nestjs/schedule';
 
 // A payment intent expires if no deposit is detected within this window
 const PAYMENT_EXPIRY_HOURS = 24;
@@ -106,7 +107,8 @@ export class PaymentsService {
     blockNumber: bigint;
     chainTxId?: string;
   }): Promise<void> {
-    const payment = await this.paymentsRepo.findById(params.paymentId, '');
+    // Use no-scope lookup — this is called from a worker that has no tenantId context.
+    const payment = await this.paymentsRepo.findByIdNoScope(params.paymentId);
     if (!payment) {
       this.logger.warn(`handleTxDetected: payment ${params.paymentId} not found`);
       return;
@@ -158,7 +160,8 @@ export class PaymentsService {
     confirmations: number;
     currentBlockNumber: bigint;
   }): Promise<void> {
-    const payment = await this.paymentsRepo.findById(params.paymentId, '');
+    // Use no-scope lookup — called from worker with no tenantId context.
+    const payment = await this.paymentsRepo.findByIdNoScope(params.paymentId);
     if (!payment || payment.status !== 'CONFIRMING') return;
 
     if (params.confirmations < payment.requiredConfirmations) {
@@ -178,12 +181,16 @@ export class PaymentsService {
   /**
    * Internal: transition CONFIRMING → COMPLETED + write ledger entries.
    * Atomic — both happen in one Prisma transaction.
+   *
+   * IMPORTANT: LedgerService.settlePayment() opens its own $transaction internally.
+   * To keep both operations atomic we perform them sequentially inside a single
+   * outer $transaction, passing the transaction client down to both operations.
    */
   private async settlePayment(payment: Payment): Promise<void> {
     PaymentStateMachine.assertTransition(payment.status, 'COMPLETED');
 
     await this.prisma.$transaction(async (tx) => {
-      const settled = await this.paymentsRepo.transition(
+      await this.paymentsRepo.transition(
         payment.id,
         'COMPLETED',
         { confirmedAt: new Date() },
@@ -200,14 +207,18 @@ export class PaymentsService {
         tx,
       );
 
-      // Ledger settlement runs inside the same tx — either both commit or both roll back
-      await this.ledger.settlePayment({
-        tenantId: payment.tenantId,
-        walletId: payment.walletId,
-        paymentId: payment.id,
-        amountUsdc: payment.amountUsdc as Prisma.Decimal,
-        chain: payment.chain as any,
-      });
+      // Ledger settlement: call the repo directly with the open tx client so we
+      // don't open a nested $transaction (Prisma does not support nested interactive txns).
+      await this.ledger.settlePaymentWithTx(
+        {
+          tenantId: payment.tenantId,
+          walletId: payment.walletId,
+          paymentId: payment.id,
+          amountUsdc: payment.amountUsdc as Prisma.Decimal,
+          chain: payment.chain as any,
+        },
+        tx,
+      );
     });
 
     // Fire webhook (best-effort — outside the DB transaction)
@@ -227,9 +238,57 @@ export class PaymentsService {
   }
 
   /**
-   * Expire all PENDING payments that have passed their expiresAt.
-   * Called by a periodic cron job.
+   * Transition a CONFIRMING payment to FAILED.
+   * Called by TransactionConfirmationWorker — exposed as a public method so the
+   * worker does not need to reach into private repository internals and bypass
+   * the state machine.
    */
+  async failPayment(
+    paymentId: string,
+    tenantId: string,
+    reason: string,
+  ): Promise<void> {
+    const payment = await this.paymentsRepo.findByIdNoScope(paymentId);
+    if (!payment) {
+      this.logger.warn(`failPayment: payment ${paymentId} not found`);
+      return;
+    }
+
+    if (PaymentStateMachine.isTerminal(payment.status)) {
+      this.logger.warn(
+        `failPayment: payment ${paymentId} already in terminal state ${payment.status} — skipping`,
+      );
+      return;
+    }
+
+    PaymentStateMachine.assertTransition(payment.status, 'FAILED');
+
+    await this.prisma.$transaction(async (tx) => {
+      await this.paymentsRepo.transition(
+        payment.id,
+        'FAILED',
+        { failedAt: new Date(), failureReason: reason },
+        tx,
+      );
+      await this.paymentsRepo.appendEvent(
+        payment.id,
+        payment.tenantId,
+        payment.status,
+        'FAILED',
+        'tx_failed',
+        { reason },
+        tx,
+      );
+    });
+
+    this.logger.warn(`Payment ${paymentId} → FAILED: ${reason}`);
+  }
+
+  /**
+   * Expire all PENDING payments that have passed their expiresAt.
+   * Runs automatically every 15 minutes via cron.
+   */
+  @Cron('*/15 * * * *')
   async expireStalePendingPayments(): Promise<number> {
     const stale = await this.paymentsRepo.findExpiredPending();
     await Promise.all(

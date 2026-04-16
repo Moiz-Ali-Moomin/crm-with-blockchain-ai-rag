@@ -28,7 +28,10 @@ import { AiModule } from '../modules/ai/ai.module';
 import { BlockchainModule } from '../modules/blockchain/blockchain.module';
 import { PaymentsModule } from '../modules/payments/payments.module';
 import { WalletsModule } from '../modules/wallets/wallets.module';
+import { DealsModule } from '../modules/deals/deals.module';
 import { QUEUE_NAMES } from '../core/queue/queue.constants';
+import { DlqProcessorService } from './workers/dlq-processor.service';
+import { DealWonSaga } from '../modules/deals/sagas/deal-won.saga';
 
 @Module({
   imports: [
@@ -50,6 +53,7 @@ import { QUEUE_NAMES } from '../core/queue/queue.constants';
     BlockchainModule,
     PaymentsModule,
     WalletsModule,
+    DealsModule,
   ],
   providers: [
     // Existing workers
@@ -64,6 +68,9 @@ import { QUEUE_NAMES } from '../core/queue/queue.constants';
     PaymentProcessingWorker,
     BlockchainEventsWorker,
     TransactionConfirmationWorker,
+    // ── New infrastructure workers ────────────────────────────────────────
+    DlqProcessorService,
+    DealWonSaga,
   ],
 })
 export class JobsModule {}

@@ -1,6 +1,12 @@
 /**
  * CRM SaaS Backend - Application Bootstrap
+ *
+ * tracing.ts MUST be imported before everything else so OpenTelemetry can
+ * patch the pg, ioredis, and http modules at require time.
  */
+
+// eslint-disable-next-line import/order
+import './tracing';
 
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
@@ -44,6 +50,7 @@ async function bootstrap() {
       'Authorization',
       'X-Request-ID',
       'X-Tenant-ID',
+      'Idempotency-Key',
     ],
   });
 

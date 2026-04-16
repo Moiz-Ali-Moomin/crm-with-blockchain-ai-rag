@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
+import { ScheduleModule } from '@nestjs/schedule';
 import { PaymentsService } from './payments.service';
 import { PaymentsRepository } from './payments.repository';
 import { PaymentsController } from './payments.controller';
@@ -9,6 +10,7 @@ import { QUEUE_NAMES } from '../../core/queue/queue.constants';
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     WalletsModule,
     LedgerModule,
     BullModule.registerQueue(

@@ -37,6 +37,7 @@ import { AiService } from './ai.service';
 import { VectorSearchService } from './vector-search.service';
 import { CopilotService } from './copilot.service';
 import { RagService } from './rag.service';
+import { AiCostControlService } from './cost-control.service';
 
 import { EMBEDDING_SERVICE } from './embedding.interface';
 import { RealEmbeddingService } from './real-embedding.service';
@@ -89,6 +90,7 @@ const isMongoEnabled = !!process.env.MONGO_URI;
     VectorSearchService,
     CopilotService,
     RagService,
+    AiCostControlService,
 
     // ✅ ONLY provide repository if Mongo exists
     ...(isMongoEnabled ? [AiLogRepository] : []),
@@ -97,6 +99,7 @@ const isMongoEnabled = !!process.env.MONGO_URI;
   exports: [
     EMBEDDING_SERVICE,
     RagService,
+    AiCostControlService,
     BullModule,
 
     ...(isMongoEnabled ? [AiLogRepository] : []),

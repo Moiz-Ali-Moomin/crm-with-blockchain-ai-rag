@@ -42,6 +42,11 @@ export class PaymentsRepository {
     return this.prisma.payment.findFirst({ where: { id, tenantId } });
   }
 
+  /** Fetch by ID without tenant scope — for internal worker use only. */
+  findByIdNoScope(id: string): Promise<Payment | null> {
+    return this.prisma.payment.findUnique({ where: { id } });
+  }
+
   findByIdempotencyKey(key: string): Promise<Payment | null> {
     return this.prisma.payment.findUnique({ where: { idempotencyKey: key } });
   }

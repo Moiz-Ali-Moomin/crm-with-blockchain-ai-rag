@@ -90,13 +90,10 @@ export class BlockchainEventsWorker extends WorkerHost {
       this.logger.warn(
         `Payment ${payment.id}: received ${event.amountRaw} but expected ${expectedRaw} — underpayment, failing`,
       );
-      await this.paymentsService['paymentsRepo'].transition(
+      await this.paymentsService.failPayment(
         payment.id,
-        'FAILED',
-        {
-          failedAt: new Date(),
-          failureReason: `Underpayment: expected ${expectedRaw}, received ${event.amountRaw}`,
-        },
+        payment.tenantId,
+        `Underpayment: expected ${expectedRaw}, received ${event.amountRaw}`,
       );
       return;
     }
