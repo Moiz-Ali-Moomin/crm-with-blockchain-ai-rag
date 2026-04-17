@@ -359,11 +359,10 @@ jobs:
           #
           #   REQUIRED at bootstrap (getOrThrow — no default):
           #     USDC_CONTRACT_ADDRESS — UsdcContractService injects this in its constructor.
-          #                             No USDC calls are made during the health check, but
-          #                             NestJS resolves all providers before serving any request,
-          #                             so the value must be present. A zero-address sentinel is
-          #                             safe here: it satisfies the string check without touching
-          #                             any real chain.
+          #     RPC_URL               — EthereumProviderService.initHttpProvider() reads this.
+          #                             Public Polygon Amoy endpoint — no API key needed.
+          #                             ethers JsonRpcProvider is lazy; no connection is made
+          #                             during bootstrap, only when a method is first called.
           docker run -d \
             --name smoke_api \
             --network smoke_net \
@@ -374,6 +373,7 @@ jobs:
             -e JWT_SECRET="ci-smoke-test-not-for-prod-pad-to-32-chars!!" \
             -e JWT_REFRESH_SECRET="ci-smoke-refresh-not-for-prod-pad-32chars" \
             -e USDC_CONTRACT_ADDRESS="0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582" \
+            -e RPC_URL="https://rpc-amoy.polygon.technology" \
             -p 3001:3001 \
             "${IMAGE_API}:${IMAGE_TAG}"
 

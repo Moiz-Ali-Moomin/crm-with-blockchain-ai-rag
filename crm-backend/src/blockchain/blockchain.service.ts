@@ -15,8 +15,8 @@
  *   Delay: 2 s → 4 s → 8 s … capped at 60 s.
  *
  * Environment variables:
- *   RPC_URL_HTTP  (required) — https:// JSON-RPC endpoint
- *   RPC_URL_WS   (optional) — wss:// endpoint; enables push-based subscriptions
+ *   RPC_URL      (required) — https:// JSON-RPC endpoint
+ *   WS_RPC_URL   (optional) — wss:// endpoint; enables push-based subscriptions
  *   PRIVATE_KEY  (required for signing) — 0x-prefixed 32-byte hex
  */
 
@@ -125,7 +125,7 @@ export class EthereumProviderService
   // ─── HTTP Provider ─────────────────────────────────────────────────────────
 
   private initHttpProvider(): void {
-    const url = this.config.getOrThrow<string>('RPC_URL_HTTP');
+    const url = this.config.getOrThrow<string>('RPC_URL');
     this._httpProvider = new ethers.JsonRpcProvider(url);
     this._signer = null; // reset so next call to getSigner picks up the new provider
     this.logger.log(`HTTP provider ready: ${url.replace(/\/\/.*@/, '//***@')}`);
@@ -141,7 +141,7 @@ export class EthereumProviderService
   // ─── WebSocket Provider ────────────────────────────────────────────────────
 
   private async initWsProvider(attempt: number): Promise<void> {
-    const wsUrl = this.config.get<string>('RPC_URL_WS');
+    const wsUrl = this.config.get<string>('WS_RPC_URL');
     if (!wsUrl) {
       this.logger.warn('RPC_URL_WS not configured — operating in HTTP-only mode');
       this._wsAlive = false;
