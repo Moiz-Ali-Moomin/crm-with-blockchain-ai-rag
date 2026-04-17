@@ -4,8 +4,6 @@
 
 ### Enterprise-Grade Multi-Tenant CRM — AI · Blockchain · Real-Time
 
-[![CI](https://github.com/Moiz-Ali-Moomin/crm-with-blockchain-rag/actions/workflows/ci.yml/badge.svg)](https://github.com/Moiz-Ali-Moomin/crm-with-blockchain-rag/actions/workflows/ci.yml)
-[![CD](https://github.com/Moiz-Ali-Moomin/crm-with-blockchain-rag/actions/workflows/cd.yml/badge.svg)](https://github.com/Moiz-Ali-Moomin/crm-with-blockchain-rag/actions/workflows/cd.yml)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![NestJS](https://img.shields.io/badge/NestJS-10-E0234E?logo=nestjs&logoColor=white)](https://nestjs.com/)
 [![Next.js](https://img.shields.io/badge/Next.js-15-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
