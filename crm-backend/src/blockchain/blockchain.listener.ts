@@ -16,7 +16,7 @@
  *   standby — always standby, bypass Redis election
  *   auto    — Redis election (default)
  *
- * WS ↔ HTTP fallback (unchanged):
+ * WS ↔ HTTP fallback:
  *   1. WebSocket subscription (preferred) — zero-latency push events
  *   2. HTTP polling fallback — activated when WS is unavailable or drops
  *   3. Watchdog — upgrades back to WS every 30 s once WS is healthy
@@ -32,7 +32,7 @@
 
 import {
   Injectable,
-  Logger,
+  Inject,
   OnApplicationBootstrap,
   OnApplicationShutdown,
 } from '@nestjs/common';
@@ -40,6 +40,8 @@ import { ConfigService } from '@nestjs/config';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { ethers } from 'ethers';
+import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
+import type { Logger as WinstonLogger } from 'winston';
 import { EthereumProviderService } from './blockchain.service';
 import { UsdcContractService } from './usdc.contract';
 import { QUEUE_NAMES, QUEUE_JOB_OPTIONS } from '../core/queue/queue.constants';
@@ -50,6 +52,7 @@ const DEFAULT_POLL_INTERVAL_MS   = 12_000;
 const MODE_WATCHDOG_INTERVAL_MS  = 30_000;
 const MAX_LOGS_CHUNK_BLOCKS      = 500;   // Polygon Amoy getLogs limit
 const RPC_RETRY_COUNT            = 3;
+const LOG_CTX                    = 'PaymentListenerService';
 
 export interface IncomingTransferJob {
   txHash:      string;
@@ -70,9 +73,7 @@ type ListenerMode = 'ws' | 'polling' | 'idle';
 export class PaymentListenerService
   implements OnApplicationBootstrap, OnApplicationShutdown
 {
-  private readonly logger = new Logger(PaymentListenerService.name);
-
-  // WS / polling state (unchanged)
+  // WS / polling state
   private _mode:            ListenerMode = 'idle';
   private _wsContract:      ethers.Contract | null = null;
   private _pollTimer:       NodeJS.Timeout | null = null;
@@ -94,6 +95,8 @@ export class PaymentListenerService
     private readonly leader:      LeaderElectionService,
     @InjectQueue(QUEUE_NAMES.BLOCKCHAIN_EVENTS)
     private readonly eventsQueue: Queue,
+    @Inject(WINSTON_MODULE_PROVIDER)
+    private readonly logger:      WinstonLogger,
   ) {
     this._chain  = this.config.get<string>('CHAIN_NAME', 'ETHEREUM');
     this._pollMs = this.config.get<number>('POLLING_INTERVAL_MS', DEFAULT_POLL_INTERVAL_MS);
@@ -175,9 +178,10 @@ export class PaymentListenerService
           await this.becomeActive();
         }
       } catch (err) {
-        this.logger.error(
-          `[${this._chain}] standby probe error: ${(err as Error).message}`,
-        );
+        this.logger.error(`[${this._chain}] Standby probe error`, {
+          context: LOG_CTX,
+          error:   (err as Error).message,
+        });
       }
     }, this.leader.standbyProbeIntervalMs);
   }
@@ -216,15 +220,16 @@ export class PaymentListenerService
 
       this._wsContract.on('Transfer', this.onWsTransfer.bind(this));
 
-      this.logger.log(
-        `[${this._chain}] PaymentListener: WS subscription active ` +
-        `on USDC ${this.usdc.contractAddress} (from block ~${this._lastPolledBlock})`,
-      );
+      this.logger.info(`[${this._chain}] WS subscription active`, {
+        context:      LOG_CTX,
+        usdcAddress:  this.usdc.contractAddress,
+        fromBlock:    this._lastPolledBlock,
+      });
     } catch (err) {
-      this.logger.error(
-        `[${this._chain}] PaymentListener: WS subscription failed — starting HTTP polling: ` +
-        `${(err as Error).message}`,
-      );
+      this.logger.error(`[${this._chain}] WS subscription failed — starting HTTP polling`, {
+        context: LOG_CTX,
+        error:   (err as Error).message,
+      });
       this._mode = 'idle';
       await this.startPolling();
     }
@@ -257,7 +262,10 @@ export class PaymentListenerService
     const logIndex = log?.index ?? 0;
 
     if (!txHash) {
-      this.logger.error(`[${this._chain}] Missing txHash in Transfer event — skipping`, { args: payload?.args });
+      this.logger.error(`[${this._chain}] Missing txHash in Transfer event — skipping`, {
+        context: LOG_CTX,
+        args:    String(payload?.args),
+      });
       return;
     }
 
@@ -283,18 +291,19 @@ export class PaymentListenerService
     try {
       this._lastPolledBlock = await this.provider.getBlockNumber();
     } catch (err) {
-      this.logger.error(
-        `[${this._chain}] PaymentListener: could not get current block for polling baseline: ` +
-        `${(err as Error).message}`,
-      );
+      this.logger.error(`[${this._chain}] Could not get current block for polling baseline`, {
+        context: LOG_CTX,
+        error:   (err as Error).message,
+      });
       this._lastPolledBlock = 0;
     }
 
     this._mode = 'polling';
-    this.logger.log(
-      `[${this._chain}] PaymentListener: HTTP polling every ${this._pollMs}ms ` +
-      `(from block ${this._lastPolledBlock})`,
-    );
+    this.logger.info(`[${this._chain}] HTTP polling active`, {
+      context:    LOG_CTX,
+      intervalMs: this._pollMs,
+      fromBlock:  this._lastPolledBlock,
+    });
 
     this.schedulePoll();
   }
@@ -314,9 +323,10 @@ export class PaymentListenerService
       try {
         await this.pollNewBlocks();
       } catch (err) {
-        this.logger.error(
-          `[${this._chain}] PaymentListener: poll error: ${(err as Error).message}`,
-        );
+        this.logger.error(`[${this._chain}] Poll error`, {
+          context: LOG_CTX,
+          error:   (err as Error).message,
+        });
       }
 
       if (this._mode === 'polling') this.schedulePoll();
@@ -341,11 +351,13 @@ export class PaymentListenerService
       try {
         logs = await this.withRetry(() => this.provider.getLogs(filter, start, end));
       } catch (err) {
-        this.logger.error(
-          `[${this._chain}] PaymentListener: getLogs ${start}–${end} failed: ` +
-          `${(err as Error).message}`,
-        );
-        // Advance cursor to end of this chunk so we don't re-poll on the same failing range
+        this.logger.error(`[${this._chain}] getLogs ${start}–${end} failed`, {
+          context:  LOG_CTX,
+          error:    (err as Error).message,
+          fromBlock: start,
+          toBlock:   end,
+        });
+        // Advance cursor so we don't re-poll on the same failing range
         this._lastPolledBlock = end;
         continue;
       }
@@ -370,10 +382,12 @@ export class PaymentListenerService
       this._lastPolledBlock = end;
     }
 
-    this.logger.debug(
-      `[${this._chain}] PaymentListener: polled blocks ${fromBlock}–${toBlock} — ` +
-      `${totalLogs} Transfer log(s)`,
-    );
+    this.logger.debug(`[${this._chain}] Polled blocks ${fromBlock}–${toBlock}`, {
+      context:    LOG_CTX,
+      fromBlock,
+      toBlock,
+      logsFound:  totalLogs,
+    });
   }
 
   /**
@@ -394,10 +408,12 @@ export class PaymentListenerService
         if (!retryable) throw err;
 
         const delay = 1_000 * (attempt + 1);
-        this.logger.warn(
-          `[${this._chain}] PaymentListener: RPC transient error (attempt ${attempt + 1}/${retries}), ` +
-          `retrying in ${delay}ms: ${msg}`,
-        );
+        this.logger.warn(`[${this._chain}] RPC transient error`, {
+          context:  LOG_CTX,
+          attempt:  `${attempt + 1}/${retries}`,
+          retryIn:  `${delay}ms`,
+          error:    msg,
+        });
         await new Promise<void>((r) => setTimeout(r, delay));
       }
     }
@@ -412,12 +428,16 @@ export class PaymentListenerService
       if (this._leaderState !== 'active') return;
 
       if (this._mode === 'polling' && this.provider.wsConnected) {
-        this.logger.log(`[${this._chain}] PaymentListener: WS back — upgrading from polling`);
+        this.logger.info(`[${this._chain}] WS back — upgrading from HTTP polling`, {
+          context: LOG_CTX,
+        });
         this._mode = 'idle';
         this.stopPolling();
         await this.startWsSubscription();
       } else if (this._mode === 'ws' && !this.provider.wsConnected) {
-        this.logger.warn(`[${this._chain}] PaymentListener: WS lost — downgrading to HTTP polling`);
+        this.logger.warn(`[${this._chain}] WS lost — downgrading to HTTP polling`, {
+          context: LOG_CTX,
+        });
         this._mode = 'idle';
         await this.teardownWsSubscription();
         await this.startPolling();
@@ -443,15 +463,22 @@ export class PaymentListenerService
         jobId,
       });
 
-      this.logger.debug(
-        `[${this._chain}] Queued Transfer: ${job.fromAddress.slice(0, 8)}… → ` +
-        `${job.toAddress.slice(0, 8)}… | ${this.usdc.formatUsdc(BigInt(job.amountRaw))} USDC ` +
-        `(${job.txHash.slice(0, 12)}…)`,
-      );
+      this.logger.info(`[${job.chain}] Transfer detected`, {
+        context:     LOG_CTX,
+        txHash:      job.txHash,
+        logIndex:    job.logIndex,
+        from:        job.fromAddress,
+        to:          job.toAddress,
+        amountRaw:   job.amountRaw,
+        blockNumber: job.blockNumber,
+      });
     } catch (err) {
-      this.logger.error(
-        `[${this._chain}] PaymentListener: failed to enqueue ${jobId}: ${(err as Error).message}`,
-      );
+      this.logger.error(`[${job.chain}] Failed to enqueue Transfer job`, {
+        context: LOG_CTX,
+        jobId,
+        txHash:  job.txHash,
+        error:   (err as Error).message,
+      });
     }
   }
 }

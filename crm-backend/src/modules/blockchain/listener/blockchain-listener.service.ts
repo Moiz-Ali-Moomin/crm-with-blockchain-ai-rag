@@ -15,6 +15,8 @@
  *   Dedup        — Redis SET NX (2-day TTL) prevents duplicate enqueue across restarts;
  *                  BullMQ jobId is the secondary fallback guard
  *   Last block   — Redis stores last processed block per chain (7-day TTL) to anchor replays
+ *   Confirmations — replay events are only enqueued once CONFIRMATIONS_REQUIRED blocks have
+ *                   elapsed; live events are enqueued immediately and confirmed by the worker
  *
  * Leader election (per-chain Redis SET NX):
  *   Each chain races for `listener_leader:{chain}` (TTL 30 s).
@@ -29,7 +31,7 @@
 
 import {
   Injectable,
-  Logger,
+  Inject,
   OnApplicationBootstrap,
   OnApplicationShutdown,
 } from '@nestjs/common';
@@ -37,6 +39,8 @@ import { ConfigService } from '@nestjs/config';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { ethers } from 'ethers';
+import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
+import type { Logger as WinstonLogger } from 'winston';
 import { QUEUE_NAMES, QUEUE_JOB_OPTIONS } from '../../../core/queue/queue.constants';
 import { LeaderElectionService } from '../../../core/leader/leader-election.service';
 import { RedisService } from '../../../core/cache/redis.service';
@@ -69,12 +73,22 @@ const RPC_PUBLIC_FALLBACKS: Record<string, string[]> = {
   ETHEREUM: ['https://ethereum-sepolia-rpc.publicnode.com'],
 };
 
-const RECONNECT_LOOKBACK_BLOCKS = 20;
-const MAX_RECONNECT_DELAY_MS    = 60_000;
-const MAX_LOGS_CHUNK_BLOCKS     = 500;          // Polygon Amoy getLogs limit
-const RPC_RETRY_COUNT           = 3;
-const LAST_BLOCK_TTL_S          = 86_400 * 7;  // 7 days
-const SEEN_EVENT_TTL_S          = 86_400 * 2;  // 2 days
+const RECONNECT_LOOKBACK_BLOCKS  = 20;
+const MAX_RECONNECT_DELAY_MS     = 60_000;
+const MAX_LOGS_CHUNK_BLOCKS      = 500;         // Polygon Amoy getLogs limit
+const RPC_RETRY_COUNT            = 3;
+const LAST_BLOCK_TTL_S           = 86_400 * 7;  // 7 days
+const SEEN_EVENT_TTL_S           = 86_400 * 2;  // 2 days
+
+/**
+ * Minimum block confirmations required before a replayed event is enqueued.
+ * Live WebSocket events are enqueued immediately; the TransactionConfirmationWorker
+ * then gates completion on this threshold. For replay (getLogs), we skip events
+ * that are too recent so they re-appear on the next replay once confirmed.
+ */
+const CONFIRMATIONS_REQUIRED = 2;
+
+const LOG_CTX = 'BlockchainListenerService';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -105,8 +119,6 @@ interface ParsedTransfer {
 export class BlockchainListenerService
   implements OnApplicationBootstrap, OnApplicationShutdown
 {
-  private readonly logger = new Logger(BlockchainListenerService.name);
-
   // Ingestion resources keyed by chain
   private providers       = new Map<string, ethers.Provider>();
   private contracts       = new Map<string, ethers.Contract>();
@@ -126,6 +138,8 @@ export class BlockchainListenerService
     private readonly redis:       RedisService,
     @InjectQueue(QUEUE_NAMES.BLOCKCHAIN_EVENTS)
     private readonly eventsQueue: Queue,
+    @Inject(WINSTON_MODULE_PROVIDER)
+    private readonly logger:      WinstonLogger,
   ) {}
 
   // ─── Lifecycle ───────────────────────────────────────────────────────────────
@@ -226,7 +240,8 @@ export class BlockchainListenerService
         }
       } catch (err) {
         this.logger.error(`[${chain}] Standby probe error`, {
-          error: (err as Error).message,
+          context: LOG_CTX,
+          error:   (err as Error).message,
         });
       }
     }, this.leader.standbyProbeIntervalMs);
@@ -289,8 +304,9 @@ export class BlockchainListenerService
     const next    = (current + 1) % urls.length;
     this.rpcPoolIndices.set(chain, next);
     this.logger.warn(`[${chain}] Rotating RPC provider`, {
-      from: this.maskUrl(urls[current]),
-      to:   this.maskUrl(urls[next]),
+      context: LOG_CTX,
+      from:    this.maskUrl(urls[current]),
+      to:      this.maskUrl(urls[next]),
     });
   }
 
@@ -315,6 +331,7 @@ export class BlockchainListenerService
 
         const delay = 1_000 * (attempt + 1);
         this.logger.warn(`[${chain}] Transient RPC error (attempt ${attempt + 1}/${retries})`, {
+          context:  LOG_CTX,
           error:    msg,
           provider: this.maskUrl(this.currentRpcUrl(chain)),
           retryIn:  `${delay}ms`,
@@ -392,12 +409,15 @@ export class BlockchainListenerService
 
     if (!rpcUrl) {
       this.logger.error(`[${chain}] Cannot start listener: no RPC URL found`, {
-        tried: [RPC_ENV_KEYS[chain], `${chain}_RPC_URL`, 'POLYGON_RPC_URL', 'RPC_URL', 'BLOCKCHAIN_RPC_URL'],
+        context: LOG_CTX,
+        tried:   [RPC_ENV_KEYS[chain], `${chain}_RPC_URL`, 'POLYGON_RPC_URL', 'RPC_URL', 'BLOCKCHAIN_RPC_URL'],
       });
       return;
     }
     if (!usdcAddress) {
-      this.logger.error(`[${chain}] Cannot start listener: USDC contract address not configured`);
+      this.logger.error(`[${chain}] Cannot start listener: USDC contract address not configured`, {
+        context: LOG_CTX,
+      });
       return;
     }
 
@@ -427,14 +447,19 @@ export class BlockchainListenerService
       if (rpcUrl.startsWith('wss://')) {
         const ws = (provider as ethers.WebSocketProvider).websocket as any;
         ws?.on?.('error', (err: Error) => {
-          this.logger.error(`[${chain}] WebSocket error`, { error: err.message });
+          this.logger.error(`[${chain}] WebSocket error`, {
+            context: LOG_CTX,
+            error:   err.message,
+          });
           if (this.leaderStates.get(chain) === 'active') {
             this.teardownChain(chain);
             this.scheduleReconnect(chain, attempt);
           }
         });
         ws?.on?.('close', () => {
-          this.logger.warn(`[${chain}] WebSocket closed — scheduling reconnect`);
+          this.logger.warn(`[${chain}] WebSocket closed — scheduling reconnect`, {
+            context: LOG_CTX,
+          });
           if (this.leaderStates.get(chain) === 'active') {
             this.teardownChain(chain);
             this.scheduleReconnect(chain, attempt);
@@ -445,7 +470,8 @@ export class BlockchainListenerService
       this.providers.set(chain, provider);
       this.contracts.set(chain, contract);
 
-      this.logger.log(`[${chain}] Listener active`, {
+      this.logger.info(`[${chain}] Listener active`, {
+        context:      LOG_CTX,
         usdcAddress,
         rpcUrl:       this.maskUrl(rpcUrl),
         currentBlock,
@@ -454,6 +480,7 @@ export class BlockchainListenerService
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       this.logger.error(`[${chain}] Listener failed to start (attempt ${attempt})`, {
+        context:  LOG_CTX,
         error:    msg,
         provider: this.maskUrl(rpcUrl),
       });
@@ -465,7 +492,9 @@ export class BlockchainListenerService
 
   private scheduleReconnect(chain: string, attempt: number): void {
     const delay = Math.min(2_000 * 2 ** attempt, MAX_RECONNECT_DELAY_MS);
-    this.logger.log(`[${chain}] Reconnect in ${delay}ms (attempt ${attempt + 1})`);
+    this.logger.info(`[${chain}] Reconnect in ${delay}ms (attempt ${attempt + 1})`, {
+      context: LOG_CTX,
+    });
 
     const timer = setTimeout(async () => {
       this.reconnectTimers.delete(chain);
@@ -509,6 +538,7 @@ export class BlockchainListenerService
           });
           if (!parsed) continue;
 
+          // Pass the chunk end-block so processTransfer can gate on confirmations
           await this.processTransfer(chain, {
             txHash:      log.transactionHash,
             logIndex:    log.index,
@@ -516,11 +546,12 @@ export class BlockchainListenerService
             from:        parsed.args[0] as string,
             to:          parsed.args[1] as string,
             value:       parsed.args[2] as bigint,
-          });
+          }, end);
           replayed++;
         }
       } catch (err) {
         this.logger.warn(`[${chain}] Replay getLogs ${start}–${end} failed`, {
+          context:  LOG_CTX,
           error:    (err as Error).message,
           provider: this.maskUrl(this.currentRpcUrl(chain)),
         });
@@ -528,7 +559,8 @@ export class BlockchainListenerService
     }
 
     if (replayed > 0 || fromBlock < toBlock) {
-      this.logger.log(`[${chain}] Replay complete`, {
+      this.logger.info(`[${chain}] Replay complete`, {
+        context:  LOG_CTX,
         fromBlock,
         toBlock,
         replayed,
@@ -541,6 +573,8 @@ export class BlockchainListenerService
   /**
    * ethers v6: contract.on() passes ContractEventPayload as the last argument.
    * Decoded args arrive before the payload. The underlying Log is at payload.log.
+   * Live events are enqueued immediately; the TransactionConfirmationWorker gates
+   * completion on CONFIRMATIONS_REQUIRED.
    */
   private async handleTransferEvent(
     chain:   string,
@@ -554,7 +588,8 @@ export class BlockchainListenerService
 
     if (!txHash) {
       this.logger.error(`[${chain}] Missing txHash in Transfer event`, {
-        args: payload?.args,
+        context: LOG_CTX,
+        args:    String(payload?.args),
       });
       return;
     }
@@ -565,13 +600,26 @@ export class BlockchainListenerService
 
     if (!to || value === undefined) {
       this.logger.warn(`[${chain}] Invalid Transfer event — missing to/value`, {
+        context: LOG_CTX,
         txHash,
         to,
-        value: value?.toString(),
+        value:   value?.toString(),
       });
       return;
     }
 
+    this.logger.debug(`[${chain}] RAW live event`, {
+      context:     LOG_CTX,
+      txHash,
+      logIndex:    log?.index ?? 0,
+      blockNumber: log?.blockNumber ?? 0,
+      from:        String(from),
+      to:          String(to),
+      value:       value?.toString(),
+    });
+
+    // Live events: no currentBlock passed → confirmation check skipped here;
+    // the TransactionConfirmationWorker handles the threshold after enqueue.
     await this.processTransfer(chain, {
       txHash,
       logIndex:    log?.index ?? 0,
@@ -586,17 +634,57 @@ export class BlockchainListenerService
 
   /**
    * Single enqueue path for both live events and getLogs replay.
-   * Deduplicates via Redis SET NX before touching the queue.
+   *
+   * @param currentBlock  The chain tip at the time of detection (replay only).
+   *   When provided, events that have not yet reached CONFIRMATIONS_REQUIRED blocks
+   *   are skipped WITHOUT being marked as seen, so the next replay will retry them.
+   *   Live WebSocket events omit this parameter and are always enqueued immediately.
    */
-  private async processTransfer(chain: string, data: ParsedTransfer): Promise<void> {
+  private async processTransfer(
+    chain:        string,
+    data:         ParsedTransfer,
+    currentBlock?: number,
+  ): Promise<void> {
     const { txHash, logIndex, blockNumber, from, to, value } = data;
 
-    const isNew = await this.checkAndMarkSeen(txHash, logIndex);
-    if (!isNew) {
-      this.logger.debug(`[${chain}] Duplicate Transfer skipped`, { txHash, logIndex });
+    if (!txHash) {
+      this.logger.error(`[${chain}] Missing txHash — dropping event`, {
+        context:     LOG_CTX,
+        blockNumber,
+        logIndex,
+      });
       return;
     }
 
+    // ── Confirmation gate (replay only) ───────────────────────────────────────
+    // Do NOT mark seen yet — if we bail here the next replay will retry once the
+    // block depth is sufficient.
+    if (currentBlock !== undefined && blockNumber > 0) {
+      if (blockNumber + CONFIRMATIONS_REQUIRED > currentBlock) {
+        this.logger.info(`[${chain}] Waiting for confirmations`, {
+          context:     LOG_CTX,
+          txHash,
+          logIndex,
+          eventBlock:  blockNumber,
+          currentBlock,
+          required:    CONFIRMATIONS_REQUIRED,
+        });
+        return;
+      }
+    }
+
+    // ── Deduplication ─────────────────────────────────────────────────────────
+    const isNew = await this.checkAndMarkSeen(txHash, logIndex);
+    if (!isNew) {
+      this.logger.debug(`[${chain}] Duplicate Transfer skipped`, {
+        context: LOG_CTX,
+        txHash,
+        logIndex,
+      });
+      return;
+    }
+
+    // ── Build event payload ───────────────────────────────────────────────────
     const jobId = `transfer-${chain}-${txHash}-${logIndex}`;
 
     const eventPayload: BlockchainTransferEvent = {
@@ -610,28 +698,32 @@ export class BlockchainListenerService
       timestamp:   Math.floor(Date.now() / 1000),
     };
 
+    // ── Enqueue ───────────────────────────────────────────────────────────────
     try {
       await this.eventsQueue.add('process_transfer', eventPayload, {
         ...QUEUE_JOB_OPTIONS.blockchainEvents,
         jobId,
       });
 
-      this.logger.log(`[${chain}] Transfer detected`, {
+      this.logger.info(`[${chain}] Transfer detected`, {
+        context:     LOG_CTX,
         txHash,
         logIndex,
-        from:   from?.toLowerCase?.() ?? '',
-        to:     to.toLowerCase(),
-        value:  value.toString(),
-        block:  blockNumber,
+        from:        eventPayload.fromAddress,
+        to:          eventPayload.toAddress,
+        value:       value.toString(),
+        blockNumber,
       });
 
       if (blockNumber > 0) {
         await this.saveLastBlock(chain, blockNumber);
       }
     } catch (err) {
-      this.logger.error(`[${chain}] Failed to enqueue job`, {
+      this.logger.error(`[${chain}] Failed to enqueue Transfer job`, {
+        context: LOG_CTX,
         jobId,
-        error: err instanceof Error ? err.message : String(err),
+        txHash,
+        error:   err instanceof Error ? err.message : String(err),
       });
     }
   }
