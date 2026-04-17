@@ -93,7 +93,7 @@ export class LeaderElectionService {
 
     const key    = this.leaderKey(chain);
     const result = await this.redis.client.set(
-      key, this.instanceId, 'NX', 'EX', LEADER_TTL_S,
+      key, this.instanceId, 'EX', LEADER_TTL_S, 'NX',
     );
 
     if (result === 'OK') {
