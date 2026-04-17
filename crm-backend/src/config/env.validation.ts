@@ -58,6 +58,22 @@ const envSchema = z.object({
   BLOCKCHAIN_PRIVATE_KEY: z.string().optional(),
   BLOCKCHAIN_CONTRACT_ADDR: z.string().optional(),
   BLOCKCHAIN_NETWORK: z.string().default('polygon-amoy'),
+
+  // Blockchain listener — multi-name support for RPC + USDC
+  RPC_URL: z.string().url().optional(),
+  WS_RPC_URL: z.string().optional(),
+  POLYGON_RPC_URL: z.string().url().optional(),
+  BLOCKCHAIN_RPC_URL_POLYGON: z.string().url().optional(),
+  BLOCKCHAIN_RPC_URL_BASE: z.string().url().optional(),
+  BLOCKCHAIN_RPC_URL_ETHEREUM: z.string().url().optional(),
+  USDC_ADDRESS: z.string().optional(),
+  USDC_CONTRACT_ADDRESS: z.string().optional(),
+  CHAIN_ID: z.string().optional(),
+  BLOCKCHAIN_LISTENER_CHAINS: z.string().optional(),
+  LISTENER_MODE: z.enum(['active', 'standby', 'auto']).optional(),
+  CHAIN_NAME: z.string().optional(),
+  POLLING_INTERVAL_MS: z.string().optional(),
+  PRIVATE_KEY: z.string().optional(),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;

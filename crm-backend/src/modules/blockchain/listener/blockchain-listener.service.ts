@@ -228,11 +228,38 @@ export class BlockchainListenerService
   private async startListening(chain: string, attempt: number): Promise<void> {
     if (this.leaderStates.get(chain) !== 'active') return;
 
-    const rpcUrl     = this.config.get<string>(RPC_ENV_KEYS[chain] ?? '') || this.config.get<string>('RPC_URL', '');
-    const usdcAddress = USDC_CONTRACTS[chain];
+    const rpcUrl =
+      this.config.get<string>(RPC_ENV_KEYS[chain] ?? '') ||
+      this.config.get<string>(`${chain}_RPC_URL`) ||
+      this.config.get<string>('POLYGON_RPC_URL') ||
+      this.config.get<string>('RPC_URL') ||
+      this.config.get<string>('BLOCKCHAIN_RPC_URL') ||
+      process.env[RPC_ENV_KEYS[chain] ?? ''] ||
+      process.env[`${chain}_RPC_URL`] ||
+      process.env.POLYGON_RPC_URL ||
+      process.env.RPC_URL ||
+      process.env.BLOCKCHAIN_RPC_URL ||
+      '';
 
-    if (!rpcUrl || !usdcAddress) {
-      this.logger.warn(`[${chain}] Skipping: RPC URL or USDC address not configured`);
+    const usdcAddress =
+      USDC_CONTRACTS[chain] ||
+      this.config.get<string>('USDC_ADDRESS') ||
+      this.config.get<string>('USDC_CONTRACT_ADDRESS') ||
+      this.config.get<string>('BLOCKCHAIN_CONTRACT_ADDR') ||
+      process.env.USDC_ADDRESS ||
+      process.env.USDC_CONTRACT_ADDRESS ||
+      process.env.BLOCKCHAIN_CONTRACT_ADDR ||
+      '';
+
+    if (!rpcUrl) {
+      this.logger.error(
+        `[${chain}] Cannot start listener: no RPC URL found. ` +
+        `Tried: ${RPC_ENV_KEYS[chain]}, ${chain}_RPC_URL, POLYGON_RPC_URL, RPC_URL, BLOCKCHAIN_RPC_URL`,
+      );
+      return;
+    }
+    if (!usdcAddress) {
+      this.logger.error(`[${chain}] Cannot start listener: USDC contract address not configured`);
       return;
     }
 
