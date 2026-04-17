@@ -1139,7 +1139,8 @@ model BlockchainTransaction {
   tenantId  String
   paymentId String?
 
-  txHash    String             @unique
+  txHash    String
+  logIndex  Int                // Position of this Transfer log within the tx
   chain     Chain
   status    BlockchainTxStatus @default(PENDING)
 
@@ -1164,6 +1165,7 @@ model BlockchainTransaction {
   tenant  Tenant   @relation(fields: [tenantId], references: [id])
   payment Payment? @relation(fields: [paymentId], references: [id])
 
+  @@unique([txHash, logIndex])   // One row per Transfer event — handles multi-log txs
   @@index([paymentId])
   @@index([tenantId, status])
   @@index([toAddress])

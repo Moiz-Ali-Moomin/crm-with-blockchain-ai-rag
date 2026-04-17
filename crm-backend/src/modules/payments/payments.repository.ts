@@ -57,7 +57,8 @@ export class PaymentsRepository {
       where: {
         toAddress: { equals: toAddress, mode: 'insensitive' },
         chain,
-        status: 'PENDING',
+        status:    'PENDING',
+        expiresAt: { gt: new Date() },  // never match expired intents
       },
     });
   }

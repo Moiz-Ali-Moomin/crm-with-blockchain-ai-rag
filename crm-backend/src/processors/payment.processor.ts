@@ -123,12 +123,15 @@ export class PaymentProcessor extends WorkerHost {
     }
 
     // ── Step 2: Persist the on-chain transaction (idempotent) ─────────────────
+    // Unique key is (txHash, logIndex) — a single tx can emit multiple Transfer
+    // events at different log indices. Upsert on both fields to avoid collision.
     await this.prisma.blockchainTransaction.upsert({
-      where:  { txHash: event.txHash },
+      where:  { txHash_logIndex: { txHash: event.txHash, logIndex: event.logIndex } },
       create: {
         tenantId:    payment.tenantId,
         paymentId:   payment.id,
         txHash:      event.txHash,
+        logIndex:    event.logIndex,
         chain:       event.chain as Chain,
         status:      'SUBMITTED',
         fromAddress: event.fromAddress,

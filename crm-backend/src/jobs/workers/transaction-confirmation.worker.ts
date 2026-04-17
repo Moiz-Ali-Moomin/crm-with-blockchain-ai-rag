@@ -40,11 +40,13 @@ export interface ConfirmationJobPayload {
   targetConfirmations: number;
 }
 
+// Per-chain RPC override env vars — fall back to RPC_URL (the primary configured endpoint)
 const RPC_ENV: Record<string, string> = {
-  POLYGON: 'BLOCKCHAIN_RPC_URL_POLYGON',
-  BASE: 'BLOCKCHAIN_RPC_URL_BASE',
+  POLYGON:  'BLOCKCHAIN_RPC_URL_POLYGON',
+  BASE:     'BLOCKCHAIN_RPC_URL_BASE',
   ETHEREUM: 'BLOCKCHAIN_RPC_URL_ETHEREUM',
 };
+const RPC_FALLBACK = 'RPC_URL';
 
 /** Give up if tx hasn't confirmed after this many blocks */
 const MAX_WAIT_BLOCKS = 300; // ~10min on Polygon (2s blocks)
@@ -213,7 +215,7 @@ export class TransactionConfirmationWorker extends WorkerHost {
     if (cached) return cached;
 
     const envKey = RPC_ENV[chain];
-    const rpcUrl = this.config.getOrThrow<string>(envKey);
+    const rpcUrl = this.config.get<string>(envKey) ?? this.config.getOrThrow<string>(RPC_FALLBACK);
     const provider = new ethers.JsonRpcProvider(rpcUrl);
     this.providerCache.set(chain, provider);
     return provider;

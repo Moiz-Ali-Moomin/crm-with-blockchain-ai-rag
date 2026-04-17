@@ -42,10 +42,11 @@ const ERC20_TRANSFER_ABI = [
   'event Transfer(address indexed from, address indexed to, uint256 value)',
 ];
 
+// Testnet addresses — swap for mainnet when NODE_ENV=production on real network
 const USDC_CONTRACTS: Record<string, string> = {
-  POLYGON:  '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359',
-  BASE:     '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
-  ETHEREUM: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+  POLYGON:  '0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582', // Polygon Amoy testnet
+  BASE:     '0x036CbD53842c5426634e7929541eC2318f3dCF7e', // Base Sepolia testnet
+  ETHEREUM: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238', // Ethereum Sepolia testnet
 };
 
 const RPC_ENV_KEYS: Record<string, string> = {
@@ -227,7 +228,7 @@ export class BlockchainListenerService
   private async startListening(chain: string, attempt: number): Promise<void> {
     if (this.leaderStates.get(chain) !== 'active') return;
 
-    const rpcUrl     = this.config.get<string>(RPC_ENV_KEYS[chain] ?? '');
+    const rpcUrl     = this.config.get<string>(RPC_ENV_KEYS[chain] ?? '') || this.config.get<string>('RPC_URL', '');
     const usdcAddress = USDC_CONTRACTS[chain];
 
     if (!rpcUrl || !usdcAddress) {
