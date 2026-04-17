@@ -57,7 +57,7 @@ const envSchema = z.object({
   BLOCKCHAIN_RPC_URL: z.string().url().optional(),
   BLOCKCHAIN_PRIVATE_KEY: z.string().optional(),
   BLOCKCHAIN_CONTRACT_ADDR: z.string().optional(),
-  BLOCKCHAIN_NETWORK: z.string().default('polygon-mumbai'),
+  BLOCKCHAIN_NETWORK: z.string().default('polygon-amoy'),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;
