@@ -19,6 +19,7 @@
  */
 
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   Logger,
@@ -26,12 +27,15 @@ import {
 } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
+import { ethers } from 'ethers';
 import { Chain, Payment, PaymentStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../../core/database/prisma.service';
 import { PaymentsRepository } from './payments.repository';
 import { PaymentStateMachine } from './payment-state-machine';
 import { LedgerService } from '../ledger/ledger.service';
 import { WalletsRepository } from '../wallets/wallets.repository';
+import { EthereumProviderService } from '../../blockchain/blockchain.service';
+import { UsdcContractService } from '../../blockchain/usdc.contract';
 import { QUEUE_NAMES, QUEUE_JOB_OPTIONS } from '../../core/queue/queue.constants';
 import { CreatePaymentDto } from './payments.dto';
 import { Cron } from '@nestjs/schedule';
@@ -50,6 +54,8 @@ export class PaymentsService {
     private readonly walletsRepo: WalletsRepository,
     private readonly ledger: LedgerService,
     private readonly prisma: PrismaService,
+    private readonly ethereumProvider: EthereumProviderService,
+    private readonly usdcContract: UsdcContractService,
     @InjectQueue(QUEUE_NAMES.WEBHOOK_OUTBOUND) private readonly webhookQueue: Queue,
   ) {}
 
@@ -362,6 +368,156 @@ export class PaymentsService {
 
     this.logger.log(`Payment ${payment.id} → REFUNDED (reason: ${reason ?? 'unspecified'})`);
     return refunded;
+  }
+
+  // ─── Manual Confirmation (fallback for missed listener events) ─────────────
+
+  /**
+   * Fallback endpoint: caller supplies a txHash; we verify it fully on-chain
+   * before settling. The blockchain listener is the primary path — use this
+   * only when the listener missed the event.
+   *
+   * Security guarantees enforced here:
+   *   - txHash must exist on-chain and be mined
+   *   - Transaction must not have reverted
+   *   - A USDC Transfer log must appear in the receipt
+   *   - The Transfer recipient must match payment.toAddress
+   *   - The transferred value must meet or exceed payment.amountUsdc
+   *   - The txHash must not be registered against any other payment (replay)
+   *   - The payment must still be PENDING (not yet settled by another path)
+   */
+  async confirmPaymentManually(
+    paymentId: string,
+    tenantId: string,
+    txHash: string,
+  ): Promise<Payment> {
+    const payment = await this.paymentsRepo.findById(paymentId, tenantId);
+    if (!payment) throw new NotFoundException(`Payment ${paymentId} not found`);
+
+    if (payment.status !== 'PENDING') {
+      throw new BadRequestException(
+        `Payment is already ${payment.status} — use the blockchain listener path or wait for auto-confirmation`,
+      );
+    }
+
+    // Replay attack guard: reject if this txHash is already bound to any payment
+    const duplicate = await this.paymentsRepo.findByTxHash(txHash);
+    if (duplicate) throw new BadRequestException('Transaction already processed');
+
+    const provider = this.ethereumProvider.getHttpProvider();
+
+    const tx = await provider.getTransaction(txHash);
+    if (!tx) throw new BadRequestException('Transaction not found on-chain');
+
+    const receipt = await provider.getTransactionReceipt(txHash);
+    if (!receipt) throw new BadRequestException('Transaction not yet mined');
+
+    if (receipt.status !== 1) throw new BadRequestException('Transaction reverted on-chain');
+
+    // Filter receipt logs to USDC contract only
+    const usdcAddress = this.usdcContract.contractAddress.toLowerCase();
+    const usdcLogs = receipt.logs.filter(
+      (log) => log.address.toLowerCase() === usdcAddress,
+    );
+    if (usdcLogs.length === 0) throw new BadRequestException('No USDC transfer found in transaction');
+
+    // Find a Transfer log directed at the payment's deposit address
+    let transferValue: bigint | null = null;
+    let transferTo: string | null = null;
+    for (const log of usdcLogs) {
+      const parsed = this.usdcContract.parseTransferEvent(log);
+      if (!parsed) continue;
+      if (parsed.to.toLowerCase() === payment.toAddress.toLowerCase()) {
+        transferValue = BigInt(parsed.amountRaw);
+        transferTo    = parsed.to;
+        break;
+      }
+    }
+
+    if (transferTo === null || transferValue === null) {
+      throw new BadRequestException('No USDC transfer to the expected recipient found');
+    }
+
+    const expectedAmount = ethers.parseUnits(payment.amountUsdc.toString(), 6);
+    if (transferValue < expectedAmount) {
+      throw new BadRequestException(
+        `Insufficient payment: got ${transferValue} atomic units, expected ${expectedAmount}`,
+      );
+    }
+
+    // Validate both transitions up-front before touching the DB
+    PaymentStateMachine.assertTransition(payment.status, 'CONFIRMING');
+    PaymentStateMachine.assertTransition('CONFIRMING', 'COMPLETED');
+
+    // Atomic: PENDING → CONFIRMING → COMPLETED + ledger settlement in one transaction
+    const settled = await this.prisma.$transaction(async (dbTx) => {
+      await this.paymentsRepo.transition(
+        payment.id,
+        'CONFIRMING',
+        {
+          txHash,
+          blockNumber: BigInt(receipt.blockNumber),
+          detectedAt:  new Date(),
+          confirmations: 1,
+        },
+        dbTx,
+      );
+      await this.paymentsRepo.appendEvent(
+        payment.id, payment.tenantId,
+        'PENDING', 'CONFIRMING',
+        'tx_detected',
+        { txHash, source: 'manual_confirm' },
+        dbTx,
+      );
+
+      const updated = await this.paymentsRepo.transition(
+        payment.id,
+        'COMPLETED',
+        { confirmedAt: new Date() },
+        dbTx,
+      );
+      await this.paymentsRepo.appendEvent(
+        payment.id, payment.tenantId,
+        'CONFIRMING', 'COMPLETED',
+        'payment_settled',
+        { txHash, confirmedManually: true },
+        dbTx,
+      );
+
+      await this.ledger.settlePaymentWithTx(
+        {
+          tenantId:   payment.tenantId,
+          walletId:   payment.walletId,
+          paymentId:  payment.id,
+          amountUsdc: payment.amountUsdc as Prisma.Decimal,
+          chain:      payment.chain as any,
+        },
+        dbTx,
+      );
+
+      return updated;
+    });
+
+    this.logger.log('Payment verified on-chain and manually settled', {
+      txHash,
+      amount: transferValue.toString(),
+      to:        transferTo,
+      paymentId: payment.id,
+    });
+
+    await this.webhookQueue.add(
+      'deliver',
+      {
+        tenantId: payment.tenantId,
+        event:    'PAYMENT_COMPLETED',
+        payload:  { paymentId: payment.id, amountUsdc: payment.amountUsdc },
+      },
+      QUEUE_JOB_OPTIONS.webhook,
+    ).catch((err) =>
+      this.logger.error(`Webhook enqueue failed for payment ${payment.id}: ${err.message}`),
+    );
+
+    return settled;
   }
 
   // ─── Reads ──────────────────────────────────────────────────────────────────

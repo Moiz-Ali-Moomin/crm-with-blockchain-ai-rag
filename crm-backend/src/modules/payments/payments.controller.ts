@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PaymentsService } from './payments.service';
-import { CreatePaymentDto, ListPaymentsQueryDto, RefundPaymentDto } from './payments.dto';
+import { ConfirmPaymentDto, CreatePaymentDto, ListPaymentsQueryDto, RefundPaymentDto } from './payments.dto';
 import { PaymentStatus } from '@prisma/client';
 import { LedgerService } from '../ledger/ledger.service';
 
@@ -42,6 +42,22 @@ export class PaymentsController {
   @Get(':id')
   getById(@Param('id') id: string, @Request() req: any) {
     return this.paymentsService.findById(id, req.user.tenantId);
+  }
+
+  /**
+   * POST /payments/:id/confirm — fallback manual confirmation.
+   * Verifies the supplied txHash fully on-chain (mined, not reverted, correct
+   * USDC recipient and amount) before settling. The blockchain listener is the
+   * primary confirmation path; use this endpoint only when the listener missed
+   * the event.
+   */
+  @Post(':id/confirm')
+  confirm(
+    @Param('id') id: string,
+    @Body() dto: ConfirmPaymentDto,
+    @Request() req: any,
+  ) {
+    return this.paymentsService.confirmPaymentManually(id, req.user.tenantId, dto.txHash);
   }
 
   /**

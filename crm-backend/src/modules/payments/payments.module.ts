@@ -6,6 +6,7 @@ import { PaymentsRepository } from './payments.repository';
 import { PaymentsController } from './payments.controller';
 import { WalletsModule } from '../wallets/wallets.module';
 import { LedgerModule } from '../ledger/ledger.module';
+import { EthereumPaymentModule } from '../../blockchain/blockchain.module';
 import { QUEUE_NAMES } from '../../core/queue/queue.constants';
 
 @Module({
@@ -13,6 +14,7 @@ import { QUEUE_NAMES } from '../../core/queue/queue.constants';
     ScheduleModule.forRoot(),
     WalletsModule,
     LedgerModule,
+    EthereumPaymentModule,
     BullModule.registerQueue(
       { name: QUEUE_NAMES.PAYMENT_PROCESSING },
       { name: QUEUE_NAMES.BLOCKCHAIN_EVENTS },

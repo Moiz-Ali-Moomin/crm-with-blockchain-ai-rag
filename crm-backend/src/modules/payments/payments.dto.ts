@@ -48,6 +48,12 @@ export class RefundPaymentDto {
   reason?: string;
 }
 
+export class ConfirmPaymentDto {
+  @IsString()
+  @IsNotEmpty()
+  txHash: string;
+}
+
 export class ListPaymentsQueryDto {
   @IsEnum(['PENDING', 'CONFIRMING', 'COMPLETED', 'FAILED', 'REFUNDED', 'EXPIRED'])
   @IsOptional()
