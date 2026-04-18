@@ -1,3 +1,5 @@
+// trigger cicd 
+
 import { useQuery } from '@tanstack/react-query';
 import { analyticsApi } from '@/lib/api/analytics.api';
 import { queryKeys } from '@/lib/query/query-keys';
