@@ -113,8 +113,8 @@ function AppearanceTab() {
   return (
     <div className="space-y-6 max-w-md">
       <div>
-        <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">Theme</p>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">Choose how the dashboard looks to you.</p>
+        <p className="text-sm font-medium text-fg mb-1">Theme</p>
+        <p className="text-xs text-fg-muted mb-4">Choose how the dashboard looks to you.</p>
         <div className="grid grid-cols-2 gap-3">
           <button
             onClick={() => setTheme('light')}
@@ -125,7 +125,7 @@ function AppearanceTab() {
                 : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600',
             )}
           >
-            <div className="w-12 h-12 rounded-xl bg-white border border-gray-200 flex items-center justify-center shadow-sm">
+            <div className="w-12 h-12 rounded-xl bg-canvas border border-ui-border flex items-center justify-center shadow-sm">
               <Sun size={22} className="text-amber-500" />
             </div>
             <div className="text-center">
@@ -168,7 +168,7 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-4 max-w-4xl">
-      <div className="border-b border-gray-200 dark:border-gray-800">
+      <div className="border-b border-ui-border">
         <div className="flex">
           {TABS.map((t) => (
             <button
@@ -178,7 +178,7 @@ export default function SettingsPage() {
                 'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
                 tab === t
                   ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200',
+                  : 'border-transparent text-fg-muted hover:text-fg',
               )}
             >
               {t}

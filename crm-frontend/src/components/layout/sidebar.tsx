@@ -93,11 +93,11 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
       variants={sidebarVariants}
       animate={open ? 'open' : 'closed'}
       initial={false}
-      className="relative flex flex-col bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 shrink-0 overflow-visible"
+      className="relative flex flex-col bg-canvas border-r border-ui-border shrink-0 overflow-visible"
       style={{ willChange: 'width' }}
     >
       {/* Logo */}
-      <div className="flex items-center h-14 px-4 border-b border-gray-100 shrink-0">
+      <div className="flex items-center h-14 px-4 border-b border-ui-border shrink-0">
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center shrink-0">
             <span className="text-white text-xs font-black tracking-tight">C</span>
@@ -110,7 +110,7 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
                 initial="closed"
                 animate="open"
                 exit="closed"
-                className="text-gray-900 font-bold text-[13px] tracking-tight whitespace-nowrap"
+                className="text-fg font-bold text-[13px] tracking-tight whitespace-nowrap"
               >
                 CRM Platform
               </motion.span>
@@ -125,9 +125,9 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
         className={cn(
           'absolute -right-3.5 top-[62px] z-30',
           'w-7 h-7 rounded-full',
-          'bg-white border border-gray-300 shadow-md',
+          'bg-canvas border border-ui-border shadow-md',
           'flex items-center justify-center',
-          'text-gray-500 hover:text-gray-800 hover:border-gray-400 hover:shadow-lg',
+          'text-fg-muted hover:text-fg hover:border-ui-border hover:shadow-lg',
           'transition-all duration-150',
         )}
         title={open ? 'Collapse sidebar' : 'Expand sidebar'}
@@ -152,12 +152,12 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
                     exit="closed"
                     className="overflow-hidden"
                   >
-                    <p className="px-4 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.11em] text-gray-400">
+                    <p className="px-4 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.11em] text-fg-subtle">
                       {group.label}
                     </p>
                   </motion.div>
                 ) : (
-                  <div className="mx-3 my-2 h-px bg-gray-100" />
+                  <div className="mx-3 my-2 h-px bg-ui-border" />
                 )}
               </AnimatePresence>
             )}
@@ -170,7 +170,7 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
                     initial="closed"
                     animate="open"
                     exit="closed"
-                    className="px-4 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.11em] text-gray-400 overflow-hidden"
+                    className="px-4 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.11em] text-fg-subtle overflow-hidden"
                   >
                     {group.label}
                   </motion.p>
@@ -195,8 +195,8 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
                         'flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] font-medium',
                         'transition-all duration-150',
                         isActive
-                          ? 'bg-blue-50 text-blue-600'
-                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100',
+                          ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400'
+                          : 'text-fg-secondary hover:text-fg hover:bg-canvas-subtle',
                         !open && 'justify-center',
                       )}
                     >
@@ -232,11 +232,11 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
       </nav>
 
       {/* User profile */}
-      <div className="shrink-0 px-2 py-3 border-t border-gray-100">
+      <div className="shrink-0 px-2 py-3 border-t border-ui-border">
         <div
           className={cn(
             'flex items-center gap-2.5 px-2.5 py-2 rounded-md',
-            'hover:bg-gray-100 transition-colors duration-150 cursor-pointer',
+            'hover:bg-canvas-subtle transition-colors duration-150 cursor-pointer',
             !open && 'justify-center',
           )}
         >
@@ -244,7 +244,7 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
             <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-white text-[11px] font-bold">
               {initials}
             </div>
-            <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-emerald-400 rounded-full border-2 border-white" />
+            <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-emerald-400 rounded-full border-2 border-canvas" />
           </div>
 
           <AnimatePresence mode="wait">
@@ -257,10 +257,10 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
                 exit="closed"
                 className="min-w-0 overflow-hidden"
               >
-                <p className="text-[12px] font-semibold text-gray-800 truncate leading-tight">
+                <p className="text-[12px] font-semibold text-fg truncate leading-tight">
                   {user.firstName} {user.lastName}
                 </p>
-                <p className="text-[11px] text-gray-400 truncate leading-tight mt-0.5">
+                <p className="text-[11px] text-fg-subtle truncate leading-tight mt-0.5">
                   {user.role.replace(/_/g, ' ')}
                 </p>
               </motion.div>

@@ -9,6 +9,7 @@ import {
 import { analyticsApi } from '@/lib/api/analytics.api';
 import { queryKeys } from '@/lib/query/query-keys';
 import { PipelineFunnelChart } from '@/components/charts/pipeline-funnel-chart';
+import { useThemeStore } from '@/store/theme.store';
 import { formatCurrency } from '@/lib/utils';
 import { TrendingUp, BarChart2, Loader2, ArrowUpRight } from 'lucide-react';
 
@@ -23,9 +24,9 @@ function AreaTooltip({
 }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-md">
-      <p className="text-gray-400 text-[11px] mb-1">{label}</p>
-      <p className="text-gray-900 text-[13px] font-semibold">{formatCurrency(payload[0].value)}</p>
+    <div className="bg-canvas border border-ui-border rounded-lg px-3 py-2 shadow-md">
+      <p className="text-fg-subtle text-[11px] mb-1">{label}</p>
+      <p className="text-fg text-[13px] font-semibold">{formatCurrency(payload[0].value)}</p>
     </div>
   );
 }
@@ -38,7 +39,7 @@ function ChartSkeleton() {
       {[60, 80, 45, 90, 70, 55, 85, 40, 75, 65, 50, 88].map((h, i) => (
         <div
           key={i}
-          className="flex-1 bg-gray-100 rounded-t-sm animate-pulse"
+          className="flex-1 bg-shimmer-subtle rounded-t-sm animate-pulse"
           style={{ height: `${h}%`, animationDelay: `${i * 0.04}s` }}
         />
       ))}
@@ -62,18 +63,17 @@ function ChartCard({
   action?: { label: string; href?: string };
 }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-      {/* Card header */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+    <div className="bg-canvas border border-ui-border rounded-xl overflow-hidden">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-ui-border-subtle">
         <div className="flex items-center gap-2">
-          <div className="p-1.5 rounded-lg bg-blue-50">
-            <span className="text-blue-600">{icon}</span>
+          <div className="p-1.5 rounded-lg bg-blue-50 dark:bg-blue-900/20">
+            <span className="text-blue-600 dark:text-blue-400">{icon}</span>
           </div>
-          <span className="text-[13px] font-semibold text-gray-900">{title}</span>
+          <span className="text-[13px] font-semibold text-fg">{title}</span>
         </div>
         <div className="flex items-center gap-3">
           {badge && (
-            <span className="text-[11px] text-gray-400 font-medium">{badge}</span>
+            <span className="text-[11px] text-fg-subtle font-medium">{badge}</span>
           )}
           {action && (
             <a
@@ -86,8 +86,6 @@ function ChartCard({
           )}
         </div>
       </div>
-
-      {/* Chart body */}
       <div className="px-4 pt-4 pb-5">
         {children}
       </div>
@@ -103,6 +101,10 @@ function RevenueChart() {
     queryFn:  () => analyticsApi.getRevenue(),
   });
 
+  const theme = useThemeStore((s) => s.theme);
+  const gridColor = theme === 'dark' ? '#1F2937' : '#F3F4F6';
+  const tickColor = theme === 'dark' ? '#6B7280' : '#9CA3AF';
+
   return (
     <ChartCard
       title="Revenue"
@@ -113,8 +115,8 @@ function RevenueChart() {
       {isLoading ? (
         <ChartSkeleton />
       ) : !data?.length ? (
-        <div className="h-52 flex flex-col items-center justify-center gap-2 text-gray-400">
-          <TrendingUp size={24} strokeWidth={1.5} className="text-gray-300" />
+        <div className="h-52 flex flex-col items-center justify-center gap-2 text-fg-subtle">
+          <TrendingUp size={24} strokeWidth={1.5} className="text-fg-subtle opacity-50" />
           <span className="text-sm">No revenue data yet</span>
         </div>
       ) : (
@@ -126,36 +128,11 @@ function RevenueChart() {
                 <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid
-              strokeDasharray="3 3"
-              stroke="#F3F4F6"
-              vertical={false}
-            />
-            <XAxis
-              dataKey="month"
-              tick={{ fill: '#9CA3AF', fontSize: 11 }}
-              axisLine={false}
-              tickLine={false}
-            />
-            <YAxis
-              tick={{ fill: '#9CA3AF', fontSize: 11 }}
-              axisLine={false}
-              tickLine={false}
-              tickFormatter={(v: number) => `$${(v / 1000).toFixed(0)}k`}
-            />
-            <Tooltip
-              content={<AreaTooltip />}
-              cursor={{ stroke: 'rgba(59,130,246,0.1)', strokeWidth: 1 }}
-            />
-            <Area
-              type="monotone"
-              dataKey="revenue"
-              stroke="#3b82f6"
-              strokeWidth={1.5}
-              fill="url(#revGrad)"
-              dot={false}
-              activeDot={{ r: 3.5, fill: '#3b82f6', strokeWidth: 0 }}
-            />
+            <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
+            <XAxis dataKey="month" tick={{ fill: tickColor, fontSize: 11 }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fill: tickColor, fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v: number) => `$${(v / 1000).toFixed(0)}k`} />
+            <Tooltip content={<AreaTooltip />} cursor={{ stroke: 'rgba(59,130,246,0.1)', strokeWidth: 1 }} />
+            <Area type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={1.5} fill="url(#revGrad)" dot={false} activeDot={{ r: 3.5, fill: '#3b82f6', strokeWidth: 0 }} />
           </AreaChart>
         </ResponsiveContainer>
       )}
@@ -179,7 +156,7 @@ function PipelineChart() {
     >
       {isLoading ? (
         <div className="h-52 flex items-center justify-center">
-          <Loader2 size={18} className="text-gray-300 animate-spin" />
+          <Loader2 size={18} className="text-fg-subtle opacity-50 animate-spin" />
         </div>
       ) : (
         <PipelineFunnelChart data={data ?? []} height={208} />

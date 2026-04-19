@@ -1,11 +1,6 @@
-/**
- * Dashboard loading skeleton — mirrors page.tsx layout exactly.
- * Streams immediately while the async Server Component fetches data.
- */
-
 function Shimmer({ className = '' }: { className?: string }) {
   return (
-    <div className={`animate-pulse bg-gray-200 rounded-lg ${className}`} />
+    <div className={`animate-pulse bg-shimmer rounded-lg ${className}`} />
   );
 }
 
@@ -19,20 +14,17 @@ export default function DashboardLoading() {
           {Array.from({ length: 4 }).map((_, i) => (
             <div
               key={i}
-              className="bg-white border border-gray-200 rounded-xl p-5 animate-pulse"
+              className="bg-canvas border border-ui-border rounded-xl p-5 animate-pulse"
               style={{ animationDelay: `${i * 0.06}s` }}
             >
-              {/* Header row */}
               <div className="flex items-center justify-between mb-4">
-                <div className="h-2.5 w-20 bg-gray-200 rounded-full" />
-                <div className="w-7 h-7 rounded-lg bg-gray-100" />
+                <div className="h-2.5 w-20 bg-shimmer rounded-full" />
+                <div className="w-7 h-7 rounded-lg bg-shimmer-subtle" />
               </div>
-              {/* Value */}
-              <div className="h-8 w-28 bg-gray-200 rounded-md mb-3" />
-              {/* Trend pill */}
+              <div className="h-8 w-28 bg-shimmer rounded-md mb-3" />
               <div className="flex items-center gap-2">
-                <div className="h-5 w-14 bg-gray-100 rounded-full" />
-                <div className="h-2.5 w-16 bg-gray-100 rounded-full" />
+                <div className="h-5 w-14 bg-shimmer-subtle rounded-full" />
+                <div className="h-2.5 w-16 bg-shimmer-subtle rounded-full" />
               </div>
             </div>
           ))}
@@ -51,24 +43,22 @@ export default function DashboardLoading() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {/* Revenue skeleton */}
               <div
-                className="bg-white border border-gray-200 rounded-xl overflow-hidden animate-pulse"
+                className="bg-canvas border border-ui-border rounded-xl overflow-hidden animate-pulse"
                 style={{ animationDelay: '0.2s' }}
               >
-                {/* Card header */}
-                <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+                <div className="flex items-center justify-between px-5 py-4 border-b border-ui-border-subtle">
                   <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg bg-gray-100" />
-                    <div className="h-2.5 w-16 bg-gray-200 rounded-full" />
+                    <div className="w-7 h-7 rounded-lg bg-shimmer-subtle" />
+                    <div className="h-2.5 w-16 bg-shimmer rounded-full" />
                   </div>
-                  <div className="h-2 w-14 bg-gray-100 rounded-full" />
+                  <div className="h-2 w-14 bg-shimmer-subtle rounded-full" />
                 </div>
-                {/* Chart area */}
                 <div className="px-4 pt-4 pb-5">
                   <div className="h-52 flex items-end gap-1.5">
                     {[55, 70, 45, 88, 60, 75, 50, 90, 65, 80, 48, 85].map((h, i) => (
                       <div
                         key={i}
-                        className="flex-1 rounded-t-sm bg-blue-50"
+                        className="flex-1 rounded-t-sm bg-blue-50 dark:bg-blue-900/20"
                         style={{ height: `${h}%` }}
                       />
                     ))}
@@ -78,25 +68,23 @@ export default function DashboardLoading() {
 
               {/* Pipeline skeleton */}
               <div
-                className="bg-white border border-gray-200 rounded-xl overflow-hidden animate-pulse"
+                className="bg-canvas border border-ui-border rounded-xl overflow-hidden animate-pulse"
                 style={{ animationDelay: '0.3s' }}
               >
-                {/* Card header */}
-                <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+                <div className="flex items-center justify-between px-5 py-4 border-b border-ui-border-subtle">
                   <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg bg-gray-100" />
-                    <div className="h-2.5 w-20 bg-gray-200 rounded-full" />
+                    <div className="w-7 h-7 rounded-lg bg-shimmer-subtle" />
+                    <div className="h-2.5 w-20 bg-shimmer rounded-full" />
                   </div>
-                  <div className="h-2 w-16 bg-gray-100 rounded-full" />
+                  <div className="h-2 w-16 bg-shimmer-subtle rounded-full" />
                 </div>
-                {/* Bar rows */}
                 <div className="px-4 pt-4 pb-5">
                   <div className="h-52 space-y-4 pt-2">
                     {[85, 65, 50, 35, 20].map((w, i) => (
                       <div key={i} className="flex items-center gap-2">
-                        <div className="h-2 w-20 bg-gray-100 rounded-full shrink-0" />
+                        <div className="h-2 w-20 bg-shimmer-subtle rounded-full shrink-0" />
                         <div
-                          className="h-5 bg-blue-50 rounded-r-sm"
+                          className="h-5 bg-blue-50 dark:bg-blue-900/20 rounded-r-sm"
                           style={{ width: `${w}%` }}
                         />
                       </div>
@@ -116,54 +104,49 @@ export default function DashboardLoading() {
 
             {/* Tasks skeleton */}
             <div
-              className="bg-white border border-gray-200 rounded-xl overflow-hidden animate-pulse"
+              className="bg-canvas border border-ui-border rounded-xl overflow-hidden animate-pulse"
               style={{ animationDelay: '0.35s' }}
             >
-              {/* Header */}
-              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-ui-border-subtle">
                 <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-lg bg-gray-100" />
-                  <div className="h-2.5 w-24 bg-gray-200 rounded-full" />
+                  <div className="w-7 h-7 rounded-lg bg-shimmer-subtle" />
+                  <div className="h-2.5 w-24 bg-shimmer rounded-full" />
                 </div>
-                <div className="h-4 w-5 bg-gray-100 rounded-full" />
+                <div className="h-4 w-5 bg-shimmer-subtle rounded-full" />
               </div>
-              {/* Rows */}
-              <div className="divide-y divide-gray-100">
+              <div className="divide-y divide-ui-border-subtle">
                 {Array.from({ length: 4 }).map((_, i) => (
                   <div key={i} className="flex items-center gap-3 px-5 py-3">
-                    <div className="w-4 h-4 rounded border border-gray-200 shrink-0" />
+                    <div className="w-4 h-4 rounded border border-ui-border shrink-0" />
                     <div className="flex-1 space-y-1.5">
-                      <div className="h-2.5 bg-gray-200 rounded-full w-4/5" />
-                      <div className="h-2 bg-gray-100 rounded-full w-2/5" />
+                      <div className="h-2.5 bg-shimmer rounded-full w-4/5" />
+                      <div className="h-2 bg-shimmer-subtle rounded-full w-2/5" />
                     </div>
-                    <div className="h-4 w-12 bg-gray-100 rounded-full" />
+                    <div className="h-4 w-12 bg-shimmer-subtle rounded-full" />
                   </div>
                 ))}
               </div>
-              {/* Footer */}
-              <div className="px-5 py-3 border-t border-gray-100 bg-gray-50">
-                <div className="h-2.5 w-20 bg-gray-200 rounded-full" />
+              <div className="px-5 py-3 border-t border-ui-border-subtle bg-canvas-subtle">
+                <div className="h-2.5 w-20 bg-shimmer rounded-full" />
               </div>
             </div>
 
             {/* Activity skeleton */}
             <div
-              className="bg-white border border-gray-200 rounded-xl overflow-hidden animate-pulse"
+              className="bg-canvas border border-ui-border rounded-xl overflow-hidden animate-pulse"
               style={{ animationDelay: '0.44s' }}
             >
-              {/* Header */}
-              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-                <div className="h-2.5 w-28 bg-gray-200 rounded-full" />
-                <div className="h-2.5 w-10 bg-gray-100 rounded-full" />
+              <div className="flex items-center justify-between px-5 py-4 border-b border-ui-border-subtle">
+                <div className="h-2.5 w-28 bg-shimmer rounded-full" />
+                <div className="h-2.5 w-10 bg-shimmer-subtle rounded-full" />
               </div>
-              {/* Feed rows */}
-              <div className="divide-y divide-gray-50">
+              <div className="divide-y divide-ui-border-subtle">
                 {Array.from({ length: 4 }).map((_, i) => (
                   <div key={i} className="flex gap-3 px-5 py-3">
-                    <div className="w-6 h-6 rounded-full bg-gray-200 shrink-0" />
+                    <div className="w-6 h-6 rounded-full bg-shimmer shrink-0" />
                     <div className="flex-1 space-y-1.5">
-                      <div className="h-2.5 bg-gray-200 rounded-full w-full" />
-                      <div className="h-2 bg-gray-100 rounded-full w-1/3" />
+                      <div className="h-2.5 bg-shimmer rounded-full w-full" />
+                      <div className="h-2 bg-shimmer-subtle rounded-full w-1/3" />
                     </div>
                   </div>
                 ))}

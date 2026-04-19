@@ -39,13 +39,13 @@ export default function TicketDetailPage() {
     onError: (err: any) => toast.error(err?.response?.data?.message || 'Error'),
   });
 
-  if (isLoading) return <div className="h-40 animate-pulse bg-slate-200 dark:bg-slate-800 rounded-lg" />;
+  if (isLoading) return <div className="h-40 animate-pulse bg-shimmer rounded-lg" />;
   if (!ticket) return <p>Ticket not found.</p>;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <button onClick={() => router.back()} className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500">
+        <button onClick={() => router.back()} className="p-1.5 rounded-md hover:bg-canvas-subtle text-fg-muted">
           <ArrowLeft size={18} />
         </button>
         <div>
@@ -64,7 +64,7 @@ export default function TicketDetailPage() {
           <CardContent className="space-y-2 text-sm">
             {ticket.contact && (
               <div>
-                <span className="text-slate-400">Contact:</span>{' '}
+                <span className="text-fg-subtle">Contact:</span>{' '}
                 <button onClick={() => router.push(`/contacts/${ticket.contactId}`)} className="text-blue-600 hover:underline">
                   {ticket.contact.firstName} {ticket.contact.lastName}
                 </button>
@@ -72,22 +72,22 @@ export default function TicketDetailPage() {
             )}
             {ticket.assignee && (
               <div>
-                <span className="text-slate-400">Assignee:</span>{' '}
+                <span className="text-fg-subtle">Assignee:</span>{' '}
                 {ticket.assignee.firstName} {ticket.assignee.lastName}
               </div>
             )}
             <div>
-              <span className="text-slate-400">Created:</span>{' '}
+              <span className="text-fg-subtle">Created:</span>{' '}
               {formatDate(ticket.createdAt)}
             </div>
             {ticket.resolvedAt && (
               <div>
-                <span className="text-slate-400">Resolved:</span>{' '}
+                <span className="text-fg-subtle">Resolved:</span>{' '}
                 {formatDate(ticket.resolvedAt)}
               </div>
             )}
-            <div className="pt-2 border-t border-slate-100 dark:border-slate-700">
-              <p className="text-slate-500">{ticket.description}</p>
+            <div className="pt-2 border-t border-ui-border">
+              <p className="text-fg-muted">{ticket.description}</p>
             </div>
           </CardContent>
         </Card>
@@ -102,7 +102,7 @@ export default function TicketDetailPage() {
                   {ticket.replies.map((reply) => (
                     <div key={reply.id} className="flex gap-3">
                       <Avatar className="w-8 h-8 shrink-0">
-                        <AvatarFallback className="bg-slate-400 text-white text-xs">
+                        <AvatarFallback className="bg-fg-subtle text-canvas text-xs">
                           {getInitials(reply.author.firstName, reply.author.lastName)}
                         </AvatarFallback>
                       </Avatar>
@@ -114,15 +114,15 @@ export default function TicketDetailPage() {
                           {reply.isInternal && (
                             <Badge variant="warning" className="text-xs">Internal</Badge>
                           )}
-                          <span className="text-xs text-slate-400">{formatRelativeTime(reply.createdAt)}</span>
+                          <span className="text-xs text-fg-subtle">{formatRelativeTime(reply.createdAt)}</span>
                         </div>
-                        <p className="text-sm text-slate-600 dark:text-slate-300 mt-1">{reply.body}</p>
+                        <p className="text-sm text-fg-secondary mt-1">{reply.body}</p>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-slate-400">No replies yet.</p>
+                <p className="text-sm text-fg-subtle">No replies yet.</p>
               )}
             </CardContent>
           </Card>
@@ -135,7 +135,7 @@ export default function TicketDetailPage() {
                 onChange={(e) => setReplyBody(e.target.value)}
                 placeholder="Write a reply..."
                 rows={3}
-                className="w-full rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm resize-none"
+                className="w-full rounded-md border border-ui-border bg-canvas text-fg px-3 py-2 text-sm resize-none"
               />
               <div className="flex items-center justify-between">
                 <label className="flex items-center gap-2 text-sm text-slate-600">

@@ -63,6 +63,11 @@ scrape_configs:
     static_configs:
       - targets: ['crm_nginx_exporter:9113']
 
+  # ── OTEL Collector (self-telemetry) ───────────────────────────────────────
+  - job_name: otel_collector
+    static_configs:
+      - targets: ['crm_otel_collector:8888']
+
   # ── Postgres ───────────────────────────────────────────────────────────
   # Requires postgres_exporter to be added to docker-compose.yml.
   # Commented out until deployed to avoid Prometheus error-log spam.

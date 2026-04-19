@@ -36,7 +36,7 @@ export default function LeadsPage() {
     {
       key: 'email',
       header: 'Email',
-      render: (row: Lead) => <span className="text-slate-500">{row.email ?? '—'}</span>,
+      render: (row: Lead) => <span className="text-fg-muted">{row.email ?? '—'}</span>,
     },
     {
       key: 'companyName',
@@ -57,7 +57,7 @@ export default function LeadsPage() {
       key: 'source',
       header: 'Source',
       render: (row: Lead) => (
-        <span className="text-xs text-slate-500">{row.source.replace(/_/g, ' ')}</span>
+        <span className="text-xs text-fg-muted">{row.source.replace(/_/g, ' ')}</span>
       ),
     },
     {
@@ -71,14 +71,14 @@ export default function LeadsPage() {
             </AvatarFallback>
           </Avatar>
         ) : (
-          <span className="text-slate-400">—</span>
+          <span className="text-fg-subtle">—</span>
         ),
     },
     {
       key: 'createdAt',
       header: 'Created',
       render: (row: Lead) => (
-        <span className="text-xs text-slate-400">{formatRelativeTime(row.createdAt)}</span>
+        <span className="text-xs text-fg-subtle">{formatRelativeTime(row.createdAt)}</span>
       ),
     },
     {
@@ -88,13 +88,13 @@ export default function LeadsPage() {
         <div className="flex items-center gap-1">
           <button
             onClick={(e) => { e.stopPropagation(); router.push(`/leads/${row.id}`); }}
-            className="w-7 h-7 flex items-center justify-center rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-all"
+            className="w-7 h-7 flex items-center justify-center rounded-md text-fg-subtle hover:text-fg hover:bg-canvas-subtle transition-all"
           >
             <Eye size={13} />
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); setEditLead(row); setModalOpen(true); }}
-            className="w-7 h-7 flex items-center justify-center rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-all"
+            className="w-7 h-7 flex items-center justify-center rounded-md text-fg-subtle hover:text-fg hover:bg-canvas-subtle transition-all"
           >
             <Pencil size={13} />
           </button>
@@ -123,13 +123,13 @@ export default function LeadsPage() {
               placeholder="Search leads…"
               value={filters.search}
               onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value, page: 1 }))}
-              className="h-9 pl-8 pr-3 text-sm rounded-md w-56 bg-white border border-gray-200 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10 transition-all duration-150"
+              className="h-9 pl-8 pr-3 text-sm rounded-md w-56 bg-canvas border border-ui-border text-fg placeholder:text-fg-subtle focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10 transition-all duration-150"
             />
           </div>
           <select
             value={filters.status}
             onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value, page: 1 }))}
-            className="h-9 rounded-md border border-gray-200 bg-white text-gray-700 px-3 text-sm focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10 transition-all"
+            className="h-9 rounded-md border border-ui-border bg-canvas text-fg px-3 text-sm focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10 transition-all"
           >
             <option value="">All Statuses</option>
             {LEAD_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -137,7 +137,7 @@ export default function LeadsPage() {
           <select
             value={filters.source}
             onChange={(e) => setFilters((f) => ({ ...f, source: e.target.value, page: 1 }))}
-            className="h-9 rounded-md border border-gray-200 bg-white text-gray-700 px-3 text-sm focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10 transition-all"
+            className="h-9 rounded-md border border-ui-border bg-canvas text-fg px-3 text-sm focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10 transition-all"
           >
             <option value="">All Sources</option>
             {LEAD_SOURCES.map((s) => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}

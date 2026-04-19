@@ -16,7 +16,7 @@ const TICKET_STATUSES = ['OPEN', 'IN_PROGRESS', 'WAITING', 'RESOLVED', 'CLOSED']
 const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
 
 const selectClass =
-  'h-9 rounded-md border border-gray-200 bg-white text-gray-700 px-3 text-sm ' +
+  'h-9 rounded-md border border-ui-border bg-canvas text-fg px-3 text-sm ' +
   'focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10 transition-all';
 
 export default function TicketsPage() {
@@ -32,12 +32,12 @@ export default function TicketsPage() {
   const meta = data?.meta as { page: number; totalPages: number; total: number; limit: number } | undefined;
 
   const columns = [
-    { key: 'subject', header: 'Subject', render: (row: Ticket) => <span className="text-[13px] font-semibold text-gray-900">{row.subject}</span> },
+    { key: 'subject', header: 'Subject', render: (row: Ticket) => <span className="text-[13px] font-semibold text-fg">{row.subject}</span> },
     { key: 'contact', header: 'Contact', render: (row: Ticket) => row.contact ? `${row.contact.firstName} ${row.contact.lastName}` : '—' },
     { key: 'status', header: 'Status', render: (row: Ticket) => <TicketStatusBadge status={row.status} /> },
     { key: 'priority', header: 'Priority', render: (row: Ticket) => <PriorityBadge priority={row.priority} /> },
     { key: 'assignee', header: 'Assignee', render: (row: Ticket) => row.assignee ? `${row.assignee.firstName} ${row.assignee.lastName}` : '—' },
-    { key: 'createdAt', header: 'Created', render: (row: Ticket) => <span className="text-[12px] text-gray-400">{formatRelativeTime(row.createdAt)}</span> },
+    { key: 'createdAt', header: 'Created', render: (row: Ticket) => <span className="text-[12px] text-fg-subtle">{formatRelativeTime(row.createdAt)}</span> },
   ];
 
   return (
@@ -47,7 +47,7 @@ export default function TicketsPage() {
           <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             placeholder="Search tickets…"
-            className="pl-8 w-56 h-9 rounded-md border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10 transition-all"
+            className="pl-8 w-56 h-9 rounded-md border border-ui-border bg-canvas text-sm text-fg placeholder:text-fg-subtle focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10 transition-all"
             value={filters.search}
             onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value, page: 1 }))}
           />

@@ -23,16 +23,28 @@ export interface StatCardProps {
 }
 
 const iconAccentClasses = [
-  'bg-blue-50 text-blue-600',
-  'bg-emerald-50 text-emerald-600',
-  'bg-violet-50 text-violet-600',
-  'bg-amber-50 text-amber-600',
+  'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400',
+  'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400',
+  'bg-violet-50 text-violet-600 dark:bg-violet-900/20 dark:text-violet-400',
+  'bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400',
 ] as const;
 
 const trendConfig = {
-  up:   { icon: TrendingUp,   pill: 'bg-emerald-50 text-emerald-700 border border-emerald-100', text: 'text-emerald-700' },
-  down: { icon: TrendingDown, pill: 'bg-rose-50 text-rose-600 border border-rose-100',         text: 'text-rose-600' },
-  flat: { icon: Minus,        pill: 'bg-gray-100 text-gray-500 border border-gray-200',         text: 'text-gray-500' },
+  up: {
+    icon: TrendingUp,
+    pill: 'bg-emerald-50 text-emerald-700 border border-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800',
+    text: 'text-emerald-700 dark:text-emerald-400',
+  },
+  down: {
+    icon: TrendingDown,
+    pill: 'bg-rose-50 text-rose-600 border border-rose-100 dark:bg-rose-900/20 dark:text-rose-400 dark:border-rose-800',
+    text: 'text-rose-600 dark:text-rose-400',
+  },
+  flat: {
+    icon: Minus,
+    pill: 'bg-shimmer-subtle text-fg-muted border border-ui-border',
+    text: 'text-fg-muted',
+  },
 };
 
 const cardVariants = {
@@ -75,15 +87,15 @@ export function StatCard({
       animate={isInView ? 'visible' : 'hidden'}
       whileHover={{ y: -1, transition: { duration: 0.15 } }}
       className={cn(
-        'bg-white border border-gray-200 rounded-xl p-5',
-        'hover:border-gray-300 hover:shadow-sm',
+        'bg-canvas border border-ui-border rounded-xl p-5',
+        'hover:border-ui-border hover:shadow-sm',
         'transition-all duration-200 cursor-default',
         className,
       )}
     >
       {/* Header row: label + icon */}
       <div className="flex items-center justify-between mb-4">
-        <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-[0.09em]">
+        <p className="text-[11px] font-semibold text-fg-muted uppercase tracking-[0.09em]">
           {title}
         </p>
         <div className={cn('p-1.5 rounded-lg shrink-0', iconAccent)}>
@@ -92,7 +104,7 @@ export function StatCard({
       </div>
 
       {/* Value */}
-      <p className="text-[30px] font-bold text-gray-900 tracking-tight leading-none mb-3">
+      <p className="text-[30px] font-bold text-fg tracking-tight leading-none mb-3">
         {displayValue ?? value}
       </p>
 
@@ -105,10 +117,10 @@ export function StatCard({
           </span>
         ) : null}
         {trend?.label && (
-          <span className="text-[11px] text-gray-400">{trend.label}</span>
+          <span className="text-[11px] text-fg-subtle">{trend.label}</span>
         )}
         {!trend && sub ? (
-          <span className="text-[11px] text-gray-400">{sub}</span>
+          <span className="text-[11px] text-fg-subtle">{sub}</span>
         ) : null}
       </div>
     </motion.div>

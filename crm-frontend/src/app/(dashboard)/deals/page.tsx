@@ -85,7 +85,7 @@ export default function DealsPage() {
               <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 placeholder="Search deals…"
-                className="pl-8 w-52 h-9 rounded-lg border border-slate-200 bg-white text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10 transition-all"
+                className="pl-8 w-52 h-9 rounded-lg border border-ui-border bg-canvas text-sm text-fg placeholder:text-fg-subtle focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10 transition-all"
                 value={filters.search}
                 onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value, page: 1 }))}
               />
@@ -93,17 +93,17 @@ export default function DealsPage() {
           )}
 
           {/* View toggle */}
-          <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden">
+          <div className="flex items-center border border-ui-border rounded-lg overflow-hidden">
             <button
               onClick={() => setView('list')}
-              className={cn('p-2.5 transition-colors', view === 'list' ? 'bg-blue-50 text-blue-600' : 'hover:bg-slate-50 text-slate-400')}
+              className={cn('p-2.5 transition-colors', view === 'list' ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600' : 'hover:bg-canvas-subtle text-fg-subtle')}
               aria-label="List view"
             >
               <LayoutList size={15} />
             </button>
             <button
               onClick={() => setView('kanban')}
-              className={cn('p-2.5 transition-colors', view === 'kanban' ? 'bg-blue-50 text-blue-600' : 'hover:bg-slate-50 text-slate-400')}
+              className={cn('p-2.5 transition-colors', view === 'kanban' ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600' : 'hover:bg-canvas-subtle text-fg-subtle')}
               aria-label="Kanban view"
             >
               <LayoutGrid size={15} />

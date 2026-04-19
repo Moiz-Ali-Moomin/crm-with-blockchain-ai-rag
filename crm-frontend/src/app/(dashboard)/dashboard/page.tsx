@@ -33,9 +33,9 @@ const MOCK_ACTIVITY = [
 ] as const;
 
 const priorityStyles: Record<string, string> = {
-  high: 'bg-rose-50 text-rose-600 border border-rose-100',
-  medium: 'bg-amber-50 text-amber-600 border border-amber-100',
-  low: 'bg-gray-100 text-gray-500 border border-gray-200',
+  high:   'bg-rose-50 text-rose-600 border border-rose-100 dark:bg-rose-900/20 dark:text-rose-400 dark:border-rose-800',
+  medium: 'bg-amber-50 text-amber-600 border border-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800',
+  low:    'bg-shimmer-subtle text-fg-muted border border-ui-border',
 };
 
 // ── Skeleton ──────────────────────────────────────────────────────────────────
@@ -44,7 +44,7 @@ function ChartsSkeleton() {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       {[0, 1].map((i) => (
-        <div key={i} className="h-[300px] bg-white border border-gray-200 animate-pulse rounded-xl" />
+        <div key={i} className="h-[300px] bg-canvas border border-ui-border animate-pulse rounded-xl" />
       ))}
     </div>
   );
@@ -61,7 +61,7 @@ function SectionHeader({
 }) {
   return (
     <div className="flex items-center justify-between mb-4">
-      <h2 className="text-[11px] font-semibold uppercase tracking-[0.1em] text-gray-400">
+      <h2 className="text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">
         {title}
       </h2>
       {action && (
@@ -81,24 +81,24 @@ function SectionHeader({
 
 function TasksList() {
   return (
-    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-      <div className="flex items-center justify-between px-5 py-4 border-b">
+    <div className="bg-canvas border border-ui-border rounded-xl overflow-hidden">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-ui-border-subtle">
         <div className="flex items-center gap-2">
           <CheckSquare size={13} className="text-blue-600" />
-          <span className="text-[13px] font-semibold">Tasks Due Today</span>
+          <span className="text-[13px] font-semibold text-fg">Tasks Due Today</span>
         </div>
-        <span className="text-[11px] bg-gray-100 px-2 py-0.5 rounded-full">
+        <span className="text-[11px] bg-shimmer-subtle text-fg-muted px-2 py-0.5 rounded-full">
           {MOCK_TASKS.length}
         </span>
       </div>
 
-      <div className="divide-y">
+      <div className="divide-y divide-ui-border-subtle">
         {MOCK_TASKS.map((task) => (
-          <div key={task.id} className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50">
-            <div className="w-4 h-4 rounded border" />
+          <div key={task.id} className="flex items-center gap-3 px-5 py-3 hover:bg-canvas-subtle transition-colors">
+            <div className="w-4 h-4 rounded border border-ui-border" />
             <div className="flex-1">
-              <p className="text-[13px] font-medium">{task.title}</p>
-              <div className="flex items-center gap-1 text-xs text-gray-400">
+              <p className="text-[13px] font-medium text-fg">{task.title}</p>
+              <div className="flex items-center gap-1 text-xs text-fg-subtle">
                 <Clock size={10} /> {task.due}
               </div>
             </div>
@@ -116,23 +116,23 @@ function TasksList() {
 
 function ActivityFeed() {
   return (
-    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-      <div className="px-5 py-4 border-b flex justify-between">
-        <span className="text-[13px] font-semibold">Recent Activity</span>
+    <div className="bg-canvas border border-ui-border rounded-xl overflow-hidden">
+      <div className="px-5 py-4 border-b border-ui-border-subtle flex justify-between">
+        <span className="text-[13px] font-semibold text-fg">Recent Activity</span>
         <Link href="/activities" className="text-xs text-blue-600">View all</Link>
       </div>
 
-      <div className="divide-y">
+      <div className="divide-y divide-ui-border-subtle">
         {MOCK_ACTIVITY.map((item) => (
           <div key={item.id} className="flex gap-3 px-5 py-3">
-            <div className={`w-6 h-6 rounded-full text-white flex items-center justify-center ${item.color}`}>
+            <div className={`w-6 h-6 rounded-full text-white text-[9px] font-bold flex items-center justify-center shrink-0 ${item.color}`}>
               {item.initials}
             </div>
             <div>
-              <p className="text-xs">
-                <b>{item.user}</b> {item.action} {item.entity}
+              <p className="text-xs text-fg-secondary">
+                <b className="text-fg font-semibold">{item.user}</b> {item.action} {item.entity}
               </p>
-              <p className="text-[10px] text-gray-400">{item.time}</p>
+              <p className="text-[10px] text-fg-subtle">{item.time}</p>
             </div>
           </div>
         ))}

@@ -140,6 +140,40 @@ services:
       timeout: 5s
       retries: 3
 
+  # ── Distributed tracing (Tempo + OTEL Collector) ─────────────────────────
+  tempo:
+    image: grafana/tempo:2.5.0
+    container_name: crm_tempo
+    restart: unless-stopped
+    command: -config.file=/etc/tempo/tempo.yml
+    volumes:
+      - ./observability/tempo:/etc/tempo:ro
+      - tempo_data:/var/tempo
+    networks:
+      - crm_internal
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3200/ready || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.102.0
+    container_name: crm_otel_collector
+    restart: unless-stopped
+    command: --config=/etc/otelcol/config.yml
+    volumes:
+      - ./observability/otelcollector:/etc/otelcol:ro
+    networks:
+      - crm_internal
+    depends_on:
+      - tempo
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:13133 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
   # ── Log aggregation (Loki + Promtail) ─────────────────────────────────────
   # WHY: centralized logs mean you can correlate an error spike in Grafana with
   # the exact log line that caused it — without SSH-ing into the container.
@@ -255,6 +289,7 @@ volumes:
   prometheus_data:
   grafana_data:
   loki_data:
+  tempo_data:
 
 networks:
   crm_internal:

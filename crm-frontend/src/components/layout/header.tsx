@@ -130,7 +130,7 @@ function NewDropdown() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 4, scale: 0.97 }}
             transition={{ duration: 0.15, ease: [0.25, 0.46, 0.45, 0.94] }}
-            className="absolute right-0 top-[calc(100%+6px)] w-48 bg-white border border-gray-200 rounded-xl shadow-lg py-1 z-50"
+            className="absolute right-0 top-[calc(100%+6px)] w-48 bg-canvas border border-ui-border rounded-xl shadow-lg py-1 z-50"
           >
             {NEW_ITEMS.map((item) => {
               const Icon = item.icon;
@@ -138,7 +138,7 @@ function NewDropdown() {
                 <button
                   key={item.href}
                   onClick={() => { router.push(item.href); setOpen(false); }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] font-medium text-gray-700 hover:bg-gray-50 transition-colors text-left"
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] font-medium text-fg-secondary hover:bg-canvas-subtle transition-colors text-left"
                 >
                   <div className={cn('w-6 h-6 rounded-md flex items-center justify-center shrink-0', item.color)}>
                     <Icon size={12} strokeWidth={2} />
@@ -188,12 +188,12 @@ export function Navbar({ onMenuToggle }: NavbarProps) {
   };
 
   return (
-    <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 h-14 flex items-center justify-between px-5 shrink-0 sticky top-0 z-30">
+    <header className="bg-canvas border-b border-ui-border h-14 flex items-center justify-between px-5 shrink-0 sticky top-0 z-30">
       {/* Left: hamburger + breadcrumb */}
       <div className="flex items-center gap-3">
         <button
           onClick={onMenuToggle}
-          className="w-8 h-8 rounded-md flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all duration-150"
+          className="w-8 h-8 rounded-md flex items-center justify-center text-fg-subtle hover:text-fg hover:bg-canvas-subtle transition-all duration-150"
           aria-label="Toggle sidebar"
         >
           <svg width="16" height="12" viewBox="0 0 16 12" fill="none">
@@ -203,16 +203,16 @@ export function Navbar({ onMenuToggle }: NavbarProps) {
           </svg>
         </button>
 
-        <div className="h-4 w-px bg-gray-200" />
+        <div className="h-4 w-px bg-ui-border" />
 
         <nav className="flex items-center gap-1.5 text-sm">
           {section && (
             <>
-              <span className="text-gray-400 font-medium">{section}</span>
-              <ChevronRight size={13} className="text-gray-300" strokeWidth={2} />
+              <span className="text-fg-subtle font-medium">{section}</span>
+              <ChevronRight size={13} className="text-fg-subtle opacity-50" strokeWidth={2} />
             </>
           )}
-          <span className="font-semibold text-gray-800">{pageTitle}</span>
+          <span className="font-semibold text-fg">{pageTitle}</span>
         </nav>
       </div>
 
@@ -223,8 +223,8 @@ export function Navbar({ onMenuToggle }: NavbarProps) {
           onClick={() => router.push('/ai')}
           className={cn(
             'hidden md:flex items-center gap-2 px-3 h-8 rounded-md w-60',
-            'bg-gray-50 border border-gray-200 hover:border-gray-300 hover:bg-white',
-            'text-gray-400 hover:text-gray-500',
+            'bg-canvas-subtle border border-ui-border hover:border-ui-border hover:bg-canvas',
+            'text-fg-subtle hover:text-fg-muted',
             'transition-all duration-150',
           )}
         >
@@ -244,8 +244,7 @@ export function Navbar({ onMenuToggle }: NavbarProps) {
           onClick={toggleTheme}
           className={cn(
             'w-8 h-8 rounded-md flex items-center justify-center transition-all duration-150',
-            'text-gray-400 hover:text-gray-600 hover:bg-gray-100',
-            'dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-800',
+            'text-fg-subtle hover:text-fg hover:bg-canvas-subtle',
           )}
           aria-label="Toggle theme"
         >
@@ -257,7 +256,7 @@ export function Navbar({ onMenuToggle }: NavbarProps) {
           onClick={() => router.push('/notifications')}
           className={cn(
             'relative w-8 h-8 rounded-md flex items-center justify-center',
-            'text-gray-400 hover:text-gray-600 hover:bg-gray-100',
+            'text-fg-subtle hover:text-fg hover:bg-canvas-subtle',
             'transition-all duration-150',
           )}
         >
@@ -277,7 +276,7 @@ export function Navbar({ onMenuToggle }: NavbarProps) {
           </AnimatePresence>
         </button>
 
-        <div className="h-4 w-px bg-gray-200 mx-0.5" />
+        <div className="h-4 w-px bg-ui-border mx-0.5" />
 
         {/* User dropdown */}
         <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
@@ -286,9 +285,9 @@ export function Navbar({ onMenuToggle }: NavbarProps) {
               className={cn(
                 'flex items-center gap-2 rounded-md border border-transparent pl-1.5 pr-2 py-1',
                 'text-left transition-all duration-150',
-                'hover:border-gray-200 hover:bg-gray-50',
+                'hover:border-ui-border hover:bg-canvas-subtle',
                 'focus-visible:outline-none',
-                'data-[state=open]:border-gray-200 data-[state=open]:bg-gray-50',
+                'data-[state=open]:border-ui-border data-[state=open]:bg-canvas-subtle',
               )}
               aria-label="Open user menu"
             >
@@ -300,10 +299,10 @@ export function Navbar({ onMenuToggle }: NavbarProps) {
               </div>
 
               <div className="hidden min-w-0 sm:block">
-                <p className="truncate text-[12px] font-semibold text-gray-700 leading-tight">
+                <p className="truncate text-[12px] font-semibold text-fg-secondary leading-tight">
                   {user?.firstName} {user?.lastName}
                 </p>
-                <p className="truncate text-[10px] text-gray-400 leading-tight">
+                <p className="truncate text-[10px] text-fg-subtle leading-tight">
                   {user?.role ? parseEnumLabel(user.role) : 'User'}
                 </p>
               </div>
@@ -311,7 +310,7 @@ export function Navbar({ onMenuToggle }: NavbarProps) {
               <ChevronDown
                 size={11}
                 strokeWidth={2.5}
-                className={cn('text-gray-400 transition-transform duration-200', dropdownOpen && 'rotate-180')}
+                className={cn('text-fg-subtle transition-transform duration-200', dropdownOpen && 'rotate-180')}
               />
             </button>
           </DropdownMenuTrigger>
@@ -321,7 +320,7 @@ export function Navbar({ onMenuToggle }: NavbarProps) {
             side="bottom"
             sideOffset={10}
             collisionPadding={12}
-            className="z-[90] w-56 bg-white border border-gray-200 shadow-lg rounded-xl p-1"
+            className="z-[90] w-56 bg-canvas border border-ui-border shadow-lg rounded-xl p-1"
           >
             <DropdownMenuLabel className="px-3 pb-3 pt-2 normal-case tracking-normal text-inherit">
               <div className="flex items-start gap-3">
@@ -329,10 +328,10 @@ export function Navbar({ onMenuToggle }: NavbarProps) {
                   {initials}
                 </div>
                 <div className="min-w-0 flex-1 space-y-0.5">
-                  <p className="truncate text-[13px] font-semibold text-gray-900">
+                  <p className="truncate text-[13px] font-semibold text-fg">
                     {user?.firstName} {user?.lastName}
                   </p>
-                  <p className="truncate text-[11px] text-gray-500">{user?.email}</p>
+                  <p className="truncate text-[11px] text-fg-muted">{user?.email}</p>
                   <span className="inline-flex items-center rounded-full bg-blue-50 border border-blue-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-blue-600">
                     {user?.role ? parseEnumLabel(user.role) : 'User'}
                   </span>
@@ -340,26 +339,26 @@ export function Navbar({ onMenuToggle }: NavbarProps) {
               </div>
             </DropdownMenuLabel>
 
-            <DropdownMenuSeparator className="bg-gray-100 my-1" />
+            <DropdownMenuSeparator className="bg-ui-border my-1" />
 
             <DropdownMenuGroup>
               <DropdownMenuItem
                 onSelect={() => router.push('/settings')}
-                className="text-[13px] text-gray-700 hover:bg-gray-50 focus:bg-gray-50 rounded-lg cursor-pointer gap-2.5"
+                className="text-[13px] text-fg hover:bg-canvas-subtle focus:bg-canvas-subtle rounded-lg cursor-pointer gap-2.5"
               >
-                <User size={14} strokeWidth={1.9} className="text-gray-400" />
+                <User size={14} strokeWidth={1.9} className="text-fg-subtle" />
                 <span>Profile</span>
               </DropdownMenuItem>
               <DropdownMenuItem
                 onSelect={() => router.push('/settings')}
-                className="text-[13px] text-gray-700 hover:bg-gray-50 focus:bg-gray-50 rounded-lg cursor-pointer gap-2.5"
+                className="text-[13px] text-fg hover:bg-canvas-subtle focus:bg-canvas-subtle rounded-lg cursor-pointer gap-2.5"
               >
-                <Settings size={14} strokeWidth={1.9} className="text-gray-400" />
+                <Settings size={14} strokeWidth={1.9} className="text-fg-subtle" />
                 <span>Settings</span>
               </DropdownMenuItem>
             </DropdownMenuGroup>
 
-            <DropdownMenuSeparator className="bg-gray-100 my-1" />
+            <DropdownMenuSeparator className="bg-ui-border my-1" />
 
             <DropdownMenuItem
               onSelect={handleLogout}

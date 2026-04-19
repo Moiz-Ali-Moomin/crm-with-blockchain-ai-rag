@@ -237,12 +237,13 @@ jobs:
             bash "$DEPLOY_PATH/deploy/health-check-prod.sh" 30 5
             echo "  OK: production endpoint healthy"
 
-            # ── [10] Tear down old slot ──────────────────────────────────────
-            echo "[7/7] Stopping old $ACTIVE slot"
-            docker compose \
-              -f "docker-compose.${ACTIVE}.yml" \
-              --project-name "crm-${ACTIVE}" \
-              down --remove-orphans 2>/dev/null || true
+            # ── [10] Keep old slot running (true blue-green) ────────────────
+            # WHY: tearing down the old slot breaks rollback — the rollback job
+            # requires the previous slot to be alive for an instant nginx flip.
+            # The old slot sits idle (zero traffic) until the next deploy, when
+            # step [6b] tears it down and replaces it with the new image.
+            echo "[7/7] Old $ACTIVE slot kept as idle standby (rollback-ready)"
+            echo "  Rollback: re-trigger CD with image_tag=ROLLBACK"
 
             # Clean up dangling images (keep last 72h)
             docker image prune -f --filter "until=72h" || true
@@ -250,6 +251,7 @@ jobs:
             echo ""
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
             echo " DEPLOY COMPLETE — active slot: $IDLE ($IMAGE_TAG)"
+            echo " Idle standby slot: $ACTIVE (previous version, ready for rollback)"
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
             docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
             git log -1 --oneline

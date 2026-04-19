@@ -15,3 +15,23 @@ datasources:
     editable: false
     jsonData:
       maxLines: 1000
+
+  - name: Tempo
+    type: tempo
+    access: proxy
+    url: http://crm_tempo:3200
+    editable: false
+    jsonData:
+      httpMethod: GET
+      serviceMap:
+        datasourceUid: prometheus
+      lokiSearch:
+        datasourceUid: loki
+      tracesToLogsV2:
+        datasourceUid: loki
+        spanStartTimeShift: '-5m'
+        spanEndTimeShift: '5m'
+        filterByTraceID: true
+        filterBySpanID: false
+      tracesToMetrics:
+        datasourceUid: prometheus

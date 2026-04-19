@@ -57,7 +57,7 @@ function EditModal({ task, onClose }: { task: Task; onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white dark:bg-slate-900 rounded-lg shadow-xl w-full max-w-md p-6">
+      <div className="bg-canvas rounded-lg shadow-xl w-full max-w-md p-6">
         <h2 className="text-lg font-semibold mb-4">Edit Task</h2>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
           <div>
@@ -70,7 +70,7 @@ function EditModal({ task, onClose }: { task: Task; onClose: () => void }) {
             <textarea
               {...register('description')}
               rows={3}
-              className="w-full rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm resize-none"
+              className="w-full rounded-md border border-ui-border bg-canvas text-fg px-3 py-2 text-sm resize-none"
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -78,7 +78,7 @@ function EditModal({ task, onClose }: { task: Task; onClose: () => void }) {
               <Label>Status</Label>
               <select
                 {...register('status')}
-                className="w-full rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm"
+                className="w-full rounded-md border border-ui-border bg-canvas text-fg px-3 py-2 text-sm"
               >
                 {TASK_STATUSES.map((s) => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
               </select>
@@ -87,7 +87,7 @@ function EditModal({ task, onClose }: { task: Task; onClose: () => void }) {
               <Label>Priority</Label>
               <select
                 {...register('priority')}
-                className="w-full rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm"
+                className="w-full rounded-md border border-ui-border bg-canvas text-fg px-3 py-2 text-sm"
               >
                 {TASK_PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}
               </select>
@@ -141,15 +141,15 @@ export default function TaskDetailPage() {
   if (isLoading) {
     return (
       <div className="space-y-4 animate-pulse">
-        <div className="h-8 w-48 bg-slate-200 dark:bg-slate-700 rounded" />
-        <div className="h-40 bg-slate-200 dark:bg-slate-700 rounded" />
+        <div className="h-8 w-48 bg-shimmer rounded" />
+        <div className="h-40 bg-shimmer rounded" />
       </div>
     );
   }
 
   if (!task) {
     return (
-      <div className="text-center py-16 text-slate-400">
+      <div className="text-center py-16 text-fg-subtle">
         Task not found.{' '}
         <button onClick={() => router.push('/tasks')} className="text-blue-600 hover:underline">
           Back to Tasks
@@ -168,7 +168,7 @@ export default function TaskDetailPage() {
       <div className="flex items-center gap-3">
         <button
           onClick={() => router.push('/tasks')}
-          className="p-1.5 rounded hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500"
+          className="p-1.5 rounded hover:bg-canvas-subtle text-fg-muted"
         >
           <ArrowLeft size={18} />
         </button>
@@ -210,7 +210,7 @@ export default function TaskDetailPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           {task.description && (
-            <p className="text-sm text-slate-600 dark:text-slate-300 whitespace-pre-wrap">
+            <p className="text-sm text-fg-secondary whitespace-pre-wrap">
               {task.description}
             </p>
           )}
@@ -218,10 +218,10 @@ export default function TaskDetailPage() {
           <div className="grid grid-cols-2 gap-4 text-sm">
             {task.dueDate && (
               <div className="flex items-center gap-2">
-                <Calendar size={14} className="text-slate-400 shrink-0" />
+                <Calendar size={14} className="text-fg-subtle shrink-0" />
                 <div>
-                  <p className="text-xs text-slate-400">Due Date</p>
-                  <p className={isOverdue ? 'text-red-600 font-medium' : 'text-slate-700 dark:text-slate-300'}>
+                  <p className="text-xs text-fg-subtle">Due Date</p>
+                  <p className={isOverdue ? 'text-red-600 font-medium' : 'text-fg-secondary'}>
                     {formatDate(task.dueDate)}
                     {isOverdue && ' ⚠️ Overdue'}
                   </p>
@@ -231,20 +231,20 @@ export default function TaskDetailPage() {
 
             {task.reminderAt && (
               <div className="flex items-center gap-2">
-                <Clock size={14} className="text-slate-400 shrink-0" />
+                <Clock size={14} className="text-fg-subtle shrink-0" />
                 <div>
-                  <p className="text-xs text-slate-400">Reminder</p>
-                  <p className="text-slate-700 dark:text-slate-300">{formatDate(task.reminderAt)}</p>
+                  <p className="text-xs text-fg-subtle">Reminder</p>
+                  <p className="text-fg-secondary">{formatDate(task.reminderAt)}</p>
                 </div>
               </div>
             )}
 
             {task.assignee && (
               <div className="flex items-center gap-2">
-                <User size={14} className="text-slate-400 shrink-0" />
+                <User size={14} className="text-fg-subtle shrink-0" />
                 <div>
-                  <p className="text-xs text-slate-400">Assignee</p>
-                  <p className="text-slate-700 dark:text-slate-300">
+                  <p className="text-xs text-fg-subtle">Assignee</p>
+                  <p className="text-fg-secondary">
                     {task.assignee.firstName} {task.assignee.lastName}
                   </p>
                 </div>
@@ -253,9 +253,9 @@ export default function TaskDetailPage() {
 
             {entityPath && task.entityType && (
               <div className="flex items-center gap-2">
-                <Link size={14} className="text-slate-400 shrink-0" />
+                <Link size={14} className="text-fg-subtle shrink-0" />
                 <div>
-                  <p className="text-xs text-slate-400">Related To</p>
+                  <p className="text-xs text-fg-subtle">Related To</p>
                   <button
                     onClick={() => router.push(entityPath)}
                     className="text-blue-600 hover:underline"
@@ -267,7 +267,7 @@ export default function TaskDetailPage() {
             )}
           </div>
 
-          <div className="border-t border-slate-100 dark:border-slate-700 pt-3 flex items-center justify-between text-xs text-slate-400">
+          <div className="border-t border-ui-border pt-3 flex items-center justify-between text-xs text-fg-subtle">
             <span>Created {formatRelativeTime(task.createdAt)}</span>
             {task.completedAt && <span>Completed {formatRelativeTime(task.completedAt)}</span>}
           </div>

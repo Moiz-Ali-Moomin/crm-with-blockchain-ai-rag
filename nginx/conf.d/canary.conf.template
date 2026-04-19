@@ -65,7 +65,7 @@ server {
     set $grafana_upstream http://crm_grafana:3000;
 
     location /grafana/ {
-        proxy_pass $grafana_upstream/;
+        proxy_pass $grafana_upstream;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-Proto $scheme;

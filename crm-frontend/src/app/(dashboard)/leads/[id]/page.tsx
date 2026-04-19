@@ -57,10 +57,10 @@ export default function LeadDetailPage() {
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <div className="h-20 bg-slate-200 dark:bg-slate-800 rounded-lg animate-pulse" />
+        <div className="h-20 bg-shimmer rounded-lg animate-pulse" />
         <div className="grid grid-cols-2 gap-4">
-          <div className="h-64 bg-slate-200 dark:bg-slate-800 rounded-lg animate-pulse" />
-          <div className="h-64 bg-slate-200 dark:bg-slate-800 rounded-lg animate-pulse" />
+          <div className="h-64 bg-shimmer rounded-lg animate-pulse" />
+          <div className="h-64 bg-shimmer rounded-lg animate-pulse" />
         </div>
       </div>
     );
@@ -75,7 +75,7 @@ export default function LeadDetailPage() {
         <div className="flex items-center gap-3">
           <button
             onClick={() => router.back()}
-            className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500"
+            className="p-1.5 rounded-md hover:bg-canvas-subtle text-fg-muted"
           >
             <ArrowLeft size={18} />
           </button>
@@ -85,7 +85,7 @@ export default function LeadDetailPage() {
               <LeadStatusBadge status={lead.status} />
               <ScoreBadge score={lead.score} />
               {lead.assignee && (
-                <span className="text-xs text-slate-500">
+                <span className="text-xs text-fg-muted">
                   Assigned to {lead.assignee.firstName} {lead.assignee.lastName}
                 </span>
               )}
@@ -112,39 +112,39 @@ export default function LeadDetailPage() {
             <CardContent className="space-y-3">
               {lead.email && (
                 <div className="flex items-center gap-2 text-sm">
-                  <Mail size={14} className="text-slate-400 shrink-0" />
+                  <Mail size={14} className="text-fg-subtle shrink-0" />
                   <a href={`mailto:${lead.email}`} className="text-blue-600 hover:underline">{lead.email}</a>
                 </div>
               )}
               {lead.phone && (
                 <div className="flex items-center gap-2 text-sm">
-                  <Phone size={14} className="text-slate-400 shrink-0" />
+                  <Phone size={14} className="text-fg-subtle shrink-0" />
                   <span>{lead.phone}</span>
                 </div>
               )}
               {lead.companyName && (
                 <div className="flex items-center gap-2 text-sm">
-                  <Building2 size={14} className="text-slate-400 shrink-0" />
+                  <Building2 size={14} className="text-fg-subtle shrink-0" />
                   <span>{lead.companyName}</span>
                 </div>
               )}
               {lead.jobTitle && (
                 <div className="flex items-center gap-2 text-sm">
-                  <User size={14} className="text-slate-400 shrink-0" />
+                  <User size={14} className="text-fg-subtle shrink-0" />
                   <span>{lead.jobTitle}</span>
                 </div>
               )}
               <div className="flex items-center gap-2 text-sm">
-                <Calendar size={14} className="text-slate-400 shrink-0" />
-                <span className="text-slate-500">Created {formatDate(lead.createdAt)}</span>
+                <Calendar size={14} className="text-fg-subtle shrink-0" />
+                <span className="text-fg-muted">Created {formatDate(lead.createdAt)}</span>
               </div>
               {lead.source && (
-                <div className="text-sm text-slate-500">
+                <div className="text-sm text-fg-muted">
                   Source: <span className="font-medium">{lead.source.replace(/_/g, ' ')}</span>
                 </div>
               )}
               {lead.notes && (
-                <div className="text-sm text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 rounded p-2">
+                <div className="text-sm text-fg-secondary bg-canvas-subtle rounded p-2">
                   {lead.notes}
                 </div>
               )}
@@ -164,14 +164,14 @@ export default function LeadDetailPage() {
                       <span className="text-lg">{ACTIVITY_ICONS[a.type] ?? '📌'}</span>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium">{a.subject}</p>
-                        {a.body && <p className="text-xs text-slate-500 truncate">{a.body}</p>}
-                        <p className="text-xs text-slate-400">{formatRelativeTime(a.createdAt)}</p>
+                        {a.body && <p className="text-xs text-fg-muted truncate">{a.body}</p>}
+                        <p className="text-xs text-fg-subtle">{formatRelativeTime(a.createdAt)}</p>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-slate-400">No activities yet.</p>
+                <p className="text-sm text-fg-subtle">No activities yet.</p>
               )}
             </CardContent>
           </Card>
@@ -187,11 +187,11 @@ export default function LeadDetailPage() {
               {tasksData?.data?.length ? (
                 <div className="space-y-2">
                   {tasksData.data.map((t) => (
-                    <div key={t.id} className="flex items-center justify-between p-2 rounded border border-slate-100 dark:border-slate-700">
+                    <div key={t.id} className="flex items-center justify-between p-2 rounded border border-ui-border">
                       <div>
                         <p className="text-sm font-medium">{t.title}</p>
                         {t.dueDate && (
-                          <p className="text-xs text-slate-400">{formatDate(t.dueDate)}</p>
+                          <p className="text-xs text-fg-subtle">{formatDate(t.dueDate)}</p>
                         )}
                       </div>
                       <div className="flex items-center gap-1">
@@ -202,7 +202,7 @@ export default function LeadDetailPage() {
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-slate-400">No tasks.</p>
+                <p className="text-sm text-fg-subtle">No tasks.</p>
               )}
             </CardContent>
           </Card>
@@ -212,7 +212,7 @@ export default function LeadDetailPage() {
       {/* Convert modal */}
       {convertOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-lg shadow-xl w-full max-w-md p-6">
+          <div className="bg-canvas rounded-lg shadow-xl w-full max-w-md p-6">
             <h2 className="text-lg font-semibold mb-4">Convert Lead</h2>
             <div className="space-y-3">
               <label className="flex items-center gap-2 text-sm">

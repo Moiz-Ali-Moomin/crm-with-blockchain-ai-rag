@@ -60,7 +60,7 @@ export default function TasksPage() {
       key: 'title',
       header: 'Title',
       render: (row: Task) => (
-        <span className={cn('text-[13px] font-semibold text-gray-900', row.status === 'COMPLETED' && 'line-through text-gray-400')}>
+        <span className={cn('text-[13px] font-semibold text-fg', row.status === 'COMPLETED' && 'line-through text-fg-subtle')}>
           {row.title}
         </span>
       ),
@@ -82,7 +82,7 @@ export default function TasksPage() {
         if (!row.dueDate) return '—';
         const overdue = row.status !== 'COMPLETED' && new Date(row.dueDate) < new Date();
         return (
-          <span className={cn('text-[12px]', overdue ? 'text-red-600 font-medium' : 'text-gray-400')}>
+          <span className={cn('text-[12px]', overdue ? 'text-red-600 font-medium' : 'text-fg-subtle')}>
             {formatDate(row.dueDate)}
             {overdue && ' ⚠️'}
           </span>
@@ -146,14 +146,14 @@ export default function TasksPage() {
 
   return (
     <div className="space-y-4">
-      <div className="border-b border-gray-200">
+      <div className="border-b border-ui-border">
         <div className="flex">
           {TABS.map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
               className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                tab === t ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-400 hover:text-gray-700'
+                tab === t ? 'border-blue-500 text-blue-600' : 'border-transparent text-fg-subtle hover:text-fg'
               }`}
             >
               {t}

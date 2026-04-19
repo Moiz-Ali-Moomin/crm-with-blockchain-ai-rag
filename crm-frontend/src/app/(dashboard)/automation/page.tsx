@@ -27,12 +27,12 @@ export default function AutomationPage() {
   });
 
   const columns = [
-    { key: 'name', header: 'Name', render: (row: Workflow) => <span className="text-[13px] font-semibold text-gray-900">{row.name}</span> },
+    { key: 'name', header: 'Name', render: (row: Workflow) => <span className="text-[13px] font-semibold text-fg">{row.name}</span> },
     {
       key: 'triggerType',
       header: 'Trigger',
       render: (row: Workflow) => (
-        <span className="text-[12px] text-gray-500">{row.triggerType.replace(/_/g, ' ')}</span>
+        <span className="text-[12px] text-fg-muted">{row.triggerType.replace(/_/g, ' ')}</span>
       ),
     },
     {
@@ -55,7 +55,7 @@ export default function AutomationPage() {
       key: 'errorCount',
       header: 'Errors',
       render: (row: Workflow) => (
-        <span className={row.errorCount > 0 ? 'text-red-500 font-medium' : 'text-gray-400'}>
+        <span className={row.errorCount > 0 ? 'text-red-500 font-medium' : 'text-fg-subtle'}>
           {row.errorCount}
         </span>
       ),
@@ -64,7 +64,7 @@ export default function AutomationPage() {
       key: 'updatedAt',
       header: 'Last Updated',
       render: (row: Workflow) => (
-        <span className="text-[12px] text-gray-400">{formatRelativeTime(row.updatedAt)}</span>
+        <span className="text-[12px] text-fg-subtle">{formatRelativeTime(row.updatedAt)}</span>
       ),
     },
   ];

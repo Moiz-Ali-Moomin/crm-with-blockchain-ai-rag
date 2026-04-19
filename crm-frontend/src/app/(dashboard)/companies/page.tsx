@@ -29,8 +29,8 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>;
 
 const inputClass =
-  'w-full h-9 rounded-md border border-gray-200 bg-white text-gray-900 px-3 text-sm ' +
-  'placeholder:text-gray-400 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10 transition-all';
+  'w-full h-9 rounded-md border border-ui-border bg-canvas text-fg px-3 text-sm ' +
+  'placeholder:text-fg-subtle focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10 transition-all';
 
 function CompanyModal({ company, onClose }: { company?: Company | null; onClose: () => void }) {
   const queryClient = useQueryClient();
@@ -59,51 +59,51 @@ function CompanyModal({ company, onClose }: { company?: Company | null; onClose:
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white border border-gray-200 rounded-xl shadow-xl w-full max-w-lg p-6">
+      <div className="bg-canvas border border-ui-border rounded-xl shadow-xl w-full max-w-lg p-6">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-[15px] font-semibold text-gray-900">{company ? 'Edit Company' : 'Add Company'}</h2>
-          <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+          <h2 className="text-[15px] font-semibold text-fg">{company ? 'Edit Company' : 'Add Company'}</h2>
+          <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-md text-fg-subtle hover:text-fg hover:bg-canvas-subtle transition-colors">
             <X size={15} />
           </button>
         </div>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div>
-            <Label className="text-xs text-gray-600 font-medium mb-1.5 block">Company Name</Label>
+            <Label className="text-xs text-fg-muted font-medium mb-1.5 block">Company Name</Label>
             <input {...register('name')} className={inputClass} placeholder="Acme Corp" />
             {errors.name && <p className="text-[11px] text-rose-500 mt-1">{errors.name.message}</p>}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs text-gray-600 font-medium mb-1.5 block">Industry</Label>
+              <Label className="text-xs text-fg-muted font-medium mb-1.5 block">Industry</Label>
               <input {...register('industry')} className={inputClass} placeholder="Technology" />
             </div>
             <div>
-              <Label className="text-xs text-gray-600 font-medium mb-1.5 block">Website</Label>
+              <Label className="text-xs text-fg-muted font-medium mb-1.5 block">Website</Label>
               <input {...register('website')} className={inputClass} placeholder="https://" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs text-gray-600 font-medium mb-1.5 block">Phone</Label>
+              <Label className="text-xs text-fg-muted font-medium mb-1.5 block">Phone</Label>
               <input {...register('phone')} className={inputClass} placeholder="+1 234 567 8900" />
             </div>
             <div>
-              <Label className="text-xs text-gray-600 font-medium mb-1.5 block">City</Label>
+              <Label className="text-xs text-fg-muted font-medium mb-1.5 block">City</Label>
               <input {...register('city')} className={inputClass} placeholder="New York" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs text-gray-600 font-medium mb-1.5 block">Employees</Label>
+              <Label className="text-xs text-fg-muted font-medium mb-1.5 block">Employees</Label>
               <input type="number" {...register('employeeCount')} className={inputClass} placeholder="100" />
             </div>
             <div>
-              <Label className="text-xs text-gray-600 font-medium mb-1.5 block">Annual Revenue</Label>
+              <Label className="text-xs text-fg-muted font-medium mb-1.5 block">Annual Revenue</Label>
               <input type="number" {...register('annualRevenue')} className={inputClass} placeholder="1000000" />
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-1">
-            <button type="button" onClick={onClose} className="px-3.5 h-8 rounded-md text-sm font-medium text-gray-700 border border-gray-200 hover:bg-gray-50 transition-colors">
+            <button type="button" onClick={onClose} className="px-3.5 h-8 rounded-md text-sm font-medium text-fg-secondary border border-ui-border hover:bg-canvas-subtle transition-colors">
               Cancel
             </button>
             <button
@@ -148,7 +148,7 @@ export default function CompaniesPage() {
     {
       key: 'name',
       header: 'Name',
-      render: (row: Company) => <span className="text-[13px] font-semibold text-gray-900">{row.name}</span>,
+      render: (row: Company) => <span className="text-[13px] font-semibold text-fg">{row.name}</span>,
     },
     {
       key: 'industry',
@@ -186,10 +186,10 @@ export default function CompaniesPage() {
       header: '',
       render: (row: Company) => (
         <div className="flex items-center gap-1">
-          <button onClick={(e) => { e.stopPropagation(); router.push(`/companies/${row.id}`); }} className="w-7 h-7 rounded-md flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+          <button onClick={(e) => { e.stopPropagation(); router.push(`/companies/${row.id}`); }} className="w-7 h-7 rounded-md flex items-center justify-center text-fg-subtle hover:text-fg hover:bg-canvas-subtle transition-colors">
             <Eye size={14} />
           </button>
-          <button onClick={(e) => { e.stopPropagation(); setEditCompany(row); setModalOpen(true); }} className="w-7 h-7 rounded-md flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+          <button onClick={(e) => { e.stopPropagation(); setEditCompany(row); setModalOpen(true); }} className="w-7 h-7 rounded-md flex items-center justify-center text-fg-subtle hover:text-fg hover:bg-canvas-subtle transition-colors">
             <Pencil size={14} />
           </button>
           <button onClick={(e) => { e.stopPropagation(); if (confirm('Delete this company?')) deleteMutation.mutate(row.id); }} className="w-7 h-7 rounded-md flex items-center justify-center text-gray-400 hover:text-rose-600 hover:bg-rose-50 transition-colors">
@@ -207,7 +207,7 @@ export default function CompaniesPage() {
           <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             placeholder="Search companies…"
-            className="pl-8 w-56 h-9 rounded-md border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10 transition-all"
+            className="pl-8 w-56 h-9 rounded-md border border-ui-border bg-canvas text-sm text-fg placeholder:text-fg-subtle focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10 transition-all"
             value={filters.search}
             onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value, page: 1 }))}
           />

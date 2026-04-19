@@ -34,12 +34,12 @@ type SmsForm = z.infer<typeof smsSchema>;
 // ─── Shared input styles ──────────────────────────────────────────────────────
 
 const inputClass =
-  'w-full h-9 rounded-md border border-gray-200 bg-white text-gray-900 px-3 text-sm ' +
-  'placeholder:text-gray-400 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10 transition-all';
+  'w-full h-9 rounded-md border border-ui-border bg-canvas text-fg px-3 text-sm ' +
+  'placeholder:text-fg-subtle focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10 transition-all';
 
 const textareaClass =
-  'w-full rounded-md border border-gray-200 bg-white text-gray-900 px-3 py-2 text-sm resize-none ' +
-  'placeholder:text-gray-400 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10 transition-all';
+  'w-full rounded-md border border-ui-border bg-canvas text-fg px-3 py-2 text-sm resize-none ' +
+  'placeholder:text-fg-subtle focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10 transition-all';
 
 // ─── Email Modal ──────────────────────────────────────────────────────────────
 
@@ -62,34 +62,34 @@ function EmailModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white border border-gray-200 rounded-xl shadow-xl w-full max-w-md p-6">
+      <div className="bg-canvas border border-ui-border rounded-xl shadow-xl w-full max-w-md p-6">
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-2">
             <div className="p-1.5 rounded-lg bg-blue-50"><Mail size={14} className="text-blue-600" /></div>
-            <h2 className="text-[15px] font-semibold text-gray-900">Send Email</h2>
+            <h2 className="text-[15px] font-semibold text-fg">Send Email</h2>
           </div>
-          <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+          <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-md text-fg-subtle hover:text-fg hover:bg-canvas-subtle transition-colors">
             <X size={15} />
           </button>
         </div>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div>
-            <Label className="text-xs text-gray-600 font-medium mb-1.5 block">To</Label>
+            <Label className="text-xs text-fg-muted font-medium mb-1.5 block">To</Label>
             <input type="email" {...register('toAddr')} className={inputClass} placeholder="recipient@example.com" />
             {errors.toAddr && <p className="text-[11px] text-rose-500 mt-1">{errors.toAddr.message}</p>}
           </div>
           <div>
-            <Label className="text-xs text-gray-600 font-medium mb-1.5 block">Subject</Label>
+            <Label className="text-xs text-fg-muted font-medium mb-1.5 block">Subject</Label>
             <input {...register('subject')} className={inputClass} placeholder="Email subject" />
             {errors.subject && <p className="text-[11px] text-rose-500 mt-1">{errors.subject.message}</p>}
           </div>
           <div>
-            <Label className="text-xs text-gray-600 font-medium mb-1.5 block">Body</Label>
+            <Label className="text-xs text-fg-muted font-medium mb-1.5 block">Body</Label>
             <textarea {...register('body')} rows={4} className={textareaClass} placeholder="Write your message…" />
             {errors.body && <p className="text-[11px] text-rose-500 mt-1">{errors.body.message}</p>}
           </div>
           <div className="flex justify-end gap-2 pt-1">
-            <button type="button" onClick={onClose} className="px-3.5 h-8 rounded-md text-sm font-medium text-gray-700 border border-gray-200 hover:bg-gray-50 transition-colors">
+            <button type="button" onClick={onClose} className="px-3.5 h-8 rounded-md text-sm font-medium text-fg-secondary border border-ui-border hover:bg-canvas-subtle transition-colors">
               Cancel
             </button>
             <button
@@ -127,29 +127,29 @@ function SmsModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white border border-gray-200 rounded-xl shadow-xl w-full max-w-md p-6">
+      <div className="bg-canvas border border-ui-border rounded-xl shadow-xl w-full max-w-md p-6">
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-2">
             <div className="p-1.5 rounded-lg bg-emerald-50"><MessageSquare size={14} className="text-emerald-600" /></div>
-            <h2 className="text-[15px] font-semibold text-gray-900">Send SMS</h2>
+            <h2 className="text-[15px] font-semibold text-fg">Send SMS</h2>
           </div>
-          <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+          <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-md text-fg-subtle hover:text-fg hover:bg-canvas-subtle transition-colors">
             <X size={15} />
           </button>
         </div>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div>
-            <Label className="text-xs text-gray-600 font-medium mb-1.5 block">To (phone number)</Label>
+            <Label className="text-xs text-fg-muted font-medium mb-1.5 block">To (phone number)</Label>
             <input {...register('toAddr')} className={inputClass} placeholder="+1 234 567 8900" />
             {errors.toAddr && <p className="text-[11px] text-rose-500 mt-1">{errors.toAddr.message}</p>}
           </div>
           <div>
-            <Label className="text-xs text-gray-600 font-medium mb-1.5 block">Message</Label>
+            <Label className="text-xs text-fg-muted font-medium mb-1.5 block">Message</Label>
             <textarea {...register('body')} rows={3} className={textareaClass} placeholder="Write your message…" />
             {errors.body && <p className="text-[11px] text-rose-500 mt-1">{errors.body.message}</p>}
           </div>
           <div className="flex justify-end gap-2 pt-1">
-            <button type="button" onClick={onClose} className="px-3.5 h-8 rounded-md text-sm font-medium text-gray-700 border border-gray-200 hover:bg-gray-50 transition-colors">
+            <button type="button" onClick={onClose} className="px-3.5 h-8 rounded-md text-sm font-medium text-fg-secondary border border-ui-border hover:bg-canvas-subtle transition-colors">
               Cancel
             </button>
             <button
@@ -199,7 +199,7 @@ export default function CommunicationsPage() {
       render: (row: Communication) => (
         <span className={cn(
           'inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold border',
-          CHANNEL_STYLES[row.channel] ?? 'bg-gray-100 text-gray-500 border-gray-200',
+          CHANNEL_STYLES[row.channel] ?? 'bg-canvas-subtle text-fg-muted border-ui-border',
         )}>
           {row.channel}
         </span>
@@ -209,35 +209,35 @@ export default function CommunicationsPage() {
       key: 'direction',
       header: 'Dir.',
       render: (row: Communication) => (
-        <span className="text-[12px] text-gray-500 uppercase tracking-wide">{row.direction}</span>
+        <span className="text-[12px] text-fg-muted uppercase tracking-wide">{row.direction}</span>
       ),
     },
     {
       key: 'status',
       header: 'Status',
       render: (row: Communication) => (
-        <span className="text-[12px] text-gray-600">{row.status}</span>
+        <span className="text-[12px] text-fg-secondary">{row.status}</span>
       ),
     },
     {
       key: 'fromAddr',
       header: 'From',
       render: (row: Communication) => (
-        <span className="text-[12px] text-gray-500 truncate">{row.fromAddr}</span>
+        <span className="text-[12px] text-fg-muted truncate">{row.fromAddr}</span>
       ),
     },
     {
       key: 'toAddr',
       header: 'To',
       render: (row: Communication) => (
-        <span className="text-[12px] text-gray-500 truncate">{row.toAddr}</span>
+        <span className="text-[12px] text-fg-muted truncate">{row.toAddr}</span>
       ),
     },
     {
       key: 'subject',
       header: 'Subject',
       render: (row: Communication) => (
-        <span className="text-[13px] text-gray-700">{row.subject ?? '—'}</span>
+        <span className="text-[13px] text-fg-secondary">{row.subject ?? '—'}</span>
       ),
     },
     {
@@ -251,13 +251,13 @@ export default function CommunicationsPage() {
           >
             {row.contact.firstName} {row.contact.lastName}
           </button>
-        ) : <span className="text-gray-300 text-[13px]">—</span>,
+        ) : <span className="text-fg-subtle text-[13px]">—</span>,
     },
     {
       key: 'createdAt',
       header: 'Date',
       render: (row: Communication) => (
-        <span className="text-[12px] text-gray-400">{formatRelativeTime(row.createdAt)}</span>
+        <span className="text-[12px] text-fg-subtle">{formatRelativeTime(row.createdAt)}</span>
       ),
     },
   ];
@@ -267,15 +267,15 @@ export default function CommunicationsPage() {
       <div className="flex justify-end gap-2">
         <button
           onClick={() => setEmailOpen(true)}
-          className="flex items-center gap-1.5 px-3.5 h-9 rounded-md border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+          className="flex items-center gap-1.5 px-3.5 h-9 rounded-md border border-ui-border text-sm font-medium text-fg-secondary hover:bg-canvas-subtle transition-colors"
         >
-          <Mail size={14} className="text-gray-400" /> Send Email
+          <Mail size={14} className="text-fg-subtle" /> Send Email
         </button>
         <button
           onClick={() => setSmsOpen(true)}
-          className="flex items-center gap-1.5 px-3.5 h-9 rounded-md border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+          className="flex items-center gap-1.5 px-3.5 h-9 rounded-md border border-ui-border text-sm font-medium text-fg-secondary hover:bg-canvas-subtle transition-colors"
         >
-          <MessageSquare size={14} className="text-gray-400" /> Send SMS
+          <MessageSquare size={14} className="text-fg-subtle" /> Send SMS
         </button>
       </div>
 

@@ -76,12 +76,12 @@ function ResponseBlock({ data, op }: { data: AiResponse; op: OperationType }) {
     return (
       <div className="space-y-3">
         {data.summary && (
-          <p className="text-sm text-gray-700 leading-relaxed">{data.summary}</p>
+          <p className="text-sm text-fg-secondary leading-relaxed">{data.summary}</p>
         )}
         {data.keyPoints?.length ? (
           <ul className="space-y-1.5">
             {data.keyPoints.map((pt, i) => (
-              <li key={i} className="flex items-start gap-2 text-sm text-gray-600">
+              <li key={i} className="flex items-start gap-2 text-sm text-fg-secondary">
                 <span className="mt-2 w-1 h-1 rounded-full bg-blue-500 shrink-0" />
                 {pt}
               </li>
@@ -93,7 +93,7 @@ function ResponseBlock({ data, op }: { data: AiResponse; op: OperationType }) {
             'inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold uppercase tracking-wide',
             data.sentiment === 'positive' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' :
             data.sentiment === 'negative' ? 'bg-rose-50 text-rose-600 border border-rose-200' :
-            'bg-gray-100 text-gray-500 border border-gray-200',
+            'bg-canvas-subtle text-fg-muted border border-ui-border',
           )}>
             {data.sentiment}
           </span>
@@ -105,15 +105,15 @@ function ResponseBlock({ data, op }: { data: AiResponse; op: OperationType }) {
   if (op === 'suggest_follow_up') {
     return (
       <div className="space-y-2">
-        {data.action    && <p className="text-sm font-semibold text-gray-900">{data.action}</p>}
-        {data.reasoning && <p className="text-sm text-gray-600 leading-relaxed">{data.reasoning}</p>}
+        {data.action    && <p className="text-sm font-semibold text-fg">{data.action}</p>}
+        {data.reasoning && <p className="text-sm text-fg-secondary leading-relaxed">{data.reasoning}</p>}
         <div className="flex flex-wrap gap-2 pt-1">
           {data.urgency && (
             <span className={cn(
               'inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold uppercase tracking-wide',
               data.urgency === 'high'   ? 'bg-rose-50 text-rose-600 border border-rose-200' :
               data.urgency === 'medium' ? 'bg-amber-50 text-amber-600 border border-amber-200' :
-              'bg-gray-100 text-gray-500 border border-gray-200',
+              'bg-canvas-subtle text-fg-muted border border-ui-border',
             )}>
               {data.urgency} urgency
             </span>
@@ -132,11 +132,11 @@ function ResponseBlock({ data, op }: { data: AiResponse; op: OperationType }) {
     return (
       <div className="space-y-2">
         {data.summary      && <p className="text-sm text-gray-700 leading-relaxed">{data.summary}</p>}
-        {data.lastActivity && <p className="text-xs text-gray-400">Last: {data.lastActivity}</p>}
+        {data.lastActivity && <p className="text-xs text-fg-subtle">Last: {data.lastActivity}</p>}
         {data.nextStep && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 mt-2">
             <p className="text-xs font-semibold text-blue-600 mb-0.5">Next step</p>
-            <p className="text-sm text-gray-700">{data.nextStep}</p>
+            <p className="text-sm text-fg-secondary">{data.nextStep}</p>
           </div>
         )}
       </div>
@@ -148,14 +148,14 @@ function ResponseBlock({ data, op }: { data: AiResponse; op: OperationType }) {
       <div className="space-y-3">
         {data.subject && (
           <div>
-            <p className="text-[11px] text-gray-400 uppercase tracking-wide mb-1">Subject</p>
-            <p className="text-sm font-semibold text-gray-900">{data.subject}</p>
+            <p className="text-[11px] text-fg-subtle uppercase tracking-wide mb-1">Subject</p>
+            <p className="text-sm font-semibold text-fg">{data.subject}</p>
           </div>
         )}
         {data.body && (
           <div>
-            <p className="text-[11px] text-gray-400 uppercase tracking-wide mb-1">Body</p>
-            <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">{data.body}</p>
+            <p className="text-[11px] text-fg-subtle uppercase tracking-wide mb-1">Body</p>
+            <p className="text-sm text-fg-secondary leading-relaxed whitespace-pre-line">{data.body}</p>
           </div>
         )}
         {data.tone && (
@@ -167,7 +167,7 @@ function ResponseBlock({ data, op }: { data: AiResponse; op: OperationType }) {
     );
   }
 
-  return <pre className="text-xs text-gray-500 whitespace-pre-wrap">{JSON.stringify(data, null, 2)}</pre>;
+  return <pre className="text-xs text-fg-muted whitespace-pre-wrap">{JSON.stringify(data, null, 2)}</pre>;
 }
 
 // ── Core widget panel ─────────────────────────────────────────────────────────
@@ -210,19 +210,19 @@ export function AiCopilotWidget() {
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl flex flex-col h-full shadow-sm">
+    <div className="bg-canvas border border-ui-border rounded-xl flex flex-col h-full shadow-sm">
       {/* Header */}
-      <div className="flex items-center gap-3 px-5 pt-5 pb-4 border-b border-gray-100">
+      <div className="flex items-center gap-3 px-5 pt-5 pb-4 border-b border-ui-border">
         <div className="p-2 rounded-lg bg-blue-50 text-blue-600">
           <Brain size={15} strokeWidth={2} />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-gray-900 leading-none">AI Copilot</p>
-          <p className="text-[11px] text-gray-400 mt-0.5">Powered by GPT-4o</p>
+          <p className="text-sm font-semibold text-fg leading-none">AI Copilot</p>
+          <p className="text-[11px] text-fg-subtle mt-0.5">Powered by GPT-4o</p>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-[11px] text-gray-400">Ready</span>
+          <span className="text-[11px] text-fg-subtle">Ready</span>
         </div>
       </div>
 
@@ -233,17 +233,17 @@ export function AiCopilotWidget() {
             onClick={() => setOpOpen((o) => !o)}
             className={cn(
               'w-full flex items-center justify-between px-3 py-2.5 rounded-lg',
-              'bg-gray-50 border border-gray-200 hover:border-gray-300',
+              'bg-canvas-subtle border border-ui-border hover:border-ui-border',
               'transition-colors duration-150 text-left',
             )}
           >
             <div className="min-w-0">
-              <p className="text-[13px] font-medium text-gray-900">{currentOp.label}</p>
-              <p className="text-[11px] text-gray-400 mt-0.5 truncate">{currentOp.description}</p>
+              <p className="text-[13px] font-medium text-fg">{currentOp.label}</p>
+              <p className="text-[11px] text-fg-subtle mt-0.5 truncate">{currentOp.description}</p>
             </div>
             <ChevronDown
               size={14}
-              className={cn('text-gray-400 transition-transform duration-200 shrink-0 ml-3', opOpen && 'rotate-180')}
+              className={cn('text-fg-subtle transition-transform duration-200 shrink-0 ml-3', opOpen && 'rotate-180')}
             />
           </button>
 
@@ -253,7 +253,7 @@ export function AiCopilotWidget() {
                 initial={{ opacity: 0, y: -6, scale: 0.97 }}
                 animate={{ opacity: 1, y: 0, scale: 1, transition: { duration: 0.13 } }}
                 exit={{ opacity: 0, y: -4, transition: { duration: 0.10 } }}
-                className="absolute left-0 right-0 top-[calc(100%+4px)] bg-white border border-gray-200 rounded-xl overflow-hidden z-20 shadow-lg"
+                className="absolute left-0 right-0 top-[calc(100%+4px)] bg-canvas border border-ui-border rounded-xl overflow-hidden z-20 shadow-lg"
               >
                 {OPERATIONS.map((op) => (
                   <button
@@ -261,7 +261,7 @@ export function AiCopilotWidget() {
                     onClick={() => { setActiveOp(op.key); setOpOpen(false); setResult(null); setInput(''); }}
                     className={cn(
                       'w-full flex items-start gap-2.5 px-3 py-2.5 text-left',
-                      'hover:bg-gray-50 transition-colors duration-100',
+                      'hover:bg-canvas-subtle transition-colors duration-100',
                       op.key === activeOp && 'bg-blue-50',
                     )}
                   >
@@ -284,8 +284,8 @@ export function AiCopilotWidget() {
       <form onSubmit={handleSubmit} className="px-5 pb-4">
         <div className={cn(
           'flex items-center gap-2 px-3 py-2 rounded-lg',
-          'bg-gray-50 border border-gray-200',
-          'focus-within:border-blue-400 focus-within:bg-white',
+          'bg-canvas-subtle border border-ui-border',
+          'focus-within:border-blue-400 focus-within:bg-canvas',
           'transition-colors duration-150',
         )}>
           <input
@@ -294,7 +294,7 @@ export function AiCopilotWidget() {
             onChange={(e) => setInput(e.target.value)}
             placeholder={currentOp.placeholder}
             disabled={isPending}
-            className="flex-1 bg-transparent text-[13px] text-gray-900 placeholder:text-gray-400 outline-none disabled:opacity-50"
+            className="flex-1 bg-transparent text-[13px] text-fg placeholder:text-fg-subtle outline-none disabled:opacity-50"
           />
           <button
             type="submit"
@@ -315,7 +315,7 @@ export function AiCopilotWidget() {
       </form>
 
       {/* Divider */}
-      <div className="h-px bg-gray-100 mx-5" />
+      <div className="h-px bg-ui-border mx-5" />
 
       {/* Response area */}
       <div className="flex-1 overflow-y-auto px-5 py-4 min-h-[160px]">
@@ -329,7 +329,7 @@ export function AiCopilotWidget() {
               className="flex flex-col items-center justify-center h-full gap-2.5 py-8"
             >
               <Loader2 size={20} className="text-blue-500 animate-spin" />
-              <p className="text-xs text-gray-400">Generating response…</p>
+              <p className="text-xs text-fg-subtle">Generating response…</p>
             </motion.div>
           ) : error ? (
             <motion.div
@@ -364,9 +364,9 @@ export function AiCopilotWidget() {
               animate={{ opacity: 1 }}
               className="flex flex-col items-center justify-center h-full gap-2 py-10 text-center"
             >
-              <Brain size={26} className="text-gray-300" strokeWidth={1.2} />
-              <p className="text-sm text-gray-500">Select an operation and enter an ID</p>
-              <p className="text-[11px] text-gray-400">AI will analyze your CRM data</p>
+              <Brain size={26} className="text-fg-subtle" strokeWidth={1.2} />
+              <p className="text-sm text-fg-muted">Select an operation and enter an ID</p>
+              <p className="text-[11px] text-fg-subtle">AI will analyze your CRM data</p>
             </motion.div>
           )}
         </AnimatePresence>

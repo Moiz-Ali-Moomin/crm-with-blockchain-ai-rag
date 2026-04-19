@@ -99,15 +99,15 @@ function ContactModal({ contact, onClose }: { contact?: Contact | null; onClose:
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.97, y: 6 }}
         transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
-        className="bg-white border border-gray-200 rounded-xl shadow-xl w-full max-w-md p-6"
+        className="bg-canvas border border-ui-border rounded-xl shadow-xl w-full max-w-md p-6"
       >
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-base font-semibold text-gray-900">
+          <h2 className="text-base font-semibold text-fg">
             {contact ? 'Edit Contact' : 'New Contact'}
           </h2>
           <button
             onClick={onClose}
-            className="w-7 h-7 flex items-center justify-center rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            className="w-7 h-7 flex items-center justify-center rounded-md text-fg-subtle hover:text-fg hover:bg-canvas-subtle transition-colors"
           >
             <X size={15} />
           </button>
@@ -116,28 +116,28 @@ function ContactModal({ contact, onClose }: { contact?: Contact | null; onClose:
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs text-gray-600 mb-1.5 block font-medium">First Name</Label>
+              <Label className="text-xs text-fg-muted mb-1.5 block font-medium">First Name</Label>
               <Input {...register('firstName')} className="h-9 text-sm" />
               {errors.firstName && <p className="text-[11px] text-rose-500 mt-1">{errors.firstName.message}</p>}
             </div>
             <div>
-              <Label className="text-xs text-gray-600 mb-1.5 block font-medium">Last Name</Label>
+              <Label className="text-xs text-fg-muted mb-1.5 block font-medium">Last Name</Label>
               <Input {...register('lastName')} className="h-9 text-sm" />
               {errors.lastName && <p className="text-[11px] text-rose-500 mt-1">{errors.lastName.message}</p>}
             </div>
           </div>
           <div>
-            <Label className="text-xs text-gray-600 mb-1.5 block font-medium">Email</Label>
+            <Label className="text-xs text-fg-muted mb-1.5 block font-medium">Email</Label>
             <Input type="email" {...register('email')} className="h-9 text-sm" />
             {errors.email && <p className="text-[11px] text-rose-500 mt-1">{errors.email.message}</p>}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs text-gray-600 mb-1.5 block font-medium">Phone</Label>
+              <Label className="text-xs text-fg-muted mb-1.5 block font-medium">Phone</Label>
               <Input {...register('phone')} className="h-9 text-sm" />
             </div>
             <div>
-              <Label className="text-xs text-gray-600 mb-1.5 block font-medium">Job Title</Label>
+              <Label className="text-xs text-fg-muted mb-1.5 block font-medium">Job Title</Label>
               <Input {...register('jobTitle')} className="h-9 text-sm" />
             </div>
           </div>
@@ -175,21 +175,21 @@ function ContactPanel({
       animate={{ x: 0, opacity: 1 }}
       exit={{ x: '100%', opacity: 0 }}
       transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
-      className="fixed right-0 top-0 h-full w-[340px] bg-white border-l border-gray-200 z-40 flex flex-col shadow-xl"
+      className="fixed right-0 top-0 h-full w-[340px] bg-canvas border-l border-ui-border z-40 flex flex-col shadow-xl"
     >
       {/* Header */}
-      <div className="px-5 pt-4 pb-4 border-b border-gray-100">
+      <div className="px-5 pt-4 pb-4 border-b border-ui-border-subtle">
         <div className="flex items-center justify-between mb-4">
           <button
             onClick={onClose}
-            className="w-7 h-7 flex items-center justify-center rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            className="w-7 h-7 flex items-center justify-center rounded-md text-fg-subtle hover:text-fg hover:bg-canvas-subtle transition-colors"
           >
             <X size={15} />
           </button>
           <div className="flex items-center gap-1.5">
             <button
               onClick={onEdit}
-              className="flex items-center gap-1.5 px-2.5 h-7 rounded-md text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-100 border border-gray-200 transition-all"
+              className="flex items-center gap-1.5 px-2.5 h-7 rounded-md text-xs text-fg-secondary hover:text-fg hover:bg-canvas-subtle border border-ui-border transition-all"
             >
               <Pencil size={11} strokeWidth={2} /> Edit
             </button>
@@ -206,9 +206,9 @@ function ContactPanel({
         <div className="flex items-center gap-3">
           <ContactAvatar name={fullName} size="lg" />
           <div>
-            <h3 className="text-[15px] font-semibold text-gray-900">{fullName}</h3>
+            <h3 className="text-[15px] font-semibold text-fg">{fullName}</h3>
             {contact.jobTitle && (
-              <p className="text-xs text-gray-500 mt-0.5">{contact.jobTitle}</p>
+              <p className="text-xs text-fg-muted mt-0.5">{contact.jobTitle}</p>
             )}
           </div>
         </div>
@@ -218,19 +218,19 @@ function ContactPanel({
       <div className="flex-1 overflow-y-auto py-4 px-5 space-y-5 scrollbar-none">
         {/* Contact info */}
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-gray-400 mb-3">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-fg-subtle mb-3">
             Contact Info
           </p>
           <div className="space-y-2">
             {contact.email && (
               <a
                 href={`mailto:${contact.email}`}
-                className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-gray-50 transition-colors group"
+                className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-canvas-subtle transition-colors group"
               >
                 <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
                   <Mail size={13} className="text-blue-600" />
                 </div>
-                <span className="text-sm text-gray-600 group-hover:text-gray-900 transition-colors truncate">
+                <span className="text-sm text-fg-muted group-hover:text-fg transition-colors truncate">
                   {contact.email}
                 </span>
               </a>
@@ -251,7 +251,7 @@ function ContactPanel({
                 <div className="w-7 h-7 rounded-lg bg-violet-50 flex items-center justify-center shrink-0">
                   <Building2 size={13} className="text-violet-600" />
                 </div>
-                <span className="text-sm text-gray-600 group-hover:text-gray-900 transition-colors flex-1">
+                <span className="text-sm text-fg-muted group-hover:text-fg transition-colors flex-1">
                   {contact.company.name}
                 </span>
                 <ChevronRight size={13} className="text-gray-300 group-hover:text-gray-500 transition-colors" />
@@ -272,20 +272,20 @@ function ContactPanel({
 
         {/* Stats */}
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-gray-400 mb-3">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-fg-subtle mb-3">
             Stats
           </p>
           <div className="grid grid-cols-2 gap-2.5">
-            <div className="bg-white border border-gray-200 rounded-xl p-3.5">
-              <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1.5">Total Spent</p>
-              <p className="text-base font-bold text-gray-900">{formatCurrency(contact.totalSpent ?? 0)}</p>
+            <div className="bg-canvas border border-ui-border rounded-xl p-3.5">
+              <p className="text-[10px] text-fg-subtle uppercase tracking-wide mb-1.5">Total Spent</p>
+              <p className="text-base font-bold text-fg">{formatCurrency(contact.totalSpent ?? 0)}</p>
             </div>
-            <div className="bg-white border border-gray-200 rounded-xl p-3.5">
+            <div className="bg-canvas border border-ui-border rounded-xl p-3.5">
               <div className="flex items-center gap-1.5 mb-1.5">
-                <TrendingUp size={10} className="text-gray-400" />
-                <p className="text-[10px] text-gray-400 uppercase tracking-wide">Deals</p>
+                <TrendingUp size={10} className="text-fg-subtle" />
+                <p className="text-[10px] text-fg-subtle uppercase tracking-wide">Deals</p>
               </div>
-              <p className="text-base font-bold text-gray-900">—</p>
+              <p className="text-base font-bold text-fg">—</p>
             </div>
           </div>
         </div>
@@ -299,13 +299,13 @@ function ContactPanel({
 function EmptyState({ hasSearch, onAdd }: { hasSearch: boolean; onAdd: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center py-20 gap-3">
-      <div className="w-14 h-14 rounded-xl bg-gray-100 border border-gray-200 flex items-center justify-center mb-1">
-        <Users size={24} strokeWidth={1.5} className="text-gray-400" />
+      <div className="w-14 h-14 rounded-xl bg-shimmer-subtle border border-ui-border flex items-center justify-center mb-1">
+        <Users size={24} strokeWidth={1.5} className="text-fg-subtle" />
       </div>
-      <p className="text-sm font-semibold text-gray-700">
+      <p className="text-sm font-semibold text-fg-secondary">
         {hasSearch ? 'No contacts found' : 'No contacts yet'}
       </p>
-      <p className="text-xs text-gray-400 text-center max-w-[220px]">
+      <p className="text-xs text-fg-subtle text-center max-w-[220px]">
         {hasSearch
           ? 'Try a different name or email address.'
           : 'Add your first contact to start building relationships.'}
@@ -343,10 +343,10 @@ function ContactRow({
     <tr
       onClick={onClick}
       className={cn(
-        'border-b border-gray-100 cursor-pointer transition-colors duration-150 group',
+        'border-b border-ui-border-subtle cursor-pointer transition-colors duration-150 group',
         isSelected
-          ? 'bg-blue-50'
-          : 'hover:bg-gray-50',
+          ? 'bg-blue-50 dark:bg-blue-900/20'
+          : 'hover:bg-canvas-subtle',
       )}
     >
       {/* Name + avatar */}
@@ -354,9 +354,9 @@ function ContactRow({
         <div className="flex items-center gap-3">
           <ContactAvatar name={fullName} size="sm" />
           <div>
-            <p className="text-[13px] font-semibold text-gray-900 leading-tight">{fullName}</p>
+            <p className="text-[13px] font-semibold text-fg leading-tight">{fullName}</p>
             {contact.jobTitle && (
-              <p className="text-[11px] text-gray-400 leading-tight mt-0.5">{contact.jobTitle}</p>
+              <p className="text-[11px] text-fg-subtle leading-tight mt-0.5">{contact.jobTitle}</p>
             )}
           </div>
         </div>
@@ -364,14 +364,14 @@ function ContactRow({
 
       {/* Email */}
       <td className="px-5 py-3">
-        <span className="text-[13px] text-gray-500">{contact.email ?? '—'}</span>
+        <span className="text-[13px] text-fg-muted">{contact.email ?? '—'}</span>
       </td>
 
       {/* Company */}
       <td className="px-5 py-3">
         {contact.company ? (
-          <span className="inline-flex items-center gap-1.5 text-[12px] text-gray-600 bg-gray-100 px-2.5 py-1 rounded-full border border-gray-200">
-            <Building2 size={10} className="text-gray-400" />
+          <span className="inline-flex items-center gap-1.5 text-[12px] text-fg-muted bg-shimmer-subtle px-2.5 py-1 rounded-full border border-ui-border">
+            <Building2 size={10} className="text-fg-subtle" />
             {contact.company.name}
           </span>
         ) : (
@@ -381,7 +381,7 @@ function ContactRow({
 
       {/* Total spent */}
       <td className="px-5 py-3">
-        <span className="text-[13px] font-semibold text-gray-900 tabular-nums">
+        <span className="text-[13px] font-semibold text-fg tabular-nums">
           {formatCurrency(contact.totalSpent ?? 0)}
         </span>
       </td>
@@ -398,7 +398,7 @@ function ContactRow({
         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
           <button
             onClick={(e) => { e.stopPropagation(); onEdit(); }}
-            className="w-7 h-7 flex items-center justify-center rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-all"
+            className="w-7 h-7 flex items-center justify-center rounded-md text-fg-subtle hover:text-fg hover:bg-canvas-subtle transition-all"
           >
             <Pencil size={13} />
           </button>
@@ -418,18 +418,18 @@ function ContactRow({
 
 function TableSkeleton() {
   return (
-    <div className="divide-y divide-gray-100">
+    <div className="divide-y divide-ui-border-subtle">
       {Array.from({ length: 8 }).map((_, i) => (
         <div key={i} className="flex items-center gap-4 px-5 py-3 animate-pulse" style={{ animationDelay: `${i * 0.04}s` }}>
-          <div className="w-7 h-7 rounded-full bg-gray-200 shrink-0" />
+          <div className="w-7 h-7 rounded-full bg-shimmer shrink-0" />
           <div className="flex-1 space-y-1.5">
-            <div className="h-3 w-32 bg-gray-200 rounded-full" />
-            <div className="h-2.5 w-20 bg-gray-100 rounded-full" />
+            <div className="h-3 w-32 bg-shimmer rounded-full" />
+            <div className="h-2.5 w-20 bg-shimmer-subtle rounded-full" />
           </div>
-          <div className="h-3 w-40 bg-gray-200 rounded-full" />
-          <div className="h-6 w-24 bg-gray-100 rounded-full" />
-          <div className="h-3 w-16 bg-gray-100 rounded-full" />
-          <div className="h-3 w-14 bg-gray-100 rounded-full" />
+          <div className="h-3 w-40 bg-shimmer rounded-full" />
+          <div className="h-6 w-24 bg-shimmer-subtle rounded-full" />
+          <div className="h-3 w-16 bg-shimmer-subtle rounded-full" />
+          <div className="h-3 w-14 bg-shimmer-subtle rounded-full" />
         </div>
       ))}
     </div>
@@ -484,7 +484,7 @@ export default function ContactsPage() {
                 onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value, page: 1 }))}
                 className={cn(
                   'h-9 pl-8 pr-3 text-sm rounded-md w-56',
-                  'bg-white border border-gray-200 text-gray-900 placeholder:text-gray-400',
+                  'bg-canvas border border-ui-border text-fg placeholder:text-fg-subtle',
                   'focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10',
                   'transition-all duration-150',
                 )}
@@ -492,7 +492,7 @@ export default function ContactsPage() {
             </div>
 
             {data && (
-              <span className="text-xs text-gray-400 font-medium tabular-nums">
+              <span className="text-xs text-fg-subtle font-medium tabular-nums">
                 {data.meta.total.toLocaleString()} contact{data.meta.total !== 1 ? 's' : ''}
               </span>
             )}
@@ -508,7 +508,7 @@ export default function ContactsPage() {
         </div>
 
         {/* Table card */}
-        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+        <div className="bg-canvas border border-ui-border rounded-xl overflow-hidden">
           {isLoading ? (
             <TableSkeleton />
           ) : contacts.length === 0 ? (
@@ -516,11 +516,11 @@ export default function ContactsPage() {
           ) : (
             <table className="w-full">
               <thead>
-                <tr className="border-b border-gray-200 bg-gray-50">
+                <tr className="border-b border-ui-border bg-canvas-subtle">
                   {['Name', 'Email', 'Company', 'Total Spent', 'Last Contacted', ''].map((h) => (
                     <th
                       key={h}
-                      className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-gray-400"
+                      className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-fg-subtle"
                     >
                       {h}
                     </th>

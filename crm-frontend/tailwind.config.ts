@@ -50,6 +50,25 @@ const config: Config = {
           border: 'rgba(255,255,255,0.10)',
           hover:  'rgba(255,255,255,0.08)',
         },
+        // Design-token semantic colors (auto-switch via CSS vars)
+        canvas: {
+          DEFAULT: 'rgb(var(--canvas) / <alpha-value>)',
+          subtle:  'rgb(var(--canvas-subtle) / <alpha-value>)',
+        },
+        'ui-border': {
+          DEFAULT: 'rgb(var(--ui-border) / <alpha-value>)',
+          subtle:  'rgb(var(--ui-border-subtle) / <alpha-value>)',
+        },
+        fg: {
+          DEFAULT:   'rgb(var(--fg) / <alpha-value>)',
+          secondary: 'rgb(var(--fg-secondary) / <alpha-value>)',
+          muted:     'rgb(var(--fg-muted) / <alpha-value>)',
+          subtle:    'rgb(var(--fg-subtle) / <alpha-value>)',
+        },
+        shimmer: {
+          DEFAULT: 'rgb(var(--shimmer) / <alpha-value>)',
+          subtle:  'rgb(var(--shimmer-subtle) / <alpha-value>)',
+        },
       },
       backgroundImage: {
         'glass-gradient':  'linear-gradient(135deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 100%)',

@@ -29,12 +29,12 @@ const ENTITY_COLORS: Record<string, string> = {
 
 function SourceChip({ entityType, snippet, score }: { entityType: string; snippet: string; score: number }) {
   return (
-    <div className="flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2 text-xs dark:border-slate-700 dark:bg-slate-800">
-      <span className={`shrink-0 rounded px-1.5 py-0.5 font-medium capitalize ${ENTITY_COLORS[entityType] ?? 'bg-slate-100 text-slate-700'}`}>
+    <div className="flex items-start gap-2 rounded-lg border border-ui-border bg-canvas-subtle p-2 text-xs">
+      <span className={`shrink-0 rounded px-1.5 py-0.5 font-medium capitalize ${ENTITY_COLORS[entityType] ?? 'bg-canvas text-fg-muted'}`}>
         {entityType}
       </span>
-      <span className="line-clamp-2 flex-1 text-slate-600 dark:text-slate-300">{snippet}</span>
-      <span className="shrink-0 text-slate-400">{Math.round(score * 100)}%</span>
+      <span className="line-clamp-2 flex-1 text-fg-secondary">{snippet}</span>
+      <span className="shrink-0 text-fg-subtle">{Math.round(score * 100)}%</span>
     </div>
   );
 }
@@ -101,13 +101,13 @@ function ChatTab() {
               <div className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
                 msg.role === 'user'
                   ? 'bg-indigo-600 text-white'
-                  : 'bg-white border border-slate-200 text-slate-800 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100'
+                  : 'bg-canvas border border-ui-border text-fg'
               }`}>
                 {msg.content}
               </div>
               {msg.sources && msg.sources.length > 0 && (
                 <div className="w-full space-y-1">
-                  <p className="text-xs text-slate-400 pl-1">Sources</p>
+                  <p className="text-xs text-fg-subtle pl-1">Sources</p>
                   {msg.sources.map((s, si) => (
                     <SourceChip key={si} entityType={s.entityType} snippet={s.snippet} score={s.score} />
                   ))}
@@ -121,7 +121,7 @@ function ChatTab() {
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white">
               <Sparkles size={14} />
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:bg-slate-800 dark:border-slate-700">
+            <div className="rounded-2xl border border-ui-border bg-canvas px-4 py-3">
               <Loader2 size={16} className="animate-spin text-indigo-500" />
             </div>
           </div>
@@ -136,7 +136,7 @@ function ChatTab() {
             <button
               key={s}
               onClick={() => { setInput(s); }}
-              className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600 hover:border-indigo-300 hover:text-indigo-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 transition-colors"
+              className="rounded-full border border-ui-border bg-canvas px-3 py-1.5 text-xs text-fg-secondary hover:border-indigo-300 hover:text-indigo-600 transition-colors"
             >
               {s}
             </button>
@@ -198,7 +198,7 @@ function SearchTab() {
             </Button>
           </div>
           <div className="flex gap-2">
-            <span className="text-xs text-slate-500 self-center">Filter:</span>
+            <span className="text-xs text-fg-muted self-center">Filter:</span>
             {['activity', 'communication', 'ticket'].map((type) => (
               <button
                 key={type}
@@ -206,7 +206,7 @@ function SearchTab() {
                 className={`rounded-full px-3 py-1 text-xs font-medium capitalize transition-colors ${
                   entityTypes.includes(type)
                     ? ENTITY_COLORS[type]
-                    : 'bg-slate-100 text-slate-400 dark:bg-slate-700'
+                    : 'bg-canvas-subtle text-fg-subtle'
                 }`}
               >
                 {type}
@@ -224,10 +224,10 @@ function SearchTab() {
 
       {results !== null && (
         <div className="space-y-2">
-          <p className="text-sm text-slate-500">{results.length} result{results.length !== 1 ? 's' : ''} found</p>
+          <p className="text-sm text-fg-muted">{results.length} result{results.length !== 1 ? 's' : ''} found</p>
           {results.length === 0 ? (
             <Card>
-              <CardContent className="py-10 text-center text-sm text-slate-400">
+              <CardContent className="py-10 text-center text-sm text-fg-muted">
                 No matching records found. Try a different query.
               </CardContent>
             </Card>
@@ -235,11 +235,11 @@ function SearchTab() {
             results.map((r, i) => (
               <Card key={i}>
                 <CardContent className="py-3 px-4 flex items-start gap-3">
-                  <span className={`mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-xs font-medium capitalize ${ENTITY_COLORS[r.entityType] ?? 'bg-slate-100 text-slate-700'}`}>
+                  <span className={`mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-xs font-medium capitalize ${ENTITY_COLORS[r.entityType] ?? 'bg-canvas-subtle text-fg-muted'}`}>
                     {r.entityType}
                   </span>
-                  <p className="flex-1 text-sm text-slate-700 dark:text-slate-300">{r.snippet}</p>
-                  <span className="shrink-0 text-xs text-slate-400">{Math.round(r.score * 100)}% match</span>
+                  <p className="flex-1 text-sm text-fg-secondary">{r.snippet}</p>
+                  <span className="shrink-0 text-xs text-fg-subtle">{Math.round(r.score * 100)}% match</span>
                 </CardContent>
               </Card>
             ))
@@ -266,13 +266,13 @@ function VerifyTab() {
     <div className="space-y-4">
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-slate-600">
+          <CardTitle className="text-sm font-medium text-fg-secondary">
             Verify a deal using AI + on-chain blockchain proof
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-500">Deal ID</label>
+            <label className="mb-1 block text-xs font-medium text-fg-muted">Deal ID</label>
             <Input
               value={dealId}
               onChange={(e) => setDealId(e.target.value)}
@@ -280,7 +280,7 @@ function VerifyTab() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-500">Additional context (optional)</label>
+            <label className="mb-1 block text-xs font-medium text-fg-muted">Additional context (optional)</label>
             <Input
               value={context}
               onChange={(e) => setContext(e.target.value)}
@@ -311,10 +311,10 @@ function VerifyTab() {
                   <div className="flex-1">
                     <p className="text-sm font-medium text-green-700">On-chain proof found</p>
                     {result.blockchain.txHash && (
-                      <p className="text-xs text-slate-500 font-mono mt-0.5 truncate">{result.blockchain.txHash}</p>
+                      <p className="text-xs text-fg-muted font-mono mt-0.5 truncate">{result.blockchain.txHash}</p>
                     )}
                     {result.blockchain.registeredAt && (
-                      <p className="text-xs text-slate-400 mt-0.5">Registered {new Date(result.blockchain.registeredAt).toLocaleDateString()}</p>
+                      <p className="text-xs text-fg-subtle mt-0.5">Registered {new Date(result.blockchain.registeredAt).toLocaleDateString()}</p>
                     )}
                   </div>
                   {result.blockchain.network && (
@@ -323,8 +323,8 @@ function VerifyTab() {
                 </>
               ) : (
                 <>
-                  <XCircle size={20} className="text-slate-400 shrink-0" />
-                  <p className="text-sm text-slate-500">No on-chain proof registered for this deal</p>
+                  <XCircle size={20} className="text-fg-subtle shrink-0" />
+                  <p className="text-sm text-fg-muted">No on-chain proof registered for this deal</p>
                 </>
               )}
             </CardContent>
@@ -337,7 +337,7 @@ function VerifyTab() {
                 <Sparkles size={14} className="text-indigo-500" /> AI Analysis
               </CardTitle>
             </CardHeader>
-            <CardContent className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+            <CardContent className="text-sm text-fg-secondary leading-relaxed">
               {result.answer}
             </CardContent>
           </Card>
@@ -345,7 +345,7 @@ function VerifyTab() {
           {/* Sources */}
           {result.sources.length > 0 && (
             <div className="space-y-1.5">
-              <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Context sources</p>
+              <p className="text-xs font-medium text-fg-subtle uppercase tracking-wide">Context sources</p>
               {result.sources.map((s, i) => (
                 <SourceChip key={i} entityType={s.entityType} snippet={s.snippet} score={s.score} />
               ))}
@@ -376,21 +376,21 @@ export default function AiCopilotPage() {
           <Brain size={18} />
         </div>
         <div>
-          <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">AI Copilot</h1>
-          <p className="text-xs text-slate-500">Powered by GPT-4o + pgvector RAG + Blockchain verification</p>
+          <h1 className="text-lg font-semibold text-fg">AI Copilot</h1>
+          <p className="text-xs text-fg-muted">Powered by GPT-4o + pgvector RAG + Blockchain verification</p>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 rounded-lg bg-slate-100 p-1 dark:bg-slate-800 w-fit">
+      <div className="flex gap-1 rounded-lg bg-canvas-subtle p-1 w-fit">
         {TABS.map(({ id, label, icon }) => (
           <button
             key={id}
             onClick={() => setTab(id)}
             className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
               tab === id
-                ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-slate-100'
-                : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                ? 'bg-canvas text-fg shadow-sm'
+                : 'text-fg-muted hover:text-fg-secondary'
             }`}
           >
             {icon}

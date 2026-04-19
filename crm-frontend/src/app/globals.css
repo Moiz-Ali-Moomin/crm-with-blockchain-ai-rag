@@ -4,6 +4,7 @@
 
 @layer base {
   :root {
+    /* shadcn/ui tokens */
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
@@ -24,6 +25,48 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 221.2 83.2% 53.3%;
     --radius: 0.75rem;
+
+    /* Design tokens — light */
+    --canvas: 255 255 255;           /* card / panel background   */
+    --canvas-subtle: 249 250 251;    /* hover / sunken areas      */
+    --ui-border: 229 231 235;        /* primary borders           */
+    --ui-border-subtle: 243 244 246; /* dividers                  */
+    --fg: 17 24 39;                  /* primary text (gray-900)   */
+    --fg-secondary: 55 65 81;        /* secondary text (gray-700) */
+    --fg-muted: 107 114 128;         /* muted text (gray-500)     */
+    --fg-subtle: 156 163 175;        /* subtle text (gray-400)    */
+    --shimmer: 229 231 235;          /* loading pulse (gray-200)  */
+    --shimmer-subtle: 243 244 246;   /* loading pulse alt         */
+  }
+
+  .dark {
+    /* shadcn/ui tokens — dark overrides */
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 47% 11%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 47% 11%;
+    --popover-foreground: 210 40% 98%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+
+    /* Design tokens — dark */
+    --canvas: 17 24 39;              /* gray-900  */
+    --canvas-subtle: 31 41 55;       /* gray-800  */
+    --ui-border: 31 41 55;           /* gray-800  */
+    --ui-border-subtle: 55 65 81;    /* gray-700  */
+    --fg: 249 250 251;               /* gray-50   */
+    --fg-secondary: 229 231 235;     /* gray-200  */
+    --fg-muted: 156 163 175;         /* gray-400  */
+    --fg-subtle: 107 114 128;        /* gray-500  */
+    --shimmer: 55 65 81;             /* gray-700  */
+    --shimmer-subtle: 31 41 55;      /* gray-800  */
   }
 }
 
@@ -75,14 +118,14 @@
 @layer components {
   /* Sidebar */
   .glass-sidebar {
-    background: #ffffff;
-    border-right: 1px solid #E5E7EB;
+    background: rgb(var(--canvas));
+    border-right: 1px solid rgb(var(--ui-border));
   }
 
   /* Navbar */
   .glass-navbar {
-    background: #ffffff;
-    border-bottom: 1px solid #E5E7EB;
+    background: rgb(var(--canvas));
+    border-bottom: 1px solid rgb(var(--ui-border));
   }
 }
 
@@ -111,8 +154,8 @@
     @apply transition-all duration-150;
   }
   .row-hover:hover {
-    background: #F9FAFB;
-    border-color: #E5E7EB;
+    background: rgb(var(--canvas-subtle));
+    border-color: rgb(var(--ui-border));
   }
 }
 

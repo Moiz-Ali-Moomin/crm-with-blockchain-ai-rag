@@ -50,7 +50,7 @@ export default function NotificationsPage() {
         <button
           onClick={() => markAllReadMutation.mutate()}
           disabled={markAllReadMutation.isPending}
-          className="flex items-center gap-1.5 px-3.5 h-8 rounded-md border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60 transition-colors"
+          className="flex items-center gap-1.5 px-3.5 h-8 rounded-md border border-ui-border text-sm font-medium text-fg-secondary hover:bg-canvas-subtle disabled:opacity-60 transition-colors"
         >
           <CheckCheck size={14} />
           Mark All Read
@@ -60,7 +60,7 @@ export default function NotificationsPage() {
       {isLoading ? (
         <div className="space-y-2">
           {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="h-16 bg-gray-100 rounded-xl animate-pulse" />
+            <div key={i} className="h-16 bg-shimmer-subtle rounded-xl animate-pulse" />
           ))}
         </div>
       ) : notifications.length === 0 ? (
@@ -74,19 +74,19 @@ export default function NotificationsPage() {
               className={cn(
                 'flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-colors',
                 n.isRead
-                  ? 'border-gray-100 bg-white hover:bg-gray-50'
-                  : 'border-blue-100 bg-blue-50 hover:bg-blue-50/80'
+                  ? 'border-ui-border-subtle bg-canvas hover:bg-canvas-subtle'
+                  : 'border-blue-100 bg-blue-50 hover:bg-blue-50/80 dark:border-blue-800 dark:bg-blue-900/20 dark:hover:bg-blue-900/30'
               )}
             >
               {!n.isRead && (
                 <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0 mt-1.5" />
               )}
               <div className="flex-1 min-w-0">
-                <p className={cn('text-[13px] font-semibold', n.isRead ? 'text-gray-500' : 'text-gray-900')}>
+                <p className={cn('text-[13px] font-semibold', n.isRead ? 'text-fg-muted' : 'text-fg')}>
                   {n.title}
                 </p>
-                <p className="text-[12px] text-gray-500 truncate mt-0.5">{n.body}</p>
-                <p className="text-[11px] text-gray-400 mt-1">{formatRelativeTime(n.createdAt)}</p>
+                <p className="text-[12px] text-fg-muted truncate mt-0.5">{n.body}</p>
+                <p className="text-[11px] text-fg-subtle mt-1">{formatRelativeTime(n.createdAt)}</p>
               </div>
               <button
                 onClick={(e) => {

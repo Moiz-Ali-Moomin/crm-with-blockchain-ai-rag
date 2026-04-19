@@ -9,6 +9,7 @@ import {
 import { analyticsApi } from '@/lib/api/analytics.api';
 import { queryKeys } from '@/lib/query/query-keys';
 import { formatCurrency, cn } from '@/lib/utils';
+import { useThemeStore } from '@/store/theme.store';
 import {
   TrendingUp, PieChart as PieIcon, BarChart2, Users,
   DollarSign, Percent, Award, Loader2,
@@ -31,9 +32,9 @@ function ChartTooltip({ active, payload, label, formatter }: {
 }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-md">
-      {label && <p className="text-[11px] text-gray-400 mb-1">{label}</p>}
-      <p className="text-[13px] font-semibold text-gray-900">
+    <div className="bg-canvas border border-ui-border rounded-lg px-3 py-2 shadow-md">
+      {label && <p className="text-[11px] text-fg-subtle mb-1">{label}</p>}
+      <p className="text-[13px] font-semibold text-fg">
         {formatter ? formatter(payload[0].value) : payload[0].value.toLocaleString()}
       </p>
     </div>
@@ -43,10 +44,10 @@ function ChartTooltip({ active, payload, label, formatter }: {
 function PieTooltip({ active, payload }: { active?: boolean; payload?: Array<any> }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-md">
-      <p className="text-[11px] text-gray-500">{payload[0].name?.replace(/_/g, ' ')}</p>
-      <p className="text-[13px] font-semibold text-gray-900">{payload[0].value.toLocaleString()}</p>
-      <p className="text-[11px] text-gray-400">{payload[0].payload.percentage}%</p>
+    <div className="bg-canvas border border-ui-border rounded-lg px-3 py-2 shadow-md">
+      <p className="text-[11px] text-fg-muted">{payload[0].name?.replace(/_/g, ' ')}</p>
+      <p className="text-[13px] font-semibold text-fg">{payload[0].value.toLocaleString()}</p>
+      <p className="text-[11px] text-fg-subtle">{payload[0].payload.percentage}%</p>
     </div>
   );
 }
@@ -59,7 +60,7 @@ function ChartSkeleton({ height = 240 }: { height?: number }) {
       {[55, 75, 42, 88, 68, 52, 82, 38, 72, 62, 48, 85].map((h, i) => (
         <div
           key={i}
-          className="flex-1 bg-gray-100 rounded-t-sm animate-pulse"
+          className="flex-1 bg-shimmer rounded-t-sm animate-pulse"
           style={{ height: `${h}%`, animationDelay: `${i * 0.05}s` }}
         />
       ))}
@@ -69,9 +70,9 @@ function ChartSkeleton({ height = 240 }: { height?: number }) {
 
 function ChartEmpty({ label }: { label: string }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-2 text-gray-300" style={{ height: 240 }}>
+    <div className="flex flex-col items-center justify-center gap-2 text-fg-subtle" style={{ height: 240 }}>
       <BarChart2 size={28} strokeWidth={1.2} />
-      <span className="text-sm text-gray-400">{label}</span>
+      <span className="text-sm text-fg-muted">{label}</span>
     </div>
   );
 }
@@ -79,10 +80,10 @@ function ChartEmpty({ label }: { label: string }) {
 // ─── Chart card shell ─────────────────────────────────────────────────────────
 
 const iconAccent: Record<string, string> = {
-  blue:    'bg-blue-50 text-blue-600',
-  violet:  'bg-violet-50 text-violet-600',
-  emerald: 'bg-emerald-50 text-emerald-600',
-  amber:   'bg-amber-50 text-amber-600',
+  blue:    'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400',
+  violet:  'bg-violet-50 text-violet-600 dark:bg-violet-900/20 dark:text-violet-400',
+  emerald: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400',
+  amber:   'bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400',
 };
 
 function ChartCard({
@@ -96,13 +97,13 @@ function ChartCard({
   className?: string;
 }) {
   return (
-    <div className={cn('bg-white border border-gray-200 rounded-xl overflow-hidden flex flex-col', className)}>
-      <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+    <div className={cn('bg-canvas border border-ui-border rounded-xl overflow-hidden flex flex-col', className)}>
+      <div className="flex items-center justify-between px-5 py-4 border-b border-ui-border">
         <div className="flex items-center gap-2.5">
           <div className={cn('p-1.5 rounded-lg', iconAccent[color])}>{icon}</div>
           <div>
-            <p className="text-[13px] font-semibold text-gray-900">{title}</p>
-            {subtitle && <p className="text-[11px] text-gray-400 mt-0.5">{subtitle}</p>}
+            <p className="text-[13px] font-semibold text-fg">{title}</p>
+            {subtitle && <p className="text-[11px] text-fg-subtle mt-0.5">{subtitle}</p>}
           </div>
         </div>
       </div>
@@ -114,10 +115,10 @@ function ChartCard({
 // ─── KPI card ─────────────────────────────────────────────────────────────────
 
 const kpiAccent = [
-  { icon: 'bg-blue-50 text-blue-600',    value: 'text-gray-900', pill: 'bg-blue-50 text-blue-700 border border-blue-100' },
-  { icon: 'bg-violet-50 text-violet-600', value: 'text-gray-900', pill: 'bg-violet-50 text-violet-700 border border-violet-100' },
-  { icon: 'bg-emerald-50 text-emerald-600', value: 'text-gray-900', pill: 'bg-emerald-50 text-emerald-700 border border-emerald-100' },
-  { icon: 'bg-amber-50 text-amber-600',  value: 'text-gray-900', pill: 'bg-amber-50 text-amber-700 border border-amber-100' },
+  { icon: 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400',       pill: 'bg-blue-50 text-blue-700 border border-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800' },
+  { icon: 'bg-violet-50 text-violet-600 dark:bg-violet-900/20 dark:text-violet-400', pill: 'bg-violet-50 text-violet-700 border border-violet-100 dark:bg-violet-900/20 dark:text-violet-400 dark:border-violet-800' },
+  { icon: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400', pill: 'bg-emerald-50 text-emerald-700 border border-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800' },
+  { icon: 'bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400',   pill: 'bg-amber-50 text-amber-700 border border-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800' },
 ];
 
 function KpiCard({ label, value, sub, icon, index }: {
@@ -130,14 +131,14 @@ function KpiCard({ label, value, sub, icon, index }: {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.06, duration: 0.28, ease: [0.25, 0.46, 0.45, 0.94] }}
       whileHover={{ y: -1, transition: { duration: 0.15 } }}
-      className="bg-white border border-gray-200 rounded-xl p-5 hover:border-gray-300 hover:shadow-sm transition-all duration-200"
+      className="bg-canvas border border-ui-border rounded-xl p-5 hover:border-ui-border hover:shadow-sm transition-all duration-200"
     >
       <div className="flex items-center justify-between mb-4">
-        <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-[0.09em]">{label}</p>
+        <p className="text-[11px] font-semibold text-fg-muted uppercase tracking-[0.09em]">{label}</p>
         <div className={cn('p-1.5 rounded-lg', accent.icon)}>{icon}</div>
       </div>
-      <p className="text-[30px] font-bold text-gray-900 tracking-tight leading-none mb-3">{value}</p>
-      <p className="text-[11px] text-gray-400">{sub}</p>
+      <p className="text-[30px] font-bold text-fg tracking-tight leading-none mb-3">{value}</p>
+      <p className="text-[11px] text-fg-subtle">{sub}</p>
     </motion.div>
   );
 }
@@ -145,6 +146,11 @@ function KpiCard({ label, value, sub, icon, index }: {
 // ─── Revenue chart ────────────────────────────────────────────────────────────
 
 function RevenueChart() {
+  const { theme } = useThemeStore();
+  const isDark = theme === 'dark';
+  const gridColor  = isDark ? '#1F2937' : '#F3F4F6';
+  const tickColor  = isDark ? '#6B7280' : '#9CA3AF';
+
   const { data, isLoading } = useQuery({
     queryKey: queryKeys.analytics.revenue,
     queryFn:  () => analyticsApi.getRevenue(),
@@ -161,9 +167,9 @@ function RevenueChart() {
                 <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false} />
-            <XAxis dataKey="month" tick={{ fill: '#9CA3AF', fontSize: 11 }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fill: '#9CA3AF', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
+            <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
+            <XAxis dataKey="month" tick={{ fill: tickColor, fontSize: 11 }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fill: tickColor, fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
             <Tooltip content={<ChartTooltip formatter={formatCurrency} />} cursor={{ stroke: 'rgba(59,130,246,0.1)', strokeWidth: 1 }} />
             <Area type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={1.5} fill="url(#revFillA)" dot={false} activeDot={{ r: 3.5, fill: '#3b82f6', strokeWidth: 0 }} />
           </AreaChart>
@@ -185,7 +191,7 @@ function LeadSourcesChart() {
     <ChartCard title="Lead Sources" subtitle="Acquisition breakdown" icon={<PieIcon size={14} strokeWidth={2} />} color="violet" className="h-full">
       {isLoading ? (
         <div className="flex items-center justify-center" style={{ height: 240 }}>
-          <Loader2 size={20} className="animate-spin text-gray-300" />
+          <Loader2 size={20} className="animate-spin text-fg-subtle" />
         </div>
       ) : !data?.length ? <ChartEmpty label="No source data" /> : (
         <div className="flex items-center gap-4">
@@ -201,10 +207,10 @@ function LeadSourcesChart() {
             {data.slice(0, 6).map((item, i) => (
               <div key={i} className="flex items-center gap-2 min-w-0">
                 <span className="w-2 h-2 rounded-full shrink-0" style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} />
-                <span className="text-[12px] text-gray-600 truncate flex-1">
+                <span className="text-[12px] text-fg-secondary truncate flex-1">
                   {item.source.replace(/_/g, ' ').toLowerCase().replace(/^\w/, (c: string) => c.toUpperCase())}
                 </span>
-                <span className="text-[11px] text-gray-400 shrink-0 tabular-nums">{item.percentage}%</span>
+                <span className="text-[11px] text-fg-subtle shrink-0 tabular-nums">{item.percentage}%</span>
               </div>
             ))}
           </div>
@@ -217,6 +223,15 @@ function LeadSourcesChart() {
 // ─── Pipeline Funnel ──────────────────────────────────────────────────────────
 
 function PipelineFunnelChart() {
+  const { theme } = useThemeStore();
+  const isDark = theme === 'dark';
+  const gridColor    = isDark ? '#1F2937' : '#F3F4F6';
+  const tickMuted    = isDark ? '#6B7280' : '#9CA3AF';
+  const tickSecond   = isDark ? '#9CA3AF' : '#6B7280';
+  const tooltipBg    = isDark ? '#111827' : '#ffffff';
+  const tooltipBdr   = isDark ? '#1F2937' : '#E5E7EB';
+  const tooltipTx    = isDark ? '#F9FAFB' : '#111827';
+
   const { data, isLoading } = useQuery({
     queryKey: queryKeys.analytics.pipelineFunnel,
     queryFn:  () => analyticsApi.getPipelineFunnel(),
@@ -229,11 +244,11 @@ function PipelineFunnelChart() {
       {isLoading ? <ChartSkeleton height={200} /> : !data?.length ? <ChartEmpty label="No pipeline data" /> : (
         <ResponsiveContainer width="100%" height={220}>
           <BarChart data={data} layout="vertical" margin={{ top: 4, right: 12, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" horizontal={false} />
-            <XAxis type="number" tick={{ fill: '#9CA3AF', fontSize: 11 }} axisLine={false} tickLine={false} />
-            <YAxis dataKey="stage" type="category" tick={{ fill: '#6B7280', fontSize: 11 }} axisLine={false} tickLine={false} width={90} />
+            <CartesianGrid strokeDasharray="3 3" stroke={gridColor} horizontal={false} />
+            <XAxis type="number" tick={{ fill: tickMuted, fontSize: 11 }} axisLine={false} tickLine={false} />
+            <YAxis dataKey="stage" type="category" tick={{ fill: tickSecond, fontSize: 11 }} axisLine={false} tickLine={false} width={90} />
             <Tooltip
-              contentStyle={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 8, fontSize: 12, color: '#111827', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', padding: '8px 12px' }}
+              contentStyle={{ background: tooltipBg, border: `1px solid ${tooltipBdr}`, borderRadius: 8, fontSize: 12, color: tooltipTx, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', padding: '8px 12px' }}
               cursor={{ fill: 'rgba(59,130,246,0.04)' }}
             />
             <Bar dataKey="count" radius={[0, 4, 4, 0]} maxBarSize={20}>
@@ -260,19 +275,19 @@ function SalesPerformance() {
         <div className="space-y-4 mt-1">
           {[1, 2, 3, 4].map((i) => (
             <div key={i} className="flex items-center gap-3 animate-pulse">
-              <div className="w-8 h-8 rounded-full bg-gray-100 shrink-0" />
+              <div className="w-8 h-8 rounded-full bg-shimmer shrink-0" />
               <div className="flex-1 space-y-1.5">
-                <div className="h-3 w-28 bg-gray-200 rounded-full" />
-                <div className="h-2 w-16 bg-gray-100 rounded-full" />
+                <div className="h-3 w-28 bg-shimmer rounded-full" />
+                <div className="h-2 w-16 bg-shimmer-subtle rounded-full" />
               </div>
-              <div className="h-3 w-16 bg-gray-100 rounded-full" />
+              <div className="h-3 w-16 bg-shimmer-subtle rounded-full" />
             </div>
           ))}
         </div>
       ) : !data?.length ? (
-        <div className="flex flex-col items-center justify-center gap-2 text-gray-300 py-12">
+        <div className="flex flex-col items-center justify-center gap-2 text-fg-subtle py-12">
           <Users size={24} strokeWidth={1.2} />
-          <span className="text-sm text-gray-400">No performance data</span>
+          <span className="text-sm text-fg-muted">No performance data</span>
         </div>
       ) : (
         <div className="space-y-4 mt-1">
@@ -291,13 +306,13 @@ function SalesPerformance() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
-                      <span className="text-[13px] font-semibold text-gray-800 truncate">{rep.name}</span>
+                      <span className="text-[13px] font-semibold text-fg truncate">{rep.name}</span>
                       <span className="text-[12px] font-semibold text-emerald-600 shrink-0 ml-2 tabular-nums">{formatCurrency(rep.revenue)}</span>
                     </div>
-                    <span className="text-[11px] text-gray-400">{rep.dealsWon} deals won</span>
+                    <span className="text-[11px] text-fg-subtle">{rep.dealsWon} deals won</span>
                   </div>
                 </div>
-                <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden ml-10">
+                <div className="h-1.5 bg-shimmer rounded-full overflow-hidden ml-10">
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${barWidth}%` }}

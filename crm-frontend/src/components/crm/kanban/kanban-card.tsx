@@ -42,25 +42,25 @@ export function KanbanCard({ deal, isOverlay }: KanbanCardProps) {
         if (!isDragging) router.push(`/deals/${deal.id}`);
       }}
       className={cn(
-        'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md p-3 cursor-grab active:cursor-grabbing shadow-sm hover:shadow-md transition-shadow',
+        'bg-canvas border border-ui-border rounded-md p-3 cursor-grab active:cursor-grabbing shadow-sm hover:shadow-md transition-shadow',
         isDragging && 'opacity-40',
         isOverlay && 'rotate-2 shadow-xl opacity-100 cursor-grabbing'
       )}
     >
-      <p className="text-sm font-medium text-slate-900 dark:text-slate-100 line-clamp-2">
+      <p className="text-sm font-medium text-fg line-clamp-2">
         {deal.title}
       </p>
       <p className="text-sm font-semibold text-green-600 mt-1">
         {formatCurrency(deal.value)}
       </p>
       {deal.contact && (
-        <p className="text-xs text-slate-500 mt-1">
+        <p className="text-xs text-fg-muted mt-1">
           {deal.contact.firstName} {deal.contact.lastName}
         </p>
       )}
       <div className="flex items-center justify-between mt-2">
         {deal.closingDate && (
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-fg-subtle">
             {format(new Date(deal.closingDate), 'MMM d')}
           </p>
         )}

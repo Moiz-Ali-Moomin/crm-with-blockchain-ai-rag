@@ -23,15 +23,15 @@ export function DataTable<T extends { id: string }>({
   onRowClick,
 }: DataTableProps<T>) {
   return (
-    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+    <div className="bg-canvas border border-ui-border rounded-xl overflow-hidden">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-gray-200 bg-gray-50">
+          <tr className="border-b border-ui-border bg-canvas-subtle">
             {columns.map((col) => (
               <th
                 key={col.key}
                 className={cn(
-                  'px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-gray-400',
+                  'px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-fg-subtle',
                   col.className,
                 )}
               >
@@ -40,13 +40,13 @@ export function DataTable<T extends { id: string }>({
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-100">
+        <tbody className="divide-y divide-ui-border-subtle">
           {isLoading ? (
             Array.from({ length: 6 }).map((_, i) => (
               <tr key={i} className="animate-pulse" style={{ animationDelay: `${i * 0.05}s` }}>
                 {columns.map((col) => (
                   <td key={col.key} className="px-5 py-3">
-                    <div className="h-4 bg-gray-100 rounded-md" />
+                    <div className="h-4 bg-shimmer rounded-md" />
                   </td>
                 ))}
               </tr>
@@ -55,7 +55,7 @@ export function DataTable<T extends { id: string }>({
             <tr>
               <td
                 colSpan={columns.length}
-                className="px-5 py-16 text-center text-sm text-gray-400"
+                className="px-5 py-16 text-center text-sm text-fg-subtle"
               >
                 {emptyMessage}
               </td>
@@ -67,13 +67,13 @@ export function DataTable<T extends { id: string }>({
                 onClick={() => onRowClick?.(row)}
                 className={cn(
                   'transition-colors duration-150',
-                  onRowClick && 'cursor-pointer hover:bg-gray-50',
+                  onRowClick && 'cursor-pointer hover:bg-canvas-subtle',
                 )}
               >
                 {columns.map((col) => (
                   <td
                     key={col.key}
-                    className={cn('px-5 py-3 text-[13px] text-gray-700', col.className)}
+                    className={cn('px-5 py-3 text-[13px] text-fg-secondary', col.className)}
                   >
                     {col.render
                       ? col.render(row)

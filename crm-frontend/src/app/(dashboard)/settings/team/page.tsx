@@ -54,7 +54,7 @@ function InviteModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white dark:bg-slate-900 rounded-lg shadow-xl w-full max-w-md p-6">
+      <div className="bg-canvas rounded-lg shadow-xl w-full max-w-md p-6">
         <h2 className="text-lg font-semibold mb-4">Invite Team Member</h2>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
           <div><Label>Email</Label><Input type="email" {...register('email')} />{errors.email && <p className="text-xs text-red-500">{errors.email.message}</p>}</div>
@@ -64,7 +64,7 @@ function InviteModal({ onClose }: { onClose: () => void }) {
           </div>
           <div>
             <Label>Role</Label>
-            <select {...register('role')} className="w-full rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm">
+            <select {...register('role')} className="w-full rounded-md border border-ui-border bg-canvas text-fg px-3 py-2 text-sm">
               {ROLES.map((r) => <option key={r} value={r}>{r.replace(/_/g, ' ')}</option>)}
             </select>
           </div>
@@ -106,7 +106,7 @@ export default function TeamPage() {
       header: 'Name',
       render: (row: User) => <span className="font-medium">{row.firstName} {row.lastName}</span>,
     },
-    { key: 'email', header: 'Email', render: (row: User) => <span className="text-slate-500">{row.email}</span> },
+    { key: 'email', header: 'Email', render: (row: User) => <span className="text-fg-muted">{row.email}</span> },
     {
       key: 'role',
       header: 'Role',
@@ -115,7 +115,7 @@ export default function TeamPage() {
           defaultValue={row.role}
           onChange={(e) => roleChangeMutation.mutate({ id: row.id, role: e.target.value })}
           onClick={(e) => e.stopPropagation()}
-          className="rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 text-xs"
+          className="rounded border border-ui-border bg-canvas text-fg px-2 py-1 text-xs"
         >
           {ROLES.map((r) => <option key={r} value={r}>{r.replace(/_/g, ' ')}</option>)}
         </select>
@@ -130,7 +130,7 @@ export default function TeamPage() {
       key: 'lastLoginAt',
       header: 'Last Login',
       render: (row: User) => (
-        <span className="text-xs text-slate-400">
+        <span className="text-xs text-fg-subtle">
           {row.lastLoginAt ? formatRelativeTime(row.lastLoginAt) : '—'}
         </span>
       ),

@@ -20,10 +20,10 @@ export default function PipelinePage() {
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <div className="h-10 w-64 bg-gray-100 rounded animate-pulse" />
+        <div className="h-10 w-64 bg-shimmer-subtle rounded animate-pulse" />
         <div className="flex gap-4">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="w-72 h-64 bg-gray-100 rounded-lg animate-pulse" />
+            <div key={i} className="w-72 h-64 bg-shimmer-subtle rounded-lg animate-pulse" />
           ))}
         </div>
       </div>
@@ -37,7 +37,7 @@ export default function PipelinePage() {
   return (
     <div className="space-y-4">
       {/* Pipeline selector tabs */}
-      <div className="flex items-center gap-1 border-b border-gray-200">
+      <div className="flex items-center gap-1 border-b border-ui-border">
         {pipelines.map((pipeline) => (
           <button
             key={pipeline.id}
@@ -46,7 +46,7 @@ export default function PipelinePage() {
               'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
               selectedId === pipeline.id
                 ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-400 hover:text-gray-700'
+                : 'border-transparent text-fg-subtle hover:text-fg'
             )}
           >
             {pipeline.name}

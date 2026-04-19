@@ -17,7 +17,7 @@ export function Pagination({ page, totalPages, total, limit, onPageChange }: Pag
 
   return (
     <div className="flex items-center justify-between py-1">
-      <p className="text-[12px] text-gray-400">
+      <p className="text-[12px] text-fg-subtle">
         {safeTotal === 0
           ? 'No results'
           : `Showing ${from}–${to} of ${safeTotal.toLocaleString()}`}
@@ -29,13 +29,13 @@ export function Pagination({ page, totalPages, total, limit, onPageChange }: Pag
           className={cn(
             'flex items-center gap-1 px-3 h-8 rounded-md border text-[12px] font-medium transition-colors',
             page <= 1
-              ? 'border-gray-100 text-gray-300 cursor-not-allowed bg-white'
-              : 'border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900 bg-white',
+              ? 'border-ui-border-subtle text-fg-subtle cursor-not-allowed bg-canvas'
+              : 'border-ui-border text-fg-secondary hover:bg-canvas-subtle hover:text-fg bg-canvas',
           )}
         >
           <ChevronLeft size={13} strokeWidth={2} /> Prev
         </button>
-        <span className="text-[12px] text-gray-500 px-2 tabular-nums">
+        <span className="text-[12px] text-fg-muted px-2 tabular-nums">
           {page} / {safePages}
         </span>
         <button
@@ -44,8 +44,8 @@ export function Pagination({ page, totalPages, total, limit, onPageChange }: Pag
           className={cn(
             'flex items-center gap-1 px-3 h-8 rounded-md border text-[12px] font-medium transition-colors',
             page >= safePages
-              ? 'border-gray-100 text-gray-300 cursor-not-allowed bg-white'
-              : 'border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900 bg-white',
+              ? 'border-ui-border-subtle text-fg-subtle cursor-not-allowed bg-canvas'
+              : 'border-ui-border text-fg-secondary hover:bg-canvas-subtle hover:text-fg bg-canvas',
           )}
         >
           Next <ChevronRight size={13} strokeWidth={2} />
