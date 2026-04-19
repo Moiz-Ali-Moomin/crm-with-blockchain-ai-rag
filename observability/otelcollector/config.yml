@@ -16,10 +16,28 @@ processors:
     send_batch_size: 512
 
 exporters:
-  otlp:
+  # Traces → Tempo (OTLP gRPC, internal network only)
+  otlp/tempo:
     endpoint: crm_tempo:4317
     tls:
       insecure: true
+
+  # Metrics → Prometheus remote-write endpoint
+  prometheusremotewrite:
+    endpoint: http://crm_prometheus:9090/api/v1/write
+    tls:
+      insecure: true
+    resource_to_telemetry_conversion:
+      enabled: true   # promotes OTEL resource attrs → Prometheus labels
+
+  # Logs → Loki push API
+  loki:
+    endpoint: http://crm_loki:3100/loki/api/v1/push
+    default_labels_enabled:
+      exporter: false
+      job: true
+      instance: false
+      level: true
 
 extensions:
   health_check:
@@ -31,9 +49,17 @@ service:
     traces:
       receivers: [otlp]
       processors: [memory_limiter, batch]
-      exporters: [otlp]
+      exporters: [otlp/tempo]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [prometheusremotewrite]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [loki]
   telemetry:
     metrics:
-      address: 0.0.0.0:8888
+      address: 0.0.0.0:8888   # scraped by Prometheus job: otel_collector
     logs:
       level: warn

@@ -196,12 +196,28 @@ jobs:
               up -d --no-build --pull never
 
             # ── [7] Health-gate new slot — zero-downtime guarantee ───────────
-            # Traffic is NOT switched until this passes. If it fails the old
-            # slot keeps serving; we exit non-zero and the deploy is aborted.
+            # Traffic is NOT switched until both API and web pass.
+            # If either fails, the old slot keeps serving; deploy is aborted.
             IDLE_CONTAINER="crm_api_${IDLE}"
-            echo "[4/7] Health-checking $IDLE slot (container: $IDLE_CONTAINER)"
+            echo "[4/7] Health-checking $IDLE API (container: $IDLE_CONTAINER)"
             bash "$DEPLOY_PATH/deploy/health-check.sh" "$IDLE_CONTAINER" 60 5
-            echo "  OK: $IDLE slot is healthy"
+            echo "  OK: $IDLE API is healthy"
+
+            echo "[4/7] Health-checking $IDLE web (container: crm_web_${IDLE})"
+            for i in $(seq 1 30); do
+              WEB_STATUS=$(docker inspect --format='{{.State.Health.Status}}' "crm_web_${IDLE}" 2>/dev/null || echo "unknown")
+              if [ "$WEB_STATUS" = "healthy" ]; then
+                echo "  OK: crm_web_${IDLE} is healthy (attempt $i/30)"
+                break
+              fi
+              if [ "$i" = "30" ]; then
+                echo "  ❌ crm_web_${IDLE} did not become healthy (status: $WEB_STATUS)"
+                docker logs "crm_web_${IDLE}" --tail 30
+                exit 1
+              fi
+              echo "  Web health: $WEB_STATUS (attempt $i/30) — retrying in 5s..."
+              sleep 5
+            done
 
             # ── [8] Traffic cutover ──────────────────────────────────────────
             if [ "$CANARY_WEIGHT" -gt 0 ] && [ "$CANARY_WEIGHT" -lt 100 ]; then
@@ -232,9 +248,18 @@ jobs:
               echo "  OK: traffic switched to $IDLE"
             fi
 
-            # ── [9] Post-cutover health validation ───────────────────────────
+            # ── [9] Post-cutover health validation (with auto-rollback) ─────────
             echo "[6/7] Validating production endpoint"
-            bash "$DEPLOY_PATH/deploy/health-check-prod.sh" 30 5
+            if ! bash "$DEPLOY_PATH/deploy/health-check-prod.sh" 30 5; then
+              echo "  ❌ Post-cutover health check FAILED — auto-rolling back to $ACTIVE"
+              ACTIVE_SLOT="$ACTIVE" \
+              envsubst '${ACTIVE_SLOT}' \
+                < "$DEPLOY_PATH/nginx/conf.d/single-slot.conf.template" \
+                > "$DEPLOY_PATH/nginx/conf.d/app.conf"
+              docker exec crm_nginx nginx -t && docker exec crm_nginx nginx -s reload
+              echo "  ✅ Rolled back — production is serving $ACTIVE again"
+              exit 1
+            fi
             echo "  OK: production endpoint healthy"
 
             # ── [10] Keep old slot running (true blue-green) ────────────────
@@ -278,25 +303,45 @@ jobs:
             DEPLOY_PATH="${DEPLOY_PATH:-/opt/crm-with-blockchain-rag}"
             cd "$DEPLOY_PATH"
 
-            # Detect from runtime — same logic as deploy, no file dependency
-            if docker ps --format '{{.Names}}' | grep -q '^crm_api_green$'; then
-              ACTIVE="green"; PREV="blue"
+            # Derive the PRIMARY slot from the live nginx config, not from which
+            # containers are running. In canary mode both slots run simultaneously,
+            # so "docker ps" cannot distinguish primary from canary — whichever has
+            # the higher weight in app.conf IS the stable slot to roll back to.
+            # grep the rendered app.conf for the first "server crm_api_<slot>" line;
+            # the primary is listed first (highest weight or only entry).
+            PRIMARY=$(grep -oP 'server crm_api_\K(blue|green)' \
+              "$DEPLOY_PATH/nginx/conf.d/app.conf" | head -1)
+
+            if [ -z "$PRIMARY" ]; then
+              echo "ERROR: cannot determine primary slot from app.conf — inspect manually" && exit 1
+            fi
+
+            if [ "$PRIMARY" = "blue" ]; then FALLBACK="green"; else FALLBACK="blue"; fi
+
+            # In canary mode PRIMARY is the stable slot; rollback = route all to PRIMARY.
+            # In full-switch mode PRIMARY is the new slot; FALLBACK is previous version.
+            # Detect canary mode: if both slots appear in app.conf, we're in canary.
+            SLOT_COUNT=$(grep -oP 'server crm_api_\K(blue|green)' \
+              "$DEPLOY_PATH/nginx/conf.d/app.conf" | sort -u | wc -l)
+
+            if [ "$SLOT_COUNT" -gt 1 ]; then
+              # Canary mode — roll back to PRIMARY (the stable high-weight slot)
+              TARGET="$PRIMARY"
+              echo "Canary rollback detected — routing all traffic back to primary: $TARGET"
             else
-              ACTIVE="blue"; PREV="green"
+              # Full blue-green — FALLBACK is the previous version
+              if ! docker ps --format '{{.Names}}' | grep -q "^crm_api_${FALLBACK}$"; then
+                echo "ERROR: previous slot crm_api_${FALLBACK} is not running — cannot rollback" && exit 1
+              fi
+              TARGET="$FALLBACK"
+              echo "Full blue-green rollback — routing traffic to previous slot: $TARGET"
             fi
 
-            # Verify the previous slot is actually running before we cut over
-            if ! docker ps --format '{{.Names}}' | grep -q "^crm_api_${PREV}$"; then
-              echo "ERROR: previous slot crm_api_${PREV} is not running — cannot rollback" && exit 1
-            fi
-
-            echo "Rolling back: $ACTIVE → $PREV"
-
-            ACTIVE_SLOT="$PREV" \
+            ACTIVE_SLOT="$TARGET" \
             envsubst '${ACTIVE_SLOT}' \
               < "$DEPLOY_PATH/nginx/conf.d/single-slot.conf.template" \
               > "$DEPLOY_PATH/nginx/conf.d/app.conf"
             docker exec crm_nginx nginx -t
             docker exec crm_nginx nginx -s reload
 
-            echo "ROLLBACK COMPLETE — now serving: $PREV"
+            echo "ROLLBACK COMPLETE — now serving: $TARGET"

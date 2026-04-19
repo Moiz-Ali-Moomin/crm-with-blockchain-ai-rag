@@ -15,7 +15,7 @@ services:
       PORT: 3001
       API_VERSION: v1
       SLOT: green
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://crm_otel_collector:4318/v1/traces
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://crm_otel_collector:4318
       OTEL_SERVICE_NAME: crm-api
     networks:
       - crm_internal

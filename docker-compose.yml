@@ -100,6 +100,7 @@ services:
       - '--storage.tsdb.path=/prometheus'
       - '--storage.tsdb.retention.time=30d'
       - '--web.enable-lifecycle'          # allows hot-reload via POST /-/reload
+      - '--web.enable-remote-write-receiver'  # accepts OTLP metrics from OTEL collector
     volumes:
       - ./observability/prometheus:/etc/prometheus:ro
       - prometheus_data:/prometheus
@@ -178,6 +179,8 @@ services:
     container_name: crm_tempo
     restart: unless-stopped
     command: -config.file=/etc/tempo/tempo.yml
+    ports:
+      - "3200:3200"    # Tempo HTTP API (Grafana datasource + health checks)
     volumes:
       - ./observability/tempo:/etc/tempo:ro
       - tempo_data:/var/tempo
@@ -194,12 +197,17 @@ services:
     container_name: crm_otel_collector
     restart: unless-stopped
     command: --config=/etc/otelcol/config.yml
+    ports:
+      - "4317:4317"   # OTLP gRPC — apps instrument with this
+      - "4318:4318"   # OTLP HTTP — browser/SDK HTTP fallback
     volumes:
       - ./observability/otelcollector:/etc/otelcol:ro
     networks:
       - crm_internal
     depends_on:
       - tempo
+      - loki
+      - prometheus
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:13133 || exit 1"]
       interval: 30s
