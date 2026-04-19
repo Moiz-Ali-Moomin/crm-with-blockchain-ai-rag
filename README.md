@@ -11,7 +11,7 @@
 [![Redis](https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white)](https://redis.io/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-A production-ready, fully-owned SaaS CRM with AI-powered insights via Retrieval-Augmented Generation, blockchain deal verification on Polygon, a stablecoin payment rail with double-entry ledger accounting, and real-time Socket.io notifications. Built to the architectural standard of HubSpot, Salesforce, and Zoho — but entirely self-hosted and extensible.
+A production-ready, fully-owned SaaS CRM with an 8-stage RAG pipeline (pgvector + GPT-4o), blockchain deal verification on Polygon, three payment rails (Stripe, PayPal, Razorpay), Fireblocks MPC custody for USDC, a double-entry ledger, 13 BullMQ workers with DLQ and reconciliation, and a full observability stack (OpenTelemetry, Grafana Tempo, Loki, Prometheus, Alertmanager). Built to the architectural standard of HubSpot, Salesforce, and Zoho — but entirely self-hosted and extensible.
 
 [Quick Start](#-quick-start) · [Architecture](#-architecture) · [Financial Rail](#-financial-rail) · [AI & RAG](#-ai--rag) · [API Reference](#-api-reference) · [Deployment](#-deployment)
 
@@ -32,6 +32,7 @@ A production-ready, fully-owned SaaS CRM with AI-powered insights via Retrieval-
 - [AI & RAG](#-ai--rag)
 - [Blockchain](#-blockchain)
 - [Queue System](#-queue-system)
+- [Observability](#-observability)
 - [Running Tests](#-running-tests)
 - [CI/CD Pipeline](#-cicd-pipeline)
 - [Deployment](#-deployment)
@@ -62,16 +63,21 @@ A production-ready, fully-owned SaaS CRM with AI-powered insights via Retrieval-
 - **Email Templates** — Full CRUD with live Handlebars variable preview and duplicate support
 
 ### AI & Intelligence
-- **RAG Pipeline** — GPT-4o answers grounded exclusively in your CRM data; pgvector cosine similarity retrieval prevents hallucination
-- **Async Embeddings** — `text-embedding-ada-002` vectors generated in the background via BullMQ; job deduplication prevents re-processing
+- **RAG Pipeline** — 8-stage orchestration: quota check → Redis cache → pgvector search → context window → GPT-4o → usage record → Prometheus metrics → MongoDB audit log
+- **Async Embeddings** — `text-embedding-3-small` (1536-dim) vectors generated in the background via BullMQ; job deduplication prevents re-processing
 - **AI Copilot** — Contextual assistance on any record: contact history summaries, email reply suggestions, follow-up recommendations, activity timeline synthesis
+- **Token Cost Control** — Per-tenant monthly token quotas stored in Redis (`INCRBY` + `EXPIREAT`); tiers: free=10k, starter=100k, pro=500k, enterprise=unlimited; 429 thrown on budget exhaustion
+- **Circuit Breaker** — Redis-backed circuit breaker (CLOSED/OPEN/HALF_OPEN) wraps every OpenAI call; state shared across all pods so a single flapping key opens the breaker cluster-wide
 - **AI Audit Log** — Every LLM call persisted to MongoDB with latency, token count, confidence score, and source chunk references for cost tracking and quality audits
+- **Lead Scoring Engine** — Deterministic 0–100 score per lead: profile completeness (20), activity frequency (25), recency (25), email engagement (15), status weight (15); Redis-cached 5 min, fire-and-forget DB persist
 
 ### Financial Rail
 - **Payment State Machine** — Enforced lifecycle: `PENDING → CONFIRMING → COMPLETED → REFUNDED`; `FAILED` and `EXPIRED` are terminal with invalid transitions rejected before hitting the database
 - **Stripe Integration** — Subscription checkout, invoice history, plan management, webhook event handling (`payment_intent.succeeded`, `charge.dispute.created`)
 - **PayPal Support** — Redirect-based checkout flow with sandbox/live toggle
+- **Razorpay** — Third payment rail: subscriptions (UPI AutoPay, cards, netbanking), one-time orders, HMAC-SHA256 webhook verification; serves Indian-market tenants
 - **Stablecoin Payments** — USDC on-chain payment detection via `BlockchainEventsWorker`; transaction confirmation polling with 10-attempt exponential backoff
+- **Custody Provider Abstraction** — `Icustody` port with two adapters: `FireblocksCustodyAdapter` (MPC wallets via Fireblocks REST API + RSA signing, production) and `LocalCustodyAdapter` (HD wallet, development)
 - **Tenant Wallets** — Per-tenant wallet provisioning on Polygon/Ethereum; balance sync from custody provider; USDC withdrawal with idempotency key
 - **Double-Entry Ledger** — General-ledger accounts (`LedgerAccount`) and immutable journal entries (`LedgerEntry`) for revenue recognition, linked to deals and payments; full balance sheet generation
 
@@ -84,7 +90,9 @@ A production-ready, fully-owned SaaS CRM with AI-powered insights via Retrieval-
 ### Platform
 - **RBAC** — Five roles: `SUPER_ADMIN`, `ADMIN`, `SALES_MANAGER`, `SALES_REP`, `SUPPORT_AGENT`, `VIEWER` — enforced globally via NestJS guards
 - **Automation Engine** — Condition evaluator + action executor; triggers on `LEAD_CREATED`, `LEAD_STATUS_CHANGED`, `DEAL_WON`, and more
-- **Analytics Dashboard** — Revenue chart, pipeline funnel, lead source breakdown, and sales performance metrics
+- **Analytics Dashboard** — Revenue chart, pipeline funnel, lead source breakdown, sales performance metrics, and per-lead scoring
+- **Full Observability** — OpenTelemetry distributed tracing (OTLP → Grafana Tempo), structured logs (Loki + Promtail), Prometheus metrics, Alertmanager → PagerDuty, custom business metrics (payments processed, AI calls, reconciliations)
+- **Dead Letter Queue** — Jobs exhausting all retries are routed to a DLQ; `DlqWorker` logs structured alerts (Loki → Grafana → PagerDuty) and archives to MongoDB; `POST /admin/jobs/retry` for manual re-enqueue
 - **Outbound Webhooks** — CRUD webhook endpoints, HMAC-SHA256 signing, delivery history, 5-attempt retry with backoff
 - **Billing** — Stripe checkout, invoice history, and plan management (free / pro / enterprise)
 - **Integrations Catalog** — Connect/disconnect external tools: Stripe, SendGrid, Twilio, Google Ads, and more
@@ -106,28 +114,37 @@ A production-ready, fully-owned SaaS CRM with AI-powered insights via Retrieval-
 │   NestJS 10  ·  REST /api/v1  ·  Socket.io WebSocket Gateway        │
 │   JWT (access 15m + refresh 7d)  ·  RBAC Guards  ·  Helmet          │
 │   Rate Limiting  ·  Zod Validation Pipe  ·  Swagger / OpenAPI 3     │
+│   OpenTelemetry (HTTP + NestJS + pg + ioredis instrumentation)       │
 └──────┬──────────┬──────────┬──────────────┬────────────────────────┘
        │          │          │              │
 ┌──────▼──────┐ ┌─▼────────┐ ┌─▼─────────┐ ┌▼────────────────────────┐
-│ PostgreSQL  │ │  Redis   │ │  MongoDB  │ │   BullMQ Workers (10)   │
+│ PostgreSQL  │ │  Redis   │ │  MongoDB  │ │   BullMQ Workers (13)   │
 │  Prisma v5  │ │  Cache + │ │  AI Audit │ │                         │
-│  pgvector   │ │  Queues  │ │  Logs     │ │  email  ·  sms          │
-│  25 modules │ │          │ │           │ │  notification           │
-│  20+ models │ │          │ │           │ │  automation  ·  webhook │
+│  pgvector   │ │  Queues  │ │  Logs +   │ │  email  ·  sms          │
+│  25 modules │ │  Circuit │ │  DLQ      │ │  notification           │
+│  25+ models │ │  Breaker │ │  Archive  │ │  automation  ·  webhook │
 └─────────────┘ └──────────┘ └───────────┘ │  blockchain             │
                                             │  ai-embedding           │
                                             │  payment-processing     │
                                             │  blockchain-events      │
+                                            │  transaction-confirm    │
+                                            │  withdrawals  ·  dlq    │
+                                            │  reconciliation         │
                                             └──────────┬──────────────┘
                                                        │
-                   ┌───────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                      OBSERVABILITY TIER                              │
+│  OTel Collector → Grafana Tempo (traces)                             │
+│  Promtail → Loki → Grafana (logs)                                    │
+│  Prometheus → Grafana (metrics) → Alertmanager → PagerDuty          │
+└──────────────────────────────────────────────────────────────────────┘
                    │
       ┌────────────┴──────────────┬───────────────────────┐
       │                           │                       │
 ┌─────▼────────┐       ┌──────────▼──────────┐  ┌────────▼──────────┐
-│  OpenAI API  │       │   Polygon Network   │  │  Custody Provider │
-│  GPT-4o      │       │  DealHashRegistry   │  │  USDC Wallets     │
-│  ada-002     │       │  Smart Contract     │  │  Withdrawals      │
+│  OpenAI API  │       │   Polygon Network   │  │  Fireblocks MPC   │
+│  GPT-4o      │       │  DealHashRegistry   │  │  (prod custody)   │
+│  embed-3-sm  │       │  Smart Contract     │  │  LocalHD (dev)    │
 └──────────────┘       └─────────────────────┘  └───────────────────┘
 ```
 
@@ -137,7 +154,15 @@ Every authenticated request carries `tenantId` inside its JWT payload. `AsyncLoc
 
 ### Queue-Driven Side Effects
 
-All operations with external dependencies (email, SMS, blockchain, AI embeddings, webhook delivery) are decoupled from the HTTP response via BullMQ. The API returns immediately; workers process jobs reliably with per-queue retry strategies and exponential backoff. Failed jobs remain inspectable in Redis for audit purposes.
+All operations with external dependencies (email, SMS, blockchain, AI embeddings, webhook delivery) are decoupled from the HTTP response via BullMQ. The API returns immediately; workers process jobs reliably with per-queue retry strategies and exponential backoff. Failed jobs remain inspectable in Redis for audit purposes. Jobs that exhaust all retries are automatically routed to the Dead Letter Queue.
+
+### Domain-Driven Design
+
+The `Deals` and `Blockchain` modules have been refactored to full DDD: domain entities, value objects (`Money`, `DealStage`), domain events (`DealWonEvent`), use-cases, ports, and adapters. A lightweight `DomainEventBus` (EventEmitter2 wrapper) publishes events to saga listeners without coupling modules.
+
+### Saga Pattern — Choreography
+
+`DealWonSaga` reacts to `deal.won` events and orchestrates multi-step side effects (payment init, blockchain registration) with a compensation matrix: if payment init fails, the deal stage is reset to `CLOSING`. `SagaStateStore` deduplicates re-deliveries using the saga's `correlationId`.
 
 ---
 
@@ -157,9 +182,11 @@ All operations with external dependencies (email, SMS, blockchain, AI embeddings
 | Auth | Passport-JWT + bcrypt | — |
 | Email | SendGrid | 8.1 |
 | SMS / WhatsApp | Twilio | 5.0 |
-| Payments | Stripe | 14.14 |
-| AI | OpenAI SDK (GPT-4o + ada-002) | 4.104 |
+| Payments | Stripe + PayPal + Razorpay | 14.14 |
+| AI | OpenAI SDK (GPT-4o + text-embedding-3-small) | 4.104 |
 | Blockchain | ethers.js (EVM / Polygon) | 6.16 |
+| Custody | Fireblocks REST API (prod) / LocalHD (dev) | — |
+| Tracing | OpenTelemetry SDK + OTLP exporter | — |
 | Templates | Handlebars | 4.7 |
 | Validation | Zod | 3.22 |
 | Logging | Winston + nest-winston | — |
@@ -189,6 +216,11 @@ All operations with external dependencies (email, SMS, blockchain, AI embeddings
 | Reverse Proxy | Nginx |
 | CI/CD | GitHub Actions |
 | Container Registry | GitHub Container Registry (GHCR) |
+| Metrics | Prometheus + Grafana |
+| Logs | Loki + Promtail + Grafana |
+| Traces | OpenTelemetry Collector → Grafana Tempo |
+| Alerting | Alertmanager → PagerDuty / email |
+| Zero-Downtime Deploy | Blue/Green (`docker-compose.blue.yml` + `docker-compose.green.yml`) |
 
 ---
 
@@ -327,6 +359,25 @@ BLOCKCHAIN_RPC_URL=https://rpc-mumbai.maticvigil.com/v1/YOUR_API_KEY
 BLOCKCHAIN_PRIVATE_KEY=0xYOUR_WALLET_PRIVATE_KEY
 BLOCKCHAIN_CONTRACT_ADDR=0xYOUR_DEPLOYED_CONTRACT_ADDRESS
 BLOCKCHAIN_NETWORK=polygon-mumbai   # polygon-mumbai | polygon | ethereum
+
+# Multi-chain RPC (reconciliation worker)
+BLOCKCHAIN_RPC_URL_POLYGON=https://polygon-rpc.com
+BLOCKCHAIN_RPC_URL_BASE=https://mainnet.base.org
+BLOCKCHAIN_RPC_URL_ETHEREUM=https://mainnet.infura.io/v3/YOUR_KEY
+
+# Payments (Razorpay — Indian market subscriptions/orders)
+RAZORPAY_KEY_ID=rzp_test_xxx
+RAZORPAY_KEY_SECRET=xxx
+RAZORPAY_WEBHOOK_SECRET=xxx
+
+# Custody (Fireblocks — production MPC wallets)
+FIREBLOCKS_API_KEY=xxx
+FIREBLOCKS_API_SECRET_PATH=/run/secrets/fireblocks_rsa_key
+FIREBLOCKS_BASE_URL=https://api.fireblocks.io
+
+# Observability (OpenTelemetry — leave blank to use ConsoleSpanExporter in dev)
+OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+OTEL_SERVICE_NAME=crm-backend
 ```
 
 > **Security note:** Never commit `.env` to version control. In production use a dedicated secrets manager (AWS Secrets Manager, HashiCorp Vault, or Doppler) and inject values at runtime. GitHub Secrets are used for CI/CD injection.
@@ -461,7 +512,8 @@ NexusCRM ships with three integrated financial subsystems. They are independent 
 │  │                 │   │                  │   │             │  │
 │  │  Stripe         │   │  USDC detection  │   │  Chart of   │  │
 │  │  PayPal         │   │  Wallet balance  │   │  accounts   │  │
-│  │  State machine  │   │  Withdrawals     │   │             │  │
+│  │  Razorpay       │   │  Withdrawals     │   │             │  │
+│  │  State machine  │   │  Fireblocks MPC  │   │             │  │
 │  │                 │   │                  │   │  Debit /    │  │
 │  │  PENDING        │   │  PENDING         │   │  Credit     │  │
 │  │  CONFIRMING     │   │  CONFIRMED       │   │  pairs      │  │
@@ -514,30 +566,47 @@ Every revenue event (deal won, payment received, refund issued) creates a balanc
 User Query
     │
     ▼
-EmbeddingService.embed(query)          ← OpenAI text-embedding-ada-002
+CostControlService.assertQuota()       ← Redis per-tenant monthly token budget
     │
     ▼
-VectorSearchService.search(vector, k)  ← pgvector cosine similarity
+Redis cache check (SHA-256 param hash) ← cache hit → return immediately
+    │
+    ▼
+EmbeddingService.embed(query)          ← OpenAI text-embedding-3-small (1536-dim)
+    │
+    ▼
+VectorSearchService.search(vector, k)  ← pgvector cosine distance (<=>)
+    │                                    IVFFlat index (lists=100)
     │                                    (Activities, Communications, Tickets)
     ▼
-RagService.buildContext(chunks)        ← top-K retrieved records as context
+RagService.buildContext(chunks)        ← 12,000-char context window
+    │                                    confidence = avg cosine similarity
+    ▼
+CircuitBreakerService.execute()        ← Redis-backed CLOSED/OPEN/HALF_OPEN guard
     │
     ▼
-OpenAI Chat Completion (GPT-4o)        ← "Answer using only the provided context"
+OpenAI Chat Completion (GPT-4o)        ← temperature=0.2, system prompt hardcoded
+    │                                    user input placed in 'user' role only
+    ├──► CostControlService.recordUsage()  ← Redis INCRBY + EXPIREAT (monthly bucket)
     │
-    ├──► Response to caller
+    ├──► BusinessMetricsService          ← Prometheus histogram (latency, tokens)
     │
-    └──► EventLogRepository (MongoDB)  ← latency, tokens, source chunks, confidence
+    ├──► Response to caller              ← { answer, sources, confidence, latencyMs,
+    │                                        tokensUsed, fromCache }
+    └──► AiLogRepository (MongoDB)       ← fire-and-forget audit log
 ```
 
 ### Subsystems
 
 | Service | Responsibility |
 |---|---|
-| `VectorSearchService` | Cosine similarity search across pgvector columns on Activity, Communication, Ticket |
-| `RagService` | Full RAG pipeline — embed, retrieve, build context window, call GPT-4o, log to MongoDB |
-| `CopilotService` | Contextual assistance: contact summaries, email reply drafts, follow-up suggestions, activity digests |
-| `EmbeddingService` | Async vector generation via BullMQ `ai-embedding` queue; job deduplication via `embed:{type}:{id}` jobId |
+| `VectorSearchService` | Cosine similarity search via raw SQL pgvector `<=>` operator; IVFFlat index (lists=100); two-layer Redis cache |
+| `RagService` | 8-stage RAG pipeline — quota check, cache, embed, retrieve, context window, LLM call, usage record, audit log |
+| `CopilotService` | Contextual assistance: contact summaries (JSON mode), email reply drafts (500 tok), follow-up suggestions (300 tok), activity digests (400 tok) |
+| `RealEmbeddingService` | `text-embedding-3-small` production adapter; idempotent upsert: Prisma ORM + raw SQL `SET embedding = ?::vector` |
+| `MockEmbeddingService` | Zero-cost stub injected in CI/test via `EMBEDDING_SERVICE` token |
+| `CostControlService` | Per-tenant monthly token quotas in Redis; `assertQuota()` throws 429; `recordUsage()` never throws |
+| `CircuitBreakerService` | Redis-backed circuit breaker; CLOSED → OPEN after threshold failures; HALF_OPEN probe after cool-down |
 
 ### AI Audit Log
 
@@ -596,7 +665,7 @@ See [docs/blockchain.md](docs/blockchain.md) for contract deployment instruction
 
 ## Queue System
 
-10 BullMQ queues backed by Redis 7. All queues use dedicated workers, per-job retry strategies, and exponential backoff.
+13 BullMQ queues backed by Redis 7. All queues use dedicated workers, per-job retry strategies, and exponential backoff.
 
 | Queue | Worker | Retries | Backoff | Purpose |
 |---|---|---|---|---|
@@ -610,10 +679,59 @@ See [docs/blockchain.md](docs/blockchain.md) for contract deployment instruction
 | `payment-processing` | `payment-processing.worker.ts` | 8 | 5s exponential | Payment intent lifecycle |
 | `blockchain-events` | `blockchain-events.worker.ts` | 5 | 3s exponential | USDC on-chain event detection |
 | `transaction-confirmation` | `transaction-confirmation.worker.ts` | 10 | 15s exponential | Tx confirmation polling |
+| `withdrawals` | `withdrawal.worker.ts` | 5 | 10s exponential | Outbound USDC transfer via custody provider |
+| `reconciliation` | `reconciliation.worker.ts` | 1 | — | Safety-net: scan PENDING payments for missed on-chain transfers |
+| `dlq` | `dlq.worker.ts` | — | — | Dead letter sink — log, alert, archive exhausted jobs |
 
-**Job deduplication:** embedding jobs use `jobId: embed:${entityType}:${entityId}` — if the same entity is updated rapidly, only one embedding job runs.
+**Job deduplication:** embedding jobs use `jobId: embed:${entityType}:${entityId}`; withdrawal jobs use `jobId: withdrawal-${idempotencyKey}`; confirmation jobs use `jobId: confirm-${paymentId}`.
+
+**Dead Letter Queue:** Any worker decorated with `@OnWorkerEvent('failed')` calls `DlqPublisherService.publishIfExhausted()` on final failure. The DLQ worker emits a structured error log (Loki → Grafana alert → PagerDuty) and can optionally archive to MongoDB. Ops can re-enqueue via `POST /admin/jobs/retry`.
+
+**Reconciliation safety-net:** `ReconciliationScheduler` enqueues a singleton job every 2 minutes. The worker fetches all `PENDING` payments and queries on-chain ERC20 `Transfer` events per chain (Polygon/BASE: 900 blocks ≈ 30 min; Ethereum: 150 blocks ≈ 30 min). Amount matching uses ±1 atomic unit tolerance. The `handleTxDetected()` call and confirmation job enqueue are both idempotent.
 
 **Retention policy:** completed jobs: keep last 100–500; failed jobs: keep last 500–2000 for audit. Inspect failed jobs via Redis Commander at http://localhost:8081.
+
+---
+
+## Observability
+
+NexusCRM ships a full production observability stack out of the box.
+
+### Distributed Tracing — OpenTelemetry
+
+`crm-backend/src/tracing.ts` bootstraps the OpenTelemetry Node SDK before NestJS loads:
+
+- **Auto-instrumented:** HTTP server/client, NestJS lifecycle, PostgreSQL (`pg`), ioredis
+- **Ignored paths:** `/health`, `/metrics` (no noise in Tempo)
+- **Custom attribute:** `crm.tenant_id` added to every inbound HTTP span
+- **Dev:** `ConsoleSpanExporter`; **Prod:** `OTLPTraceExporter` → OpenTelemetry Collector → Grafana Tempo
+- **BullMQ trace propagation:** `injectTraceContext()` serialises W3C `traceparent` into job data; `extractTraceContext()` re-parents worker spans — end-to-end traces span HTTP → queue → worker
+
+### Metrics — Prometheus
+
+`BusinessMetricsService` records application-level metrics:
+
+| Metric | Type | Description |
+|---|---|---|
+| `payments_processed_total` | Counter | Per tenant/status |
+| `payment_failed_total` | Counter | Per tenant/reason |
+| `ai_calls_total` | Counter | Per tenant/model |
+| `ai_latency_seconds` | Histogram | Per model |
+| `reconciliation_recovered_total` | Counter | Payments rescued by reconciliation |
+
+Scraped by Prometheus at `/metrics`; dashboards in Grafana.
+
+### Logs — Loki + Promtail
+
+Structured JSON logs from Winston → Promtail (Docker log driver) → Loki → Grafana. DLQ worker emits a tagged `[DLQ]` log line that triggers a Grafana alert rule → Alertmanager → PagerDuty.
+
+### Developer Dashboards
+
+| Tool | URL | Notes |
+|---|---|---|
+| Grafana | http://localhost:3005 | Traces, metrics, logs unified |
+| Prometheus | http://localhost:9090 | Raw metrics scrape |
+| Alertmanager | http://localhost:9093 | Alert routing / silencing |
 
 ---
 
@@ -718,7 +836,27 @@ See [docs/deployment.md](docs/deployment.md) for the complete guide covering:
 - Nginx reverse proxy with SSL (Certbot / Let's Encrypt)
 - Zero-downtime rolling deploys
 - PostgreSQL and MongoDB backup strategy
-- Monitoring with Prometheus + Grafana
+- Full observability stack setup (Prometheus, Grafana, Loki, Tempo, Alertmanager)
+
+### Blue/Green Zero-Downtime Deployment
+
+Two parallel compose files (`docker-compose.blue.yml` / `docker-compose.green.yml`) run the app on separate internal ports behind Nginx. To deploy:
+
+```bash
+# Deploy to the inactive slot (e.g. green)
+docker compose -f docker-compose.green.yml up -d --build
+
+# Verify health
+curl http://localhost:3002/api/v1/health
+
+# Shift Nginx upstream to green (atomic config reload — zero dropped connections)
+nginx -s reload
+
+# Tear down old blue slot
+docker compose -f docker-compose.blue.yml down
+```
+
+The CD pipeline automates this flow with automatic rollback if the health check fails within 30 attempts (5s interval).
 
 ### Quick VPS Deploy
 
@@ -871,11 +1009,16 @@ GET    /blockchain/transactions       List blockchain transactions for tenant
 
 ### AI
 
+Rate limit: 5 req/min · 100 req/hour per tenant.
+
 ```
-POST   /ai/search               { query } → semantic search across CRM
-POST   /ai/query                { query } → full RAG pipeline response
-POST   /ai/contact/:id/summarize  → contact history summary
-POST   /ai/deals/verify         { dealId } → RAG + blockchain combined check
+POST   /ai/search                    { query } → semantic search across CRM
+POST   /ai/query                     { query } → full RAG pipeline response
+POST   /ai/contact/:id/summary       → contact history summary (JSON: summary, keyPoints, sentiment)
+POST   /ai/email/reply               { communicationId, instruction? } → email reply draft
+POST   /ai/follow-up                 { entityType, entityId } → next best action suggestion
+POST   /ai/activity/summary          { entityType, entityId } → activity timeline digest
+POST   /ai/deals/verify              { dealId } → RAG answer + blockchain proof + deal snapshot
 ```
 
 ### Platform
@@ -918,10 +1061,13 @@ crm-with-blockchain-rag/
 │   │   ├── app.module.ts           # Root module (25 feature modules)
 │   │   ├── config/
 │   │   │   └── env.validation.ts   # Zod schema — all env vars validated at startup
+│   │   ├── tracing.ts              # OTel SDK bootstrap (HTTP, NestJS, pg, ioredis)
 │   │   ├── core/                   # Global infrastructure (re-exported to all modules)
 │   │   │   ├── database/           # PrismaService (tenant middleware), PrismaTransactionService
 │   │   │   ├── cache/              # RedisService (ioredis wrapper)
-│   │   │   ├── queue/              # BullMQ module — 10 queue registrations
+│   │   │   ├── metrics/            # BusinessMetricsService (Prometheus counters/histograms)
+│   │   │   ├── resilience/         # CircuitBreakerService (Redis-backed CLOSED/OPEN/HALF_OPEN)
+│   │   │   ├── queue/              # BullMQ module — 13 queue registrations
 │   │   │   └── websocket/          # WsGateway (Socket.io) + WsService
 │   │   ├── common/
 │   │   │   ├── decorators/         # @CurrentUser(), @Public(), @Roles()
@@ -934,7 +1080,9 @@ crm-with-blockchain-rag/
 │   │   │   ├── errors/             # Domain error classes
 │   │   │   └── utils/              # crypto, date, pagination, template helpers
 │   │   ├── jobs/
-│   │   │   └── workers/            # 10 BullMQ workers
+│   │   │   ├── services/
+│   │   │   │   └── dlq-publisher.service.ts   # publishes exhausted jobs to DLQ queue
+│   │   │   └── workers/            # 13 BullMQ workers
 │   │   │       ├── email.worker.ts
 │   │   │       ├── sms.worker.ts
 │   │   │       ├── notification.worker.ts
@@ -944,7 +1092,10 @@ crm-with-blockchain-rag/
 │   │   │       ├── ai-embedding.worker.ts
 │   │   │       ├── payment-processing.worker.ts
 │   │   │       ├── blockchain-events.worker.ts
-│   │   │       └── transaction-confirmation.worker.ts
+│   │   │       ├── transaction-confirmation.worker.ts
+│   │   │       ├── withdrawal.worker.ts        # outbound USDC + OTel + Redis idempotency
+│   │   │       ├── reconciliation.worker.ts    # safety-net: scan PENDING vs on-chain
+│   │   │       └── dlq.worker.ts               # dead letter sink → Loki alert
 │   │   └── modules/                # 25 feature modules (Controller → Service → Repository)
 │   │       ├── auth/               # JWT login, register, refresh, logout, blacklist
 │   │       ├── users/              # User management, invitation
@@ -967,10 +1118,20 @@ crm-with-blockchain-rag/
 │   │       ├── integrations/       # External tool connections catalog
 │   │       ├── billing/            # Stripe subscriptions, invoices
 │   │       ├── analytics/          # Dashboard aggregations
-│   │       ├── ai/                 # RAG, embeddings, copilot, vector search
-│   │       ├── blockchain/         # Deal hash registry, listener, custody adapter
+│   │       ├── ai/                 # RAG (8-stage), embeddings, copilot, vector search
+│   │       │   ├── rag.service.ts
+│   │       │   ├── real-embedding.service.ts   # text-embedding-3-small adapter
+│   │       │   ├── mock-embedding.service.ts   # CI/test stub
+│   │       │   ├── vector-search.service.ts    # pgvector cosine similarity
+│   │       │   ├── copilot.service.ts
+│   │       │   └── cost-control.service.ts     # per-tenant token quotas
+│   │       ├── analytics/          # Dashboard aggregations, lead-scoring.service.ts
+│   │       ├── billing/            # Stripe + PayPal + Razorpay (razorpay.service.ts)
+│   │       ├── blockchain/         # DDD: entities, value objects, events, use-cases
+│   │       │   └── sagas/          # deal-won.saga.ts (choreography + compensation)
 │   │       ├── wallets/            # Tenant wallets, USDC balance, withdrawals
-│   │       ├── payments/           # Payment intents, state machine, Stripe/PayPal
+│   │       │   └── custody/        # fireblocks-custody.adapter.ts | local-custody.adapter.ts
+│   │       ├── payments/           # Payment intents, state machine, Stripe/PayPal/Razorpay
 │   │       └── ledger/             # Double-entry accounting, balance sheet
 │   ├── Dockerfile                  # Multi-stage build (Node 20-alpine, non-root)
 │   └── .env.example
@@ -1013,9 +1174,11 @@ crm-with-blockchain-rag/
 │   ├── blockchain.md               # Contract deployment, hashing, verification
 │   └── ai-rag.md                   # RAG pipeline, pgvector, embedding strategy
 │
-├── nginx/                          # Reverse proxy configuration
+├── nginx/                          # Reverse proxy + rate limiting config
 ├── docker-compose.yml              # Development infrastructure
 ├── docker-compose.prod.yml         # Full production stack
+├── docker-compose.blue.yml         # Blue slot (zero-downtime blue/green)
+├── docker-compose.green.yml        # Green slot
 ├── CONTRIBUTING.md
 ├── SECURITY.md
 └── README.md
