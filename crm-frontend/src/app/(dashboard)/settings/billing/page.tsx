@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import Script from 'next/script';
@@ -111,7 +112,7 @@ function PaymentMethodModal({
   onClose: () => void;
   onSuccess: () => void;
 }) {
-  const [loading, setLoading] = useState<'razorpay' | 'razorpay_order' | 'stripe' | 'paypal' | null>(null);
+  const [loading, setLoading] = useState<'razorpay' | 'razorpay_order' | 'paypal' | null>(null);
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const billingUrl = `${origin}/settings/billing`;
 
@@ -174,19 +175,6 @@ function PaymentMethodModal({
       rzp.open();
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Failed to create order');
-      setLoading(null);
-    }
-  }
-
-  async function handleStripe() {
-    setLoading('stripe');
-    try {
-      const { url } = await billingApi.createCheckoutSession({
-        planId: plan.id, successUrl: billingUrl, returnUrl: billingUrl,
-      });
-      window.location.href = url;
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Failed to start Stripe checkout');
       setLoading(null);
     }
   }
@@ -265,24 +253,6 @@ function PaymentMethodModal({
             </>
           ) : (
             <>
-              {/* Stripe */}
-              <button
-                onClick={handleStripe}
-                disabled={loading !== null}
-                className="w-full flex items-center gap-4 p-4 rounded-xl border border-ui-border hover:border-blue-400 hover:shadow-sm transition-all group disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <div className="w-10 h-10 rounded-xl bg-canvas-subtle border border-ui-border flex items-center justify-center flex-shrink-0 group-hover:bg-blue-50 dark:group-hover:bg-blue-900/20">
-                  <CreditCard size={18} className="text-blue-600" />
-                </div>
-                <div className="text-left flex-1">
-                  <p className="text-sm font-medium text-fg">Credit / Debit Card</p>
-                  <p className="text-xs text-fg-subtle">Powered by Stripe · Visa, Mastercard, Amex</p>
-                </div>
-                {loading === 'stripe'
-                  ? <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                  : <ChevronRight size={16} className="text-fg-subtle group-hover:text-blue-500" />}
-              </button>
-
               {/* PayPal */}
               <button
                 onClick={handlePayPal}
@@ -494,11 +464,33 @@ function InvoiceRow({ invoice }: { invoice: Invoice }) {
 
 // ── BillingPage ───────────────────────────────────────────────────────────────
 
-export default function BillingPage() {
+function BillingContent() {
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [currency, setCurrency] = useState<Currency>('INR');
   const [razorpayLoaded, setRazorpayLoaded] = useState(false);
+
+  // After PayPal approval, PayPal redirects back here with ?subscription_id=...
+  useEffect(() => {
+    const subscriptionId = searchParams.get('subscription_id');
+    if (!subscriptionId) return;
+
+    billingApi.activatePayPalSubscription({ subscriptionId })
+      .then(() => {
+        toast.success('PayPal subscription activated!');
+        queryClient.invalidateQueries({ queryKey: queryKeys.billing.info });
+      })
+      .catch((err: any) => {
+        toast.error(err?.response?.data?.message || 'Failed to activate PayPal subscription');
+      })
+      .finally(() => {
+        // Remove the query param from the URL without re-navigating
+        router.replace('/settings/billing');
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const { data: info, isLoading: infoLoading } = useQuery({
     queryKey: queryKeys.billing.info,
@@ -630,5 +622,13 @@ export default function BillingPage() {
         )}
       </div>
     </>
+  );
+}
+
+export default function BillingPage() {
+  return (
+    <Suspense fallback={<div className="h-24 bg-shimmer rounded-xl border border-ui-border animate-pulse max-w-4xl" />}>
+      <BillingContent />
+    </Suspense>
   );
 }

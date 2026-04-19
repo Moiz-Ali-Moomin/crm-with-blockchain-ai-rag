@@ -87,6 +87,9 @@ export const billingApi = {
     cancelUrl: string;
   }) => apiPost<PayPalSubscription>('/billing/paypal/subscribe', data),
 
+  activatePayPalSubscription: (data: { subscriptionId: string }) =>
+    apiPost<{ success: boolean; plan: string; status: string }>('/billing/paypal/activate', data),
+
   cancelPayPalSubscription: () =>
     apiPost<{ message: string }>('/billing/paypal/cancel'),
 

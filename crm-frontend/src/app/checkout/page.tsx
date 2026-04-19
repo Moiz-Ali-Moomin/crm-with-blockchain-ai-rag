@@ -82,7 +82,7 @@ const CRYPTO_OPTIONS = [
   { id: 'DAI',  label: 'DAI',       subtitle: 'Decentralised stablecoin',     color: 'text-amber-600',  bg: 'bg-amber-50',   border: 'border-amber-200' },
 ] as const;
 type CryptoCurrency = (typeof CRYPTO_OPTIONS)[number]['id'];
-type LoadingKey = 'razorpay' | 'razorpay_order' | 'stripe' | CryptoCurrency | null;
+type LoadingKey = 'razorpay' | 'razorpay_order' | 'paypal' | CryptoCurrency | null;
 
 // ── CurrencyDropdown ──────────────────────────────────────────────────────────
 
@@ -284,15 +284,17 @@ function CheckoutContent() {
     }
   }
 
-  // ── Stripe ────────────────────────────────────────────────────────────────
-
-  async function handleStripe() {
-    setLoading('stripe');
+  async function handlePayPal() {
+    setLoading('paypal');
     try {
-      const { url } = await billingApi.createCheckoutSession({ planId, successUrl: billingUrl, returnUrl: cancelUrl });
-      window.location.href = url;
+      const { approvalUrl } = await billingApi.createPayPalSubscription({
+        planId,
+        returnUrl: billingUrl,
+        cancelUrl,
+      });
+      window.location.href = approvalUrl;
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Failed to start Stripe checkout');
+      toast.error(err?.response?.data?.message || 'Failed to start PayPal checkout');
       setLoading(null);
     }
   }
@@ -428,10 +430,10 @@ function CheckoutContent() {
                     </button>
                   </>
                 ) : (
-                  // ── USD: Stripe + Crypto options ──────────────────────────
+                  // ── USD: PayPal + Crypto options ──────────────────────────
                   <>
                     <button
-                      onClick={handleStripe}
+                      onClick={handlePayPal}
                       disabled={loading !== null}
                       className={cn(
                         'w-full flex items-center gap-4 p-4 rounded-xl border bg-white shadow-sm transition-all group',
@@ -439,13 +441,13 @@ function CheckoutContent() {
                       )}
                     >
                       <div className="w-11 h-11 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-50">
-                        <CreditCard size={20} className="text-blue-600" />
+                        <span className="text-blue-600 font-extrabold text-xl leading-none">P</span>
                       </div>
                       <div className="text-left flex-1">
-                        <p className="text-sm font-semibold text-slate-900">Credit / Debit Card</p>
-                        <p className="text-xs text-slate-400 mt-0.5">Powered by Stripe · Visa, Mastercard, Amex</p>
+                        <p className="text-sm font-semibold text-slate-900">PayPal</p>
+                        <p className="text-xs text-slate-400 mt-0.5">Pay with your PayPal balance or linked bank</p>
                       </div>
-                      {loading === 'stripe'
+                      {loading === 'paypal'
                         ? <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin flex-shrink-0" />
                         : <ChevronRight size={16} className="text-slate-300 group-hover:text-blue-500 flex-shrink-0" />}
                     </button>
