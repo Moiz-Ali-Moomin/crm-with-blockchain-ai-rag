@@ -43,11 +43,16 @@ function ThemeApplicator() {
 // On mount, if localStorage says the user is authenticated but the in-memory
 // accessToken is gone (page reload), silently use the refresh-token cookie to
 // get a new access token. This keeps the user logged in across full reloads.
+//
+// isRehydrating is set to `true` for the duration of the refresh call so that
+// React Query hooks (via useAuthToken) can delay their first fetch until a
+// valid token is confirmed — preventing unauthenticated races.
 function AuthRehydrator() {
   useEffect(() => {
-    const { isAuthenticated, accessToken, setAccessToken, logout } =
+    const { isAuthenticated, accessToken, setAccessToken, setRehydrating, logout } =
       useAuthStore.getState();
     if (isAuthenticated && !accessToken) {
+      setRehydrating(true);
       apiClient
         .post('/auth/refresh')
         .then((res) => {
@@ -55,7 +60,8 @@ function AuthRehydrator() {
           if (newToken) setAccessToken(newToken);
           else logout();
         })
-        .catch(() => logout());
+        .catch(() => logout())
+        .finally(() => setRehydrating(false));
     }
   }, []);
   return null;

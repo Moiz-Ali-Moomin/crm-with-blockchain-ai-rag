@@ -10,11 +10,12 @@ import { analyticsApi } from '@/lib/api/analytics.api';
 import { queryKeys } from '@/lib/query/query-keys';
 import { formatCurrency, cn } from '@/lib/utils';
 import { useThemeStore } from '@/store/theme.store';
+import { useAuthToken } from '@/hooks/use-auth-token';
 import {
   TrendingUp, PieChart as PieIcon, BarChart2, Users,
   DollarSign, Percent, Award, Loader2,
 } from 'lucide-react';
-import type { SalesRepPerformance } from '@/types';
+import type { SalesRepPerformance, PiePayloadItem } from '@/types';
 
 // ─── Colors ───────────────────────────────────────────────────────────────────
 
@@ -41,7 +42,7 @@ function ChartTooltip({ active, payload, label, formatter }: {
   );
 }
 
-function PieTooltip({ active, payload }: { active?: boolean; payload?: Array<any> }) {
+function PieTooltip({ active, payload }: { active?: boolean; payload?: PiePayloadItem[] }) {
   if (!active || !payload?.length) return null;
   return (
     <div className="bg-canvas border border-ui-border rounded-lg px-3 py-2 shadow-md">
@@ -332,8 +333,10 @@ function SalesPerformance() {
 // ─── Page ──────────────────────────────────────────────────────────────────────
 
 export default function AnalyticsPage() {
-  const { data: revenue  } = useQuery({ queryKey: queryKeys.analytics.revenue,          queryFn: () => analyticsApi.getRevenue() });
-  const { data: salesPerf } = useQuery({ queryKey: queryKeys.analytics.salesPerformance, queryFn: () => analyticsApi.getSalesPerformance() });
+  const { isReady } = useAuthToken();
+
+  const { data: revenue  } = useQuery({ queryKey: queryKeys.analytics.revenue,          queryFn: () => analyticsApi.getRevenue(),          enabled: isReady });
+  const { data: salesPerf } = useQuery({ queryKey: queryKeys.analytics.salesPerformance, queryFn: () => analyticsApi.getSalesPerformance(), enabled: isReady });
 
   const totalRevenue  = revenue?.reduce((s, r) => s + r.revenue, 0) ?? 0;
   const totalDeals    = revenue?.reduce((s, r) => s + r.deals,   0) ?? 0;

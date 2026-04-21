@@ -1,13 +1,27 @@
 /**
- * Server-side analytics API functions
+ * Server-side analytics API functions — SSR Migration Path
  *
- * Called exclusively from React Server Components (async functions, no hooks).
- * Uses `cachedServerFetch` so multiple Server Components on the same page
- * requesting the same endpoint share a single fetch per render.
+ * These functions are called exclusively from React Server Components.
+ * They use `cachedServerFetch` which forwards browser cookies to the backend,
+ * enabling authenticated server-side rendering.
+ *
+ * CURRENT STATUS: Not used in production yet.
+ *
+ * WHY: The current auth flow stores the access token in Zustand (in-memory only).
+ * Server Components run on Node.js and cannot access Zustand or localStorage.
+ * The server-client forwards all cookies, but unless the backend sets the
+ * access token as an httpOnly cookie, these requests will be unauthenticated.
+ *
+ * HOW TO MIGRATE (when backend is ready):
+ *   1. Backend: on login, set `accessToken` as `httpOnly; Secure; SameSite=Strict` cookie
+ *   2. Server Components can then call `getDashboardMetrics()` and get authed data
+ *   3. Pass initial data as React Query `initialData` to avoid client-side waterfall
+ *   4. Keep Zustand for UI state (user profile, theme) — not auth
  *
  * Revalidation tags allow targeted cache invalidation:
- *   revalidateTag('analytics') → clears all analytics cache ENTRIES
+ *   revalidateTag('analytics') → clears all analytics cache entries
  */
+
 
 import { cachedServerFetch } from '@/lib/api/server-client';
 import type {

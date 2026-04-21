@@ -29,11 +29,14 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   _hasHydrated: boolean;
+  /** True while a silent /auth/refresh call is in-flight on page load. */
+  isRehydrating: boolean;
   setAuth: (user: User, accessToken: string) => void;
   setAccessToken: (token: string) => void;
   logout: () => void;
   setLoading: (loading: boolean) => void;
   setHasHydrated: (state: boolean) => void;
+  setRehydrating: (state: boolean) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -44,6 +47,7 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       isLoading: false,
       _hasHydrated: false,
+      isRehydrating: false,
 
       setHasHydrated: (hasHydrated) => set({ _hasHydrated: hasHydrated }),
 
@@ -69,6 +73,8 @@ export const useAuthStore = create<AuthState>()(
         }),
 
       setLoading: (loading) => set({ isLoading: loading }),
+
+      setRehydrating: (state) => set({ isRehydrating: state }),
     }),
     {
       name: 'crm-auth',

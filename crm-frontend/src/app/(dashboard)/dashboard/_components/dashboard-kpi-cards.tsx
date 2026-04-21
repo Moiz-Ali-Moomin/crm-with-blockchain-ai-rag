@@ -3,8 +3,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { Users, TrendingUp, DollarSign, Percent } from 'lucide-react';
 import { analyticsApi } from '@/lib/api/analytics.api';
+import { queryKeys } from '@/lib/query/query-keys';
 import { StatCard } from '@/components/ui/stat-card';
 import { formatCurrency } from '@/lib/utils';
+import { useAuthToken } from '@/hooks/use-auth-token';
+
+// ── Skeleton ──────────────────────────────────────────────────────────────────
 
 function KpiSkeleton() {
   return (
@@ -16,20 +20,27 @@ function KpiSkeleton() {
   );
 }
 
+// ── Component ─────────────────────────────────────────────────────────────────
+
 export function DashboardKpiCards() {
+  // isReady is false while a silent token refresh is in-flight after page reload.
+  // Keeping `enabled: isReady` prevents this query from racing the rehydration
+  // and returning empty data that briefly renders as zeros.
+  const { isReady } = useAuthToken();
+
   const { data: metrics, isLoading } = useQuery({
-    queryKey: ['analytics', 'dashboard'],
+    queryKey: queryKeys.analytics.dashboard,
     queryFn: () => analyticsApi.getDashboard(),
     staleTime: 30_000,
+    enabled: isReady,
   });
 
-  if (isLoading) return <KpiSkeleton />;
+  // Show skeleton while waiting for token OR while the request is in-flight.
+  if (!isReady || isLoading) return <KpiSkeleton />;
 
-  const revenue =
-    (metrics as any)?.revenue ??
-    (metrics as any)?.revenueMTD ??
-    metrics?.revenueThisMonth ??
-    0;
+  // `revenueThisMonth` is the canonical field per DashboardMetrics in @/types.
+  // No any-casting needed — TypeScript knows this field exists.
+  const revenue = metrics?.revenueThisMonth ?? 0;
 
   const cards = [
     {

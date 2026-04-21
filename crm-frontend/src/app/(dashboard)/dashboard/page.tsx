@@ -9,7 +9,9 @@ import { cn } from '@/lib/utils';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = { title: 'Dashboard' };
-export const revalidate = 30;
+// All data on this page is fetched by client-component islands (React Query + Zustand auth).
+// There is no server-side data fetch here, so no `revalidate` export is needed.
+// See /lib/api/server/analytics.server.ts for the future SSR migration path.
 
 // ── Mock Data ─────────────────────────────────────────────────────────────────
 

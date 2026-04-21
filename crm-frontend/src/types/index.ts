@@ -468,6 +468,18 @@ export interface SalesRepPerformance {
   leadsConverted: number;
 }
 
+/** Typed payload item for Recharts Pie chart tooltips. */
+export interface PiePayloadItem {
+  name: string;
+  value: number;
+  payload: {
+    source: string;
+    count: number;
+    percentage: number;
+  };
+}
+
+
 // ─── Kanban Board ─────────────────────────────────────────────────────────────
 
 export interface KanbanBoard {
