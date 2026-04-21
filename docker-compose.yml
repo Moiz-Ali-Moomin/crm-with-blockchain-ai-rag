@@ -146,18 +146,19 @@ services:
     image: prom/alertmanager:v0.27.0
     container_name: crm_alertmanager
     restart: unless-stopped
-    # sed substitutes ${ALERTMANAGER_SMTP_USER} etc. directly without needing envsubst
-    entrypoint: >
-      /bin/sh -c "
-        cp /etc/alertmanager/alertmanager.yml /tmp/alertmanager.yml &&
-        sed -i \"s|\\\${ALERTMANAGER_SMTP_USER}|$ALERTMANAGER_SMTP_USER|g\" /tmp/alertmanager.yml &&
-        sed -i \"s|\\\${ALERTMANAGER_SMTP_PASSWORD}|$ALERTMANAGER_SMTP_PASSWORD|g\" /tmp/alertmanager.yml &&
-        sed -i \"s|\\\${ALERTMANAGER_SLACK_WEBHOOK}|$ALERTMANAGER_SLACK_WEBHOOK|g\" /tmp/alertmanager.yml &&
-        alertmanager --config.file=/tmp/alertmanager.yml \
+    # Using entrypoint array and POSIX sh format avoids YAML fold bugs
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        cp /etc/alertmanager/alertmanager.yml /tmp/alertmanager.yml
+        sed -i "s|\$${ALERTMANAGER_SMTP_USER}|${ALERTMANAGER_SMTP_USER}|g" /tmp/alertmanager.yml
+        sed -i "s|\$${ALERTMANAGER_SMTP_PASSWORD}|${ALERTMANAGER_SMTP_PASSWORD}|g" /tmp/alertmanager.yml
+        sed -i "s|\$${ALERTMANAGER_SLACK_WEBHOOK}|${ALERTMANAGER_SLACK_WEBHOOK}|g" /tmp/alertmanager.yml
+        exec alertmanager --config.file=/tmp/alertmanager.yml \
           --storage.path=/alertmanager \
           --web.external-url=https://bestpurchasestore.com/alertmanager \
           --web.route-prefix=/alertmanager
-      "
     environment:
       ALERTMANAGER_SMTP_USER: ${ALERTMANAGER_SMTP_USER}
       ALERTMANAGER_SMTP_PASSWORD: ${ALERTMANAGER_SMTP_PASSWORD}
