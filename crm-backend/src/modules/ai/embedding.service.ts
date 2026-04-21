@@ -7,6 +7,6 @@
  * to compile without changes.
  *
  * New code should import from real-embedding.service.ts or depend on the
- * EMBEDDING_SERVICE injection token via IEmbeddingService.
+ * EMBEDDINGs_SERVICE injection token via IEmbeddingService.
  */
 export { RealEmbeddingService as EmbeddingService } from './real-embedding.service';
