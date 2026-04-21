@@ -153,9 +153,9 @@ services:
         sed -i \"s|\\\${ALERTMANAGER_SMTP_USER}|$ALERTMANAGER_SMTP_USER|g\" /tmp/alertmanager.yml &&
         sed -i \"s|\\\${ALERTMANAGER_SMTP_PASSWORD}|$ALERTMANAGER_SMTP_PASSWORD|g\" /tmp/alertmanager.yml &&
         sed -i \"s|\\\${ALERTMANAGER_SLACK_WEBHOOK}|$ALERTMANAGER_SLACK_WEBHOOK|g\" /tmp/alertmanager.yml &&
-        alertmanager --config.file=/tmp/alertmanager.yml
-          --storage.path=/alertmanager
-          --web.external-url=https://bestpurchasestore.com/alertmanager
+        alertmanager --config.file=/tmp/alertmanager.yml \
+          --storage.path=/alertmanager \
+          --web.external-url=https://bestpurchasestore.com/alertmanager \
           --web.route-prefix=/alertmanager
       "
     environment:
