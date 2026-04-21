@@ -1,15 +1,11 @@
 import { Suspense } from 'react';
 import Link from "next/link";
-import { getDashboardMetrics } from '@/lib/api/server/analytics.server';
-import { StatCard } from '@/components/ui/stat-card';
+import { DashboardKpiCards } from './_components/dashboard-kpi-cards';
 import { DashboardCharts } from './_components/dashboard-charts';
 import { FloatingAiCopilot } from './_components/ai-copilot-widget';
 import { UpgradeBanner } from './_components/upgrade-banner';
-import {
-  Users, TrendingUp, DollarSign, Percent,
-  Clock, CheckSquare, ArrowUpRight,
-} from 'lucide-react';
-import { formatCurrency, cn } from '@/lib/utils';
+import { Clock, CheckSquare, ArrowUpRight } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = { title: 'Dashboard' };
@@ -143,60 +139,17 @@ function ActivityFeed() {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default async function DashboardPage() {
-  const metrics = await getDashboardMetrics();
-
-  // ✅ SAFE FIELD ACCESS (no TS errors ever)
-  const revenue =
-    (metrics as any)?.revenue ??
-    (metrics as any)?.revenueMTD ??
-    0;
-
-  const kpiCards = [
-    {
-      title: 'Total Leads',
-      value: metrics?.totalLeads ?? 0,
-      displayValue: (metrics?.totalLeads ?? 0).toLocaleString(),
-      icon: <Users size={14} />,
-      gradient: 1 as const,
-    },
-    {
-      title: 'Open Deals',
-      value: metrics?.openDeals ?? 0,
-      displayValue: (metrics?.openDeals ?? 0).toString(),
-      icon: <TrendingUp size={14} />,
-      gradient: 2 as const,
-    },
-    {
-      title: 'Revenue (MTD)',
-      value: revenue,
-      displayValue: formatCurrency(revenue),
-      icon: <DollarSign size={14} />,
-      gradient: 3 as const,
-    },
-    {
-      title: 'Conversion Rate',
-      value: metrics?.conversionRate ?? 0,
-      displayValue: `${metrics?.conversionRate ?? 0}%`,
-      icon: <Percent size={14} />,
-      gradient: 4 as const,
-    },
-  ];
-
+export default function DashboardPage() {
   return (
     <div className="space-y-6">
 
       {/* UPGRADE BANNER — only visible for free plan users */}
       <UpgradeBanner />
 
-      {/* KEY METRICS */}
+      {/* KEY METRICS — client component so auth token from Zustand is available */}
       <section>
         <SectionHeader title="Key Metrics" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          {kpiCards.map((card, i) => (
-            <StatCard key={i} {...card} />
-          ))}
-        </div>
+        <DashboardKpiCards />
       </section>
 
       {/* PERFORMANCE */}
