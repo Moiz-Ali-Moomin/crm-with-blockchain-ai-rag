@@ -141,24 +141,13 @@ export class RagService {
     }
 
     // ── 3. Vector search ─────────────────────────────────────────────────────
-    let chunks: SemanticSearchResult[] = [];
-    try {
-      chunks = await this.vectorSearch.search({
-        tenantId,
-        query,
-        entityTypes,
-        limit: topK,
-        threshold,
-      });
-    } catch (err) {
-      this.logger.error(`Vector search (embeddings) failed: ${(err as Error).message}`);
-      return {
-        answer: 'I am currently unable to search the CRM database due to a temporary AI service connectivity issue. Please ensure your embedding provider is running.',
-        sources: [],
-        confidence: 0,
-        fromCache: false,
-      };
-    }
+    const chunks = await this.vectorSearch.search({
+      tenantId,
+      query,
+      entityTypes,
+      limit: topK,
+      threshold,
+    });
 
     if (chunks.length === 0) {
       const response: RagResponse = {
@@ -183,19 +172,13 @@ export class RagService {
     // ── 4. LLM call — protected by circuit breaker ───────────────────────────
     const start = Date.now();
 
-    let answer = '';
-    try {
-      answer = await this.circuitBreaker.execute('llm', () =>
-        this.llmProvider.generate({
-          system: RAG_SYSTEM_PROMPT,
-          prompt: query,
-          context: contextWindow,
-        }),
-      );
-    } catch (err) {
-      this.logger.error(`LLM generation failed: ${(err as Error).message}`);
-      answer = 'I encountered an error connecting to the AI language model. Please ensure your AI provider API keys are configured correctly.';
-    }
+    const answer = await this.circuitBreaker.execute('llm', () =>
+      this.llmProvider.generate({
+        system: RAG_SYSTEM_PROMPT,
+        prompt: query,
+        context: contextWindow,
+      }),
+    );
 
     const latencyMs = Date.now() - start;
 

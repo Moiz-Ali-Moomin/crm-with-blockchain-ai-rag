@@ -138,36 +138,12 @@ function withEmbeddingFallback(
   };
 }
 
-// ─── No-op stub (used when no API keys are configured) ───────────────────────
-
-/**
- * Returns a stub LLMProvider that lets the app boot without any API keys.
- * All calls to generate() will throw at request time with a clear message,
- * so health checks pass while unauthenticated LLM routes fail gracefully.
- */
-function buildNoOpLLMProvider(): LLMProvider {
-  return {
-    generate(_input): Promise<string> {
-      const msg =
-        '[AIProviderFactory] No LLM provider is configured. ' +
-        'Set ANTHROPIC_API_KEY or OPENAI_API_KEY to enable LLM features.';
-      factoryLogger.error(msg);
-      return Promise.reject(new Error(msg));
-    },
-  };
-}
-
 // ─── Public Factory API ───────────────────────────────────────────────────────
 
 export class AIProviderFactory {
   /**
    * Returns an LLMProvider wrapped with automatic fallback.
    * To be used as a NestJS `useFactory` value.
-   *
-   * When no API keys are configured the factory will NOT throw — it returns a
-   * no-op stub instead. This ensures NestJS boots successfully for health checks
-   * even in environments that omit AI credentials (e.g. CI smoke tests).
-   * The stub will throw a clear error only when generate() is called at runtime.
    */
   static getLLM(config: ConfigService): LLMProvider {
     const primaryName = config.get<string>('LLM_PROVIDER') ?? 'anthropic';
@@ -178,11 +154,10 @@ export class AIProviderFactory {
 
     if (!primary) {
       if (!fallback) {
-        factoryLogger.warn(
-          '[LLM] No API keys configured — LLM features disabled. ' +
-          'Set ANTHROPIC_API_KEY or OPENAI_API_KEY to enable them.',
+        throw new Error(
+          `[AIProviderFactory] No LLM provider could be initialised. ` +
+          `Set ANTHROPIC_API_KEY or OPENAI_API_KEY.`,
         );
-        return buildNoOpLLMProvider();
       }
       factoryLogger.warn(`[LLM] Primary (${primaryName}) unavailable — using fallback (${fallbackName}) directly`);
       return fallback;

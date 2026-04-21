@@ -1,11 +1,24 @@
+/**
+ * RealEmbeddingService
+ *
+ * Production implementation of IEmbeddingService.
+ * Delegates vector generation to the injected EmbeddingProvider
+ * (Ollama primary → OpenAI fallback) via the EMBEDDING_PROVIDER token.
+ * Persists generated vectors to ai_embeddings via Prisma + raw SQL.
+ *
+ * Design decisions:
+ * - generateEmbedding() now calls the provider, not OpenAI directly.
+ *   This is the only change from the original — all DB logic is unchanged.
+ * - The EMBEDDING_PROVIDER token is injected via constructor so this class
+ *   remains fully testable (mock the token in specs).
+ * - Upsert is idempotent on (tenantId, entityType, entityId).
+ * - Always enqueued via AiEmbeddingWorker — never on the hot path.
+ */
+
 import { Injectable, Logger, Inject } from '@nestjs/common';
 import { PrismaService } from '../../core/database/prisma.service';
 import { IEmbeddingService } from './embedding.interface';
-import {
-  EmbeddingProvider,
-  EMBEDDING_PROVIDER,
-} from './providers/embedding-provider.interface';
-import { EntityType } from '@prisma/client'; // ✅ IMPORTANT
+import { EmbeddingProvider, EMBEDDING_PROVIDER } from './providers/embedding-provider.interface';
 
 @Injectable()
 export class RealEmbeddingService implements IEmbeddingService {
@@ -13,8 +26,7 @@ export class RealEmbeddingService implements IEmbeddingService {
 
   constructor(
     private readonly prisma: PrismaService,
-    @Inject(EMBEDDING_PROVIDER)
-    private readonly embeddingProvider: EmbeddingProvider,
+    @Inject(EMBEDDING_PROVIDER) private readonly embeddingProvider: EmbeddingProvider,
   ) {}
 
   async generateEmbedding(text: string): Promise<number[]> {
@@ -23,42 +35,23 @@ export class RealEmbeddingService implements IEmbeddingService {
 
   async upsertEmbedding(params: {
     tenantId: string;
-    entityType: EntityType; // ✅ FIXED (was string)
+    entityType: string;
     entityId: string;
     content: string;
     embedding: number[];
     metadata?: Record<string, unknown>;
   }): Promise<void> {
-    const { tenantId, entityType, entityId, content, embedding, metadata } =
-      params;
+    const { tenantId, entityType, entityId, content, embedding, metadata } = params;
 
     await this.prisma.withoutTenantScope(() =>
       this.prisma.aiEmbedding.upsert({
-        where: {
-          tenantId_entityType_entityId: {
-            tenantId,
-            entityType,
-            entityId,
-          },
-        },
-        create: {
-          tenantId,
-          entityType,
-          entityId,
-          content,
-          metadata: (metadata ?? {}) as object,
-        },
-        update: {
-          content,
-          metadata: (metadata ?? {}) as object,
-          updatedAt: new Date(),
-        },
+        where: { tenantId_entityType_entityId: { tenantId, entityType, entityId } },
+        create: { tenantId, entityType, entityId, content, metadata: (metadata ?? {}) as object },
+        update: { content, metadata: (metadata ?? {}) as object, updatedAt: new Date() },
       }),
     );
 
-    // Store vector via raw SQL (pgvector)
     const vectorLiteral = `[${embedding.join(',')}]`;
-
     await this.prisma.$executeRaw`
       UPDATE ai_embeddings
       SET embedding = ${vectorLiteral}::vector
@@ -67,20 +60,12 @@ export class RealEmbeddingService implements IEmbeddingService {
         AND entity_id   = ${entityId}
     `;
 
-    this.logger.debug(
-      `Embedding upserted: ${entityType}/${entityId} (tenant: ${tenantId})`,
-    );
+    this.logger.debug(`Embedding upserted: ${entityType}/${entityId} (tenant: ${tenantId})`);
   }
 
-  async deleteEmbedding(
-    tenantId: string,
-    entityType: EntityType, // ✅ FIXED
-    entityId: string,
-  ): Promise<void> {
+  async deleteEmbedding(tenantId: string, entityType: string, entityId: string): Promise<void> {
     await this.prisma.withoutTenantScope(() =>
-      this.prisma.aiEmbedding.deleteMany({
-        where: { tenantId, entityType, entityId },
-      }),
+      this.prisma.aiEmbedding.deleteMany({ where: { tenantId, entityType, entityId } }),
     );
   }
 }

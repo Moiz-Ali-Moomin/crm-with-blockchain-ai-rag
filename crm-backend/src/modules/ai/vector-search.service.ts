@@ -106,7 +106,7 @@ export class VectorSearchService {
         metadata,
         1 - (embedding <=> ${vectorLiteral}::vector) AS similarity
       FROM ai_embeddings
-      WHERE "tenantId"   = ${tenantId}
+      WHERE tenant_id   = ${tenantId}
         AND entity_type = ANY(${entityTypes}::text[])
         AND embedding IS NOT NULL
         AND 1 - (embedding <=> ${vectorLiteral}::vector) >= ${threshold}
@@ -150,7 +150,7 @@ export class VectorSearchService {
     >`
       SELECT embedding::text
       FROM ai_embeddings
-      WHERE "tenantId"  = ${tenantId}
+      WHERE tenant_id  = ${tenantId}
         AND entity_type = ${entityType}
         AND entity_id   = ${entityId}
       LIMIT 1
@@ -171,7 +171,7 @@ export class VectorSearchService {
         metadata,
         1 - (embedding <=> ${vectorLiteral}::vector) AS similarity
       FROM ai_embeddings
-      WHERE "tenantId"   = ${tenantId}
+      WHERE tenant_id   = ${tenantId}
         AND entity_id  != ${entityId}
         AND embedding  IS NOT NULL
       ORDER BY embedding <=> ${vectorLiteral}::vector

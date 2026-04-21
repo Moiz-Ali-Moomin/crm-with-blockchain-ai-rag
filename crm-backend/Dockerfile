@@ -7,17 +7,21 @@ WORKDIR /app
 RUN apk add --no-cache openssl libc6-compat
 
 # ─────────────────────────────────────────
-# Dependencies (install once)
+# Dependencies
 # ─────────────────────────────────────────
 FROM base AS deps
+
+ENV PRISMA_SKIP_POSTINSTALL_GENERATE=true
 
 COPY package.json package-lock.json ./
 RUN npm ci
 
 # ─────────────────────────────────────────
-# Builder (generate Prisma + build)
+# Builder
 # ─────────────────────────────────────────
 FROM base AS builder
+
+ENV PRISMA_SKIP_POSTINSTALL_GENERATE=true
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY package.json package-lock.json ./
@@ -25,29 +29,26 @@ COPY prisma ./prisma
 COPY nest-cli.json tsconfig.json ./
 COPY src ./src
 
-# ✅ Generate Prisma client
 RUN npx prisma generate
-
-# ✅ Build NestJS app
 RUN npm run build
 
 # ─────────────────────────────────────────
-# Runner (production)
+# Runner
 # ─────────────────────────────────────────
 FROM base AS runner
 
 ENV NODE_ENV=production
+ENV PRISMA_SKIP_POSTINSTALL_GENERATE=true
 ENV PORT=3001
 
-# ✅ IMPORTANT: reuse node_modules from builder (DO NOT reinstall)
-COPY --from=builder /app/node_modules ./node_modules
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev && npm rebuild
 
-# Copy built app + prisma
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
-COPY package.json ./
 
-# Create non-root user
 RUN addgroup --system --gid 1001 nodejs \
     && adduser --system --uid 1001 nestjs \
     && mkdir -p /app/logs \
@@ -61,5 +62,4 @@ EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
   CMD wget -qO- http://127.0.0.1:3001/api/v1/health/live || exit 1
 
-# Run migrations + start app
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/main.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/main.js"]  

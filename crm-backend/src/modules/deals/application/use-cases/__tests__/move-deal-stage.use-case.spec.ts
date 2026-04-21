@@ -18,7 +18,6 @@ import { EVENT_PUBLISHER_PORT, EventPublisherPort } from '../../ports/event-publ
 import { NotFoundError } from '../../../../../shared/errors/domain.errors';
 import { InvalidDealStateTransitionError } from '../../../domain/errors/deal.errors';
 import { Test, TestingModule } from '@nestjs/testing';
-import { RedisService } from '../../../../../core/cache/redis.service';
 
 // ── Mock factories ────────────────────────────────────────────────────────────
 
@@ -85,10 +84,6 @@ describe('MoveDealStageUseCase', () => {
         { provide: WALLET_PORT,          useValue: mockWallets },
         { provide: PAYMENT_PORT,         useValue: mockPayments },
         { provide: EVENT_PUBLISHER_PORT, useValue: mockEvents },
-        {
-          provide: RedisService,
-          useValue: { del: jest.fn().mockResolvedValue(1), get: jest.fn(), set: jest.fn() },
-        },
       ],
     }).compile();
 

@@ -431,11 +431,7 @@ jobs:
           #   OPTIONAL, no default (z.optional() — safe to omit):
           #     MONGO_URI          — MongoModule falls back to sentinel URI when absent
           #                          after the mongo.module.ts fix. No crash, just a warn.
-          #     ANTHROPIC_API_KEY /
-          #     OPENAI_API_KEY     — AIProviderFactory returns a no-op stub when both
-          #                          are absent. The stub lets NestJS boot (health checks
-          #                          pass) and throws only when generate() is actually
-          #                          called at request time. Intentionally omitted here.
+          #     OPENAI_API_KEY     — RagService defers guard to query() call time.
           #     SENDGRID_*, TWILIO_*, STRIPE_*, BLOCKCHAIN_* — all z.optional().
           #
           #   REQUIRED at bootstrap (getOrThrow — no default):

@@ -856,35 +856,24 @@ model BillingInfo {
 
 /// Stores text embeddings for activities, communications, and tickets.
 /// Queried via pgvector cosine similarity for semantic search and RAG.
-// ============================================================
-// AI — Vector Embeddings for RAG / Semantic Search (FIXED)
-// ============================================================
-
 model AiEmbedding {
-  id          String      @id @default(uuid())
+  id          String   @id @default(uuid())
   tenantId    String
+  entityType  String   // 'activity' | 'communication' | 'ticket'
+  entityId    String
+  content     String   // Original text that was embedded (for context window)
+  metadata    Json     @default("{}")  // { subject, type, contactId, ... }
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  entityType  EntityType  @map("entity_type")
-  entityId    String      @map("entity_id")
-
-  content     String
-  metadata    Json        @default("{}")
-
-  // Vector embedding (pgvector)
-  embedding   Unsupported("vector(1536)")
-
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  // NOTE: embedding column added via raw migration (pgvector `vector(1536)`)
+  // Prisma does not support the vector type natively yet.
+  // Run: ALTER TABLE ai_embeddings ADD COLUMN embedding vector(1536);
+  // CREATE INDEX ON ai_embeddings USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
 
   @@unique([tenantId, entityType, entityId])
-
-  // Core query indexes
   @@index([tenantId])
   @@index([tenantId, entityType])
-
-  // 🔥 Optional but HIGHLY recommended for RAG
-  @@index([tenantId, entityType, createdAt])
-
   @@map("ai_embeddings")
 }
 
