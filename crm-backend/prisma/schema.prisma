@@ -861,24 +861,29 @@ model BillingInfo {
 // ============================================================
 
 model AiEmbedding {
-  id          String   @id @default(uuid())
+  id          String      @id @default(uuid())
   tenantId    String
 
-  entityType  String   @map("entity_type")
-  entityId    String   @map("entity_id")
+  entityType  EntityType  @map("entity_type")
+  entityId    String      @map("entity_id")
 
   content     String
-  metadata    Json     @default("{}")
+  metadata    Json        @default("{}")
 
-  // ✅ ADD THIS (IMPORTANT)
-  embedding   Unsupported("vector(1536)")?
+  // Vector embedding (pgvector)
+  embedding   Unsupported("vector(1536)")
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 
   @@unique([tenantId, entityType, entityId])
+
+  // Core query indexes
   @@index([tenantId])
   @@index([tenantId, entityType])
+
+  // 🔥 Optional but HIGHLY recommended for RAG
+  @@index([tenantId, entityType, createdAt])
 
   @@map("ai_embeddings")
 }
