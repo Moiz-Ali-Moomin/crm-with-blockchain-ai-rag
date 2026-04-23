@@ -94,6 +94,11 @@ export class VectorSearchService {
     }
 
     const vectorLiteral = `[${queryEmbedding.join(',')}]`;
+    // PostgreSQL array literal format: {activity,communication,ticket}
+    // Prisma $queryRaw tagged templates do not support JS arrays as parameters —
+    // only string/number/boolean/Date are safe. Serialize to a pg array literal
+    // string so it arrives as a castable text parameter.
+    const entityTypesPg = `{${entityTypes.join(',')}}`;
 
     // pgvector cosine distance: `<=>` returns 0 (identical) to 2 (opposite)
     // similarity = 1 - cosine_distance
@@ -107,7 +112,7 @@ export class VectorSearchService {
         1 - (embedding <=> ${vectorLiteral}::vector) AS similarity
       FROM ai_embeddings
       WHERE "tenantId"   = ${tenantId}
-        AND "entityType" = ANY(${entityTypes}::text[])
+        AND "entityType" = ANY(${entityTypesPg}::text[])
         AND embedding IS NOT NULL
         AND 1 - (embedding <=> ${vectorLiteral}::vector) >= ${threshold}
       ORDER BY similarity DESC
