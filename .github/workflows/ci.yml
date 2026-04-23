@@ -454,6 +454,7 @@ jobs:
             -e RAZORPAY_KEY_ID="rzp_test_ci_placeholder" \
             -e RAZORPAY_KEY_SECRET="ci_placeholder_secret_not_for_prod" \
             -e RAZORPAY_WEBHOOK_SECRET="ci_placeholder_webhook_secret" \
+            -e ANTHROPIC_API_KEY="${{ secrets.ANTHROPIC_API_KEY }}" \
             -p 3001:3001 \
             "${IMAGE_API}:${IMAGE_TAG}"
 

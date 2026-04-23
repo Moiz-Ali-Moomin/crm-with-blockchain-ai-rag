@@ -23,7 +23,10 @@ export class AIProviderFactory {
   static getLLM(config: ConfigService): LLMProvider {
     const apiKey = config.get<string>('ANTHROPIC_API_KEY');
     if (!apiKey) {
-      throw new Error('[AIProviderFactory] ANTHROPIC_API_KEY is not set.');
+      factoryLogger.warn('[LLM] ANTHROPIC_API_KEY is not set — AI query endpoints will return errors at call time.');
+      return {
+        generate: () => Promise.reject(new Error('ANTHROPIC_API_KEY is not configured. Set the env var to enable AI features.')),
+      };
     }
     const model = config.get<string>('LLM_MODEL') ?? 'claude-3-5-sonnet-20241022';
     factoryLogger.log(`[LLM] Anthropic — model: ${model}`);
