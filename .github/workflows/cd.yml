@@ -139,19 +139,30 @@ jobs:
             docker pull "${IMAGE_API}:${IMAGE_TAG}"
             docker pull "${IMAGE_WEB}:${IMAGE_TAG}"
 
-            # ── [3] Detect active/idle slot from RUNTIME state ───────────────
-            # WHY: .active_slot file can drift from reality (failed deploy,
-            # manual intervention, server restart). Derive truth from what is
-            # ACTUALLY running so we never deploy to the live slot by mistake.
-            echo "[2/7] Detecting active slot from running containers"
-            if docker ps --format '{{.Names}}' | grep -q '^crm_api_green$'; then
-              ACTIVE="green"
-            else
-              # Blue is the safe default — first deploy or after a full restart
+            # ── [3] Detect active/idle slot from nginx config ────────────────
+            # WHY app.conf, not docker ps: after a successful deploy the old slot
+            # stays running as a rollback-ready standby (step [10]). This means
+            # docker ps always shows BOTH slots after the first full cycle.
+            # Using docker ps as the source of truth incorrectly identifies the
+            # standby slot as ACTIVE, causing the deploy to tear down the live
+            # traffic slot mid-request (instant 502s). app.conf is the ground
+            # truth — nginx reloads it atomically, so it always reflects which
+            # slot is actually receiving traffic. The rollback job uses the same
+            # approach for the same reason.
+            echo "[2/7] Detecting active slot from nginx config"
+            ACTIVE=""
+            if [ -f "$DEPLOY_PATH/nginx/conf.d/app.conf" ]; then
+              ACTIVE=$(grep -oP 'server crm_api_\K(blue|green)' \
+                "$DEPLOY_PATH/nginx/conf.d/app.conf" | head -1 || true)
+            fi
+            # First deploy: app.conf not yet rendered → default active=blue so
+            # the first deployment always goes to green (idle slot).
+            if [ -z "${ACTIVE:-}" ]; then
               ACTIVE="blue"
+              echo "  app.conf not found — first deploy, defaulting ACTIVE=blue"
             fi
             if [ "$ACTIVE" = "blue" ]; then IDLE="green"; else IDLE="blue"; fi
-            echo "  Runtime-detected: ACTIVE=$ACTIVE  IDLE=$IDLE"
+            echo "  Config-detected: ACTIVE=$ACTIVE  IDLE=$IDLE"
 
             # ── [4] Verify secrets file ──────────────────────────────────────
             if [ ! -f "$DEPLOY_PATH/.secrets" ]; then
@@ -160,7 +171,7 @@ jobs:
 
             # ── [5] Verify critical infrastructure is running ────────────────
             # Fail early rather than starting a slot that cannot connect to its deps.
-            echo "[2/7] Verifying critical infrastructure"
+            echo "[3/7] Verifying critical infrastructure"
 
             _check_container() {
               local name="$1"
@@ -189,12 +200,27 @@ jobs:
             # This block is now only a safety net; the checks above will have
             # already exited if critical services are down.
 
+            # ── [6a] Run Prisma migrations against production DB ────────────
+            # WHY before starting the new slot: the old slot is still running and
+            # serving traffic during this step. Migrations must be backward-
+            # compatible (expand-contract) so the old slot doesn't crash mid-deploy.
+            # Running the new image's migrate deploy ensures the schema is ready
+            # before the new container starts its first query.
+            echo "[4/7] Running Prisma migrations"
+            docker run --rm \
+              --network crm_internal \
+              --env-file "$DEPLOY_PATH/.secrets" \
+              --entrypoint npx \
+              "${IMAGE_API}:${IMAGE_TAG}" \
+              prisma migrate deploy
+            echo "  OK: migrations applied"
+
             # ── [6b] Tear down idle slot — GUARANTEE clean state ────────────
             # WHY: a previous failed deploy may have left containers with the
             # same name. Docker refuses to reuse container names. We must force
             # a clean slate. Two layers: compose (removes tracked containers)
             # then raw docker rm (removes any untracked stragglers).
-            echo "[3/7] Cleaning up existing $IDLE slot containers"
+            echo "[5/7] Cleaning up existing $IDLE slot containers"
             docker compose \
               -f "docker-compose.${IDLE}.yml" \
               --project-name "crm-${IDLE}" \
@@ -204,7 +230,7 @@ jobs:
             docker rm -f "crm_api_${IDLE}" "crm_web_${IDLE}" 2>/dev/null || true
 
             # ── [6c] Start idle slot with new image ──────────────────────────
-            echo "[3/7] Starting $IDLE slot with tag $IMAGE_TAG"
+            echo "[5/7] Starting $IDLE slot with tag $IMAGE_TAG"
             IMAGE_API="${IMAGE_API}" \
             IMAGE_WEB="${IMAGE_WEB}" \
             IMAGE_TAG="${IMAGE_TAG}" \
@@ -219,11 +245,11 @@ jobs:
             # Traffic is NOT switched until both API and web pass.
             # If either fails, the old slot keeps serving; deploy is aborted.
             IDLE_CONTAINER="crm_api_${IDLE}"
-            echo "[4/7] Health-checking $IDLE API (container: $IDLE_CONTAINER)"
+            echo "[6/7] Health-checking $IDLE API (container: $IDLE_CONTAINER)"
             bash "$DEPLOY_PATH/deploy/health-check.sh" "$IDLE_CONTAINER" 60 5
             echo "  OK: $IDLE API is healthy"
 
-            echo "[4/7] Health-checking $IDLE web (container: crm_web_${IDLE})"
+            echo "[6/7] Health-checking $IDLE web (container: crm_web_${IDLE})"
             for i in $(seq 1 30); do
               WEB_STATUS=$(docker inspect --format='{{.State.Health.Status}}' "crm_web_${IDLE}" 2>/dev/null || echo "unknown")
               if [ "$WEB_STATUS" = "healthy" ]; then
@@ -243,7 +269,7 @@ jobs:
             if [ "$CANARY_WEIGHT" -gt 0 ] && [ "$CANARY_WEIGHT" -lt 100 ]; then
               # ── Canary: split traffic ──────────────────────────────────────
               ACTIVE_WEIGHT=$(( 100 - CANARY_WEIGHT ))
-              echo "[5/7] Canary mode: ${CANARY_WEIGHT}% → $IDLE, ${ACTIVE_WEIGHT}% → $ACTIVE"
+              echo "[7/7] Canary mode: ${CANARY_WEIGHT}% → $IDLE, ${ACTIVE_WEIGHT}% → $ACTIVE"
               ACTIVE_SLOT="$ACTIVE" \
               IDLE_SLOT="$IDLE" \
               CANARY_WEIGHT="$CANARY_WEIGHT" \
@@ -257,7 +283,7 @@ jobs:
               exit 0
             else
               # ── Full cutover (blue-green) ──────────────────────────────────
-              echo "[5/7] Full cutover: all traffic → $IDLE"
+              echo "[7/7] Full cutover: all traffic → $IDLE"
               ACTIVE_SLOT="$IDLE" \
               envsubst '${ACTIVE_SLOT}' \
                 < "$DEPLOY_PATH/nginx/conf.d/single-slot.conf.template" \
@@ -269,7 +295,7 @@ jobs:
             fi
 
             # ── [9] Post-cutover health validation (with auto-rollback) ─────────
-            echo "[6/7] Validating production endpoint"
+            echo "[7/7] Validating production endpoint"
             if ! bash "$DEPLOY_PATH/deploy/health-check-prod.sh" 30 5; then
               echo "  ❌ Post-cutover health check FAILED — auto-rolling back to $ACTIVE"
               ACTIVE_SLOT="$ACTIVE" \

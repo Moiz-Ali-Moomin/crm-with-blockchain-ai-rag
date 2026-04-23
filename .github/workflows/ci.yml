@@ -431,7 +431,7 @@ jobs:
           #   OPTIONAL, no default (z.optional() — safe to omit):
           #     MONGO_URI          — MongoModule falls back to sentinel URI when absent
           #                          after the mongo.module.ts fix. No crash, just a warn.
-          #     OPENAI_API_KEY     — RagService defers guard to query() call time.
+          #     ANTHROPIC_API_KEY  — RagService defers guard to query() call time.
           #     SENDGRID_*, TWILIO_*, STRIPE_*, BLOCKCHAIN_* — all z.optional().
           #
           #   REQUIRED at bootstrap (getOrThrow — no default):

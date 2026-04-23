@@ -100,14 +100,14 @@ export class VectorSearchService {
     const rows = await this.prisma.$queryRaw<RawEmbeddingRow[]>`
       SELECT
         id,
-        entity_type,
-        entity_id,
+        "entityType" AS entity_type,
+        "entityId"   AS entity_id,
         content,
         metadata,
         1 - (embedding <=> ${vectorLiteral}::vector) AS similarity
       FROM ai_embeddings
-      WHERE tenant_id   = ${tenantId}
-        AND entity_type = ANY(${entityTypes}::text[])
+      WHERE "tenantId"   = ${tenantId}
+        AND "entityType" = ANY(${entityTypes}::text[])
         AND embedding IS NOT NULL
         AND 1 - (embedding <=> ${vectorLiteral}::vector) >= ${threshold}
       ORDER BY similarity DESC
@@ -150,9 +150,9 @@ export class VectorSearchService {
     >`
       SELECT embedding::text
       FROM ai_embeddings
-      WHERE tenant_id  = ${tenantId}
-        AND entity_type = ${entityType}
-        AND entity_id   = ${entityId}
+      WHERE "tenantId"   = ${tenantId}
+        AND "entityType" = ${entityType}
+        AND "entityId"   = ${entityId}
       LIMIT 1
     `;
 
@@ -165,14 +165,14 @@ export class VectorSearchService {
     const similar = await this.prisma.$queryRaw<RawEmbeddingRow[]>`
       SELECT
         id,
-        entity_type,
-        entity_id,
+        "entityType" AS entity_type,
+        "entityId"   AS entity_id,
         content,
         metadata,
         1 - (embedding <=> ${vectorLiteral}::vector) AS similarity
       FROM ai_embeddings
-      WHERE tenant_id   = ${tenantId}
-        AND entity_id  != ${entityId}
+      WHERE "tenantId"  = ${tenantId}
+        AND "entityId" != ${entityId}
         AND embedding  IS NOT NULL
       ORDER BY embedding <=> ${vectorLiteral}::vector
       LIMIT ${limit}

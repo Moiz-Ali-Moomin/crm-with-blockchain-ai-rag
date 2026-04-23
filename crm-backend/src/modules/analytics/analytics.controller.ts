@@ -44,14 +44,17 @@ export class AnalyticsController {
 
   @Get('lead-sources')
   @ApiOperation({ summary: 'Lead source breakdown for pie chart' })
-  getLeadSources() {
-    return this.analyticsService.getLeadSourceBreakdown();
+  getLeadSources(@CurrentUser('tenantId') tenantId: string) {
+    return this.analyticsService.getLeadSourceBreakdown(tenantId);
   }
 
   @Get('pipeline-funnel')
   @ApiOperation({ summary: 'Deal stage funnel for pipeline' })
-  getPipelineFunnel(@Query('pipelineId') pipelineId: string) {
-    return this.analyticsService.getPipelineFunnel(pipelineId);
+  getPipelineFunnel(
+    @CurrentUser('tenantId') tenantId: string,
+    @Query('pipelineId') pipelineId: string,
+  ) {
+    return this.analyticsService.getPipelineFunnel(tenantId, pipelineId);
   }
 
   /**

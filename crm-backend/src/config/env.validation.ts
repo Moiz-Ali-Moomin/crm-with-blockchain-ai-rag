@@ -50,8 +50,11 @@ const envSchema = z.object({
   // Encryption
   ENCRYPTION_KEY: z.string().min(32).optional(),
 
-  // OpenAI (RAG + embeddings + copilot)
-  OPENAI_API_KEY: z.string().startsWith('sk-').optional(),
+  // Anthropic (LLM — RAG + copilot)
+  ANTHROPIC_API_KEY: z.string().optional(),
+  // Ollama (embeddings — local, no key needed)
+  OLLAMA_BASE_URL: z.string().url().optional(),
+  OLLAMA_MODEL: z.string().optional(),
 
   // Blockchain / Polygon
   BLOCKCHAIN_RPC_URL: z.string().url().optional(),

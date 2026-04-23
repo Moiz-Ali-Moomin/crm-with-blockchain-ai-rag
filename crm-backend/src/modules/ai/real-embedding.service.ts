@@ -55,9 +55,9 @@ export class RealEmbeddingService implements IEmbeddingService {
     await this.prisma.$executeRaw`
       UPDATE ai_embeddings
       SET embedding = ${vectorLiteral}::vector
-      WHERE tenant_id   = ${tenantId}
-        AND entity_type = ${entityType}
-        AND entity_id   = ${entityId}
+      WHERE "tenantId"   = ${tenantId}
+        AND "entityType" = ${entityType}
+        AND "entityId"   = ${entityId}
     `;
 
     this.logger.debug(`Embedding upserted: ${entityType}/${entityId} (tenant: ${tenantId})`);

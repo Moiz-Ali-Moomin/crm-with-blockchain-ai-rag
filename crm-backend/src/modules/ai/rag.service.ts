@@ -96,12 +96,11 @@ export class RagService {
 
     // ── 0. Key guard — fail fast before any I/O ──────────────────────────────
     const anthropicKey = this.config.get<string>('ANTHROPIC_API_KEY');
-    const openaiKey    = this.config.get<string>('OPENAI_API_KEY');
-    const aiEnabled    = this.config.get<string>('ENABLE_AI') === 'true';
+    const aiEnabled    = this.config.get<string>('ENABLE_AI') !== 'false';
 
-    if (!aiEnabled || (!anthropicKey && !openaiKey)) {
+    if (!aiEnabled || !anthropicKey) {
       return {
-        answer: 'AI features are not configured. Please set ANTHROPIC_API_KEY (or OPENAI_API_KEY) and ENABLE_AI=true.',
+        answer: 'AI features are not configured. Please set ANTHROPIC_API_KEY.',
         sources: [],
         confidence: 0,
         fromCache: false,

@@ -1,25 +1,11 @@
 /**
- * AiModule — dynamic provider selection based on ENABLE_AI + LLM/Embedding ENV vars
+ * AiModule
  *
  * ┌─────────────────────────────────────────────────────────────────────────────┐
- * │  LLM_PROVIDER=anthropic (default) → AnthropicLLMProvider                  │
- * │  LLM_FALLBACK=openai   (default) → OpenAILLMProvider on error             │
- * │                                                                             │
- * │  EMBEDDING_PROVIDER=ollama (default) → OllamaEmbeddingProvider            │
- * │  EMBEDDING_FALLBACK=openai (default) → OpenAIEmbeddingProvider on error   │
- * │                                                                             │
- * │  ENABLE_AI=false OR no API keys → MockEmbeddingService (AI disabled)      │
+ * │  LLM         → Anthropic Claude (ANTHROPIC_API_KEY required)               │
+ * │  Embeddings  → Ollama nomic-embed-text 768-dim (must be running locally)   │
+ * │  ENABLE_AI=false OR no ANTHROPIC_API_KEY → MockEmbeddingService            │
  * └─────────────────────────────────────────────────────────────────────────────┘
- *
- * Provider tokens:
- *   LLM_PROVIDER       → LLMProvider interface (used by RagService, CopilotService)
- *   EMBEDDING_SERVICE  → IEmbeddingService interface (used by VectorSearchService, worker)
- *   EMBEDDING_PROVIDER → EmbeddingProvider interface (used internally by RealEmbeddingService)
- *
- * Adding a new LLM provider later:
- *   1. Create a class implementing LLMProvider in providers/
- *   2. Add a case to buildLLMProvider() in ai-provider.factory.ts
- *   3. Set LLM_PROVIDER=<new-name> in .env — zero other changes needed.
  */
 
 import { Module } from '@nestjs/common';
@@ -71,14 +57,14 @@ const isMongoEnabled = !!process.env.MONGO_URI;
   controllers: [AiController],
 
   providers: [
-    // ── LLM_PROVIDER: Anthropic → OpenAI fallback ────────────────────────────
+    // ── LLM_PROVIDER: Anthropic Claude ───────────────────────────────────────
     {
       provide: LLM_PROVIDER,
       inject: [ConfigService],
       useFactory: (config: ConfigService) => AIProviderFactory.getLLM(config),
     },
 
-    // ── EMBEDDING_PROVIDER: Ollama → OpenAI fallback (raw vector generation) ─
+    // ── EMBEDDING_PROVIDER: Ollama (768-dim nomic-embed-text) ────────────────
     {
       provide: EMBEDDING_PROVIDER,
       inject: [ConfigService],
@@ -94,12 +80,10 @@ const isMongoEnabled = !!process.env.MONGO_URI;
         prisma: PrismaService,
         embeddingProvider: ReturnType<typeof AIProviderFactory.getEmbedding>,
       ) => {
-        const enabled = config.get<string>('ENABLE_AI') === 'true';
-        const hasAnyKey =
-          !!config.get<string>('ANTHROPIC_API_KEY') ||
-          !!config.get<string>('OPENAI_API_KEY');
+        const enabled = config.get<string>('ENABLE_AI') !== 'false';
+        const hasKey = !!config.get<string>('ANTHROPIC_API_KEY');
 
-        if (enabled && hasAnyKey) {
+        if (enabled && hasKey) {
           return new RealEmbeddingService(prisma, embeddingProvider);
         }
 

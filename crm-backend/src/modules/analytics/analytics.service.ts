@@ -213,9 +213,10 @@ export class AnalyticsService {
   /**
    * Lead source breakdown for pie chart
    */
-  async getLeadSourceBreakdown() {
+  async getLeadSourceBreakdown(tenantId: string) {
     const rows = await this.prisma.lead.groupBy({
       by: ['source'],
+      where: { tenantId },
       _count: { id: true },
       orderBy: { _count: { id: 'desc' } },
     });
@@ -230,12 +231,12 @@ export class AnalyticsService {
   /**
    * Deal stage distribution for funnel chart
    */
-  async getPipelineFunnel(pipelineId: string) {
+  async getPipelineFunnel(tenantId: string, pipelineId: string) {
     const stages = await this.prisma.stage.findMany({
-      where: { pipelineId },
+      where: { pipelineId, tenantId },
       include: {
         deals: {
-          where: { status: 'OPEN' },
+          where: { status: 'OPEN', tenantId },
           select: { value: true },
         },
       },

@@ -7,6 +7,7 @@ import { RedisService } from '../../core/cache/redis.service';
 import { CircuitBreakerService } from '../../core/resilience/circuit-breaker.service';
 import { AiCostControlService } from './cost-control.service';
 import { BusinessMetricsService } from '../../core/metrics/business-metrics.service';
+import { LLM_PROVIDER } from './providers/llm.interface';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -44,15 +45,11 @@ const mockRedis = {
   set: jest.fn().mockResolvedValue('OK'),
 };
 
-const mockOpenAiCompletion = {
-  choices: [{ message: { content: 'Acme Corp had a deal won in May.' } }],
-  usage: { prompt_tokens: 120, completion_tokens: 40, total_tokens: 160 },
+const mockLlmProvider = {
+  generate: jest.fn().mockResolvedValue('Acme Corp had a deal won in May.'),
 };
 
-const mockOpenAiCreate = jest.fn().mockResolvedValue(mockOpenAiCompletion);
-
 const mockCircuitBreaker = {
-  // Execute the callback directly — no circuit-breaking in tests
   execute: jest.fn().mockImplementation((_name: string, fn: () => unknown) => fn()),
 };
 
@@ -65,13 +62,6 @@ const mockBusinessMetrics = {
   recordAiUsage: jest.fn(),
 };
 
-// Intercept OpenAI constructor so no real API key is required
-jest.mock('openai', () => {
-  return jest.fn().mockImplementation(() => ({
-    chat: { completions: { create: mockOpenAiCreate } },
-  }));
-});
-
 // ── Test suite ────────────────────────────────────────────────────────────────
 
 describe('RagService', () => {
@@ -79,6 +69,7 @@ describe('RagService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    mockLlmProvider.generate.mockResolvedValue('Acme Corp had a deal won in May.');
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -86,17 +77,14 @@ describe('RagService', () => {
         {
           provide: ConfigService,
           useValue: {
-            getOrThrow: jest.fn().mockReturnValue('sk-test-key'),
-            // Return a truthy value for OPENAI_API_KEY so the guard in query()
-            // passes. The real key is never sent anywhere — openai is fully
-            // mocked via jest.mock('openai') at the top of this file.
-            // All other keys return undefined (correct — they are not used by RagService).
+            getOrThrow: jest.fn().mockReturnValue('sk-ant-test-key'),
             get: jest.fn().mockImplementation((key: string) => {
-              if (key === 'OPENAI_API_KEY') return 'sk-test-key';
+              if (key === 'ANTHROPIC_API_KEY') return 'sk-ant-test-key';
               return undefined;
             }),
           },
         },
+        { provide: LLM_PROVIDER, useValue: mockLlmProvider },
         { provide: VectorSearchService, useValue: mockVectorSearch },
         { provide: AiLogRepository, useValue: mockAiLogRepo },
         { provide: RedisService, useValue: mockRedis },
@@ -112,12 +100,12 @@ describe('RagService', () => {
   // ── Cache hit ───────────────────────────────────────────────────────────────
 
   describe('cache hit', () => {
-    it('returns cached result with fromCache=true without calling OpenAI', async () => {
+    it('returns cached result with fromCache=true without calling LLM', async () => {
       const cached: RagResponse = {
         answer: 'Cached answer.',
         sources: [],
         confidence: 0.85,
-        fromCache: false, // raw stored value — service overwrites to true
+        fromCache: false,
       };
       mockRedis.get.mockResolvedValue(cached);
 
@@ -125,7 +113,7 @@ describe('RagService', () => {
 
       expect(result.fromCache).toBe(true);
       expect(result.answer).toBe('Cached answer.');
-      expect(mockOpenAiCreate).not.toHaveBeenCalled();
+      expect(mockLlmProvider.generate).not.toHaveBeenCalled();
       expect(mockVectorSearch.search).not.toHaveBeenCalled();
     });
 
@@ -139,7 +127,6 @@ describe('RagService', () => {
 
       await service.query(makeRagParams());
 
-      // Allow microtask queue to flush for the fire-and-forget log
       await Promise.resolve();
       expect(mockAiLogRepo.create).toHaveBeenCalledTimes(1);
     });
@@ -151,7 +138,6 @@ describe('RagService', () => {
       await service.query(makeRagParams());
       await service.query(makeRagParams());
 
-      // Same params → same cache key → redis.get called with identical key twice
       const [firstKey] = mockRedis.get.mock.calls[0];
       const [secondKey] = mockRedis.get.mock.calls[1];
       expect(firstKey).toBe(secondKey);
@@ -204,9 +190,9 @@ describe('RagService', () => {
       expect(result.answer.toLowerCase()).toContain('could not find');
     });
 
-    it('does NOT call OpenAI when there are no chunks', async () => {
+    it('does NOT call LLM when there are no chunks', async () => {
       await service.query(makeRagParams());
-      expect(mockOpenAiCreate).not.toHaveBeenCalled();
+      expect(mockLlmProvider.generate).not.toHaveBeenCalled();
     });
 
     it('does NOT cache the no-context response', async () => {
@@ -245,27 +231,21 @@ describe('RagService', () => {
       );
     });
 
-    it('calls OpenAI with system prompt and user message containing the context', async () => {
+    it('calls LLM provider with system prompt and user query containing the context', async () => {
       await service.query(makeRagParams());
-      expect(mockOpenAiCreate).toHaveBeenCalledTimes(1);
+      expect(mockLlmProvider.generate).toHaveBeenCalledTimes(1);
 
-      const [callArgs] = mockOpenAiCreate.mock.calls[0];
-      const messages: Array<{ role: string; content: string }> = callArgs.messages;
-
-      const systemMsg = messages.find((m) => m.role === 'system');
-      const userMsg   = messages.find((m) => m.role === 'user');
-
-      expect(systemMsg).toBeDefined();
-      expect(systemMsg!.content).toContain('CRM assistant');
-      expect(userMsg!.content).toContain('CRM Context:');
-      expect(userMsg!.content).toContain('What happened with Acme Corp last month?');
+      const callArgs = mockLlmProvider.generate.mock.calls[0][0];
+      expect(callArgs.system).toContain('CRM assistant');
+      expect(callArgs.prompt).toBe('What happened with Acme Corp last month?');
+      expect(callArgs.context).toContain('Acme Corp deal was won on May 15th.');
     });
 
-    it('uses temperature 0.2 and max_tokens 800', async () => {
+    it('passes retrieved context to the LLM provider', async () => {
       await service.query(makeRagParams());
-      const [callArgs] = mockOpenAiCreate.mock.calls[0];
-      expect(callArgs.temperature).toBe(0.2);
-      expect(callArgs.max_tokens).toBe(800);
+      const callArgs = mockLlmProvider.generate.mock.calls[0][0];
+      expect(callArgs.context).toBeDefined();
+      expect(callArgs.context).toContain('Email sent to Acme confirming the deal.');
     });
 
     it('returns the LLM answer in the response', async () => {
@@ -308,9 +288,14 @@ describe('RagService', () => {
       expect(cachedValue.answer).toBe('Acme Corp had a deal won in May.');
     });
 
-    it('records token usage in the response', async () => {
+    it('records estimated token usage in the response', async () => {
       const result = await service.query(makeRagParams());
-      expect(result.tokensUsed).toBe(160);
+      // estimatedTokens = Math.ceil((contextWindow.length + query.length) / 4)
+      // context: '[activity] Acme Corp deal was won on May 15th.\n\n' (48) +
+      //          '[communication] Email sent to Acme confirming the deal.\n\n' (57) = 105
+      // query: 'What happened with Acme Corp last month?' = 40
+      // Math.ceil(145/4) = 37
+      expect(result.tokensUsed).toBe(37);
     });
 
     it('returns fromCache=false', async () => {
@@ -318,7 +303,7 @@ describe('RagService', () => {
       expect(result.fromCache).toBe(false);
     });
 
-    it('fires an audit log with the model and metadata', async () => {
+    it('fires an audit log with the provider and metadata', async () => {
       await service.query(makeRagParams());
       await Promise.resolve();
 
@@ -326,7 +311,7 @@ describe('RagService', () => {
       const [logArgs] = mockAiLogRepo.create.mock.calls[0];
       expect(logArgs.tenantId).toBe(TENANT_ID);
       expect(logArgs.operationType).toBe('rag_query');
-      expect(logArgs.metadata).toMatchObject({ model: 'gpt-4o', temperature: 0.2 });
+      expect(logArgs.metadata).toMatchObject({ provider: 'anthropic', temperature: 0.2 });
     });
   });
 
@@ -374,8 +359,8 @@ describe('RagService', () => {
   describe('context window budget', () => {
     it('stops appending chunks once MAX_CONTEXT_CHARS (12,000) is exceeded', async () => {
       mockRedis.get.mockResolvedValue(null);
+      mockLlmProvider.generate.mockResolvedValue('answer');
 
-      // Create 20 chunks each with 1500 chars of content — will overflow the budget
       const bigChunks: SemanticSearchResult[] = Array.from({ length: 20 }, (_, i) =>
         makeChunk(`id-${i}`, 'activity', 0.9, 'A'.repeat(1500)),
       );
@@ -383,10 +368,9 @@ describe('RagService', () => {
 
       await service.query(makeRagParams());
 
-      const [callArgs] = mockOpenAiCreate.mock.calls[0];
-      const userMessage: string = callArgs.messages.find((m: any) => m.role === 'user').content;
-      // The context portion should never exceed MAX_CONTEXT_CHARS
-      expect(userMessage.length).toBeLessThan(12_000 + 500); // +500 for "CRM Context:\n\n---\nQuestion:" overhead
+      const callArgs = mockLlmProvider.generate.mock.calls[0][0];
+      // Context must never exceed MAX_CONTEXT_CHARS (12,000)
+      expect(callArgs.context.length).toBeLessThan(12_000 + 500);
     });
   });
 
@@ -398,7 +382,6 @@ describe('RagService', () => {
       mockVectorSearch.search.mockResolvedValue([]);
       mockAiLogRepo.create.mockRejectedValue(new Error('MongoDB connection lost'));
 
-      // Should still resolve cleanly
       await expect(service.query(makeRagParams())).resolves.toBeDefined();
     });
   });
