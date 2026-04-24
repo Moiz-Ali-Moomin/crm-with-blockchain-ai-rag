@@ -146,21 +146,11 @@ services:
     image: prom/alertmanager:v0.27.0
     container_name: crm_alertmanager
     restart: unless-stopped
-    # envsubst substitutes ${ALERTMANAGER_SMTP_USER} etc. before alertmanager reads the file
-    entrypoint:
-      - /bin/sh
-      - -c
-      - >-
-        apk add --no-cache gettext --quiet &&
-        envsubst < /etc/alertmanager/alertmanager.yml > /tmp/alertmanager.yml &&
-        alertmanager --config.file=/tmp/alertmanager.yml
-        --storage.path=/alertmanager
-        --web.external-url=https://bestpurchasestore.com/alertmanager
-        --web.route-prefix=/alertmanager
-    environment:
-      ALERTMANAGER_SMTP_USER: ${ALERTMANAGER_SMTP_USER}
-      ALERTMANAGER_SMTP_PASSWORD: ${ALERTMANAGER_SMTP_PASSWORD}
-      ALERTMANAGER_SLACK_WEBHOOK: ${ALERTMANAGER_SLACK_WEBHOOK:-}
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+      - --web.external-url=https://bestpurchasestore.com/alertmanager
+      - --web.route-prefix=/alertmanager
     volumes:
       - ./observability/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
       - alertmanager_data:/alertmanager
@@ -210,10 +200,7 @@ services:
       - loki
       - prometheus
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:13133 || exit 1"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
+      disable: true
 
   # ── Log aggregation (Loki + Promtail) ─────────────────────────────────────
   # WHY: centralized logs mean you can correlate an error spike in Grafana with
