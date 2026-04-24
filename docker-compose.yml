@@ -146,11 +146,25 @@ services:
     image: prom/alertmanager:v0.27.0
     container_name: crm_alertmanager
     restart: unless-stopped
-    command:
-      - --config.file=/etc/alertmanager/alertmanager.yml
-      - --storage.path=/alertmanager
-      - --web.external-url=https://bestpurchasestore.com/alertmanager
-      - --web.route-prefix=/alertmanager
+    # sed substitutes ${VAR} placeholders in alertmanager.yml using busybox's
+    # built-in sed — no apk/gettext needed. The result is written to /tmp so
+    # the read-only volume mount is not touched.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        sed \
+          -e "s|\$${ALERTMANAGER_SMTP_USER}|$${ALERTMANAGER_SMTP_USER}|g" \
+          -e "s|\$${ALERTMANAGER_SMTP_PASSWORD}|$${ALERTMANAGER_SMTP_PASSWORD}|g" \
+          /etc/alertmanager/alertmanager.yml > /tmp/alertmanager.yml && \
+        exec /bin/alertmanager \
+          --config.file=/tmp/alertmanager.yml \
+          --storage.path=/alertmanager \
+          --web.external-url=https://bestpurchasestore.com/alertmanager \
+          --web.route-prefix=/alertmanager
+    environment:
+      ALERTMANAGER_SMTP_USER: ${ALERTMANAGER_SMTP_USER:-}
+      ALERTMANAGER_SMTP_PASSWORD: ${ALERTMANAGER_SMTP_PASSWORD:-}
     volumes:
       - ./observability/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
       - alertmanager_data:/alertmanager
@@ -159,7 +173,7 @@ services:
     depends_on:
       - prometheus
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9093/-/healthy || exit 1"]
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:9093/-/healthy"]
       interval: 30s
       timeout: 5s
       retries: 3

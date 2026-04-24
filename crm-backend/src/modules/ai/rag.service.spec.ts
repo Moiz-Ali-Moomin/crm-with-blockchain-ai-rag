@@ -185,19 +185,24 @@ describe('RagService', () => {
       expect(result.sources).toHaveLength(0);
     });
 
-    it('answer mentions no relevant records were found', async () => {
+    it('still returns an answer from the LLM using the fallback prompt', async () => {
       const result = await service.query(makeRagParams());
-      expect(result.answer.toLowerCase()).toContain('could not find');
+      expect(result.answer).toBe('Acme Corp had a deal won in May.');
     });
 
-    it('does NOT call LLM when there are no chunks', async () => {
+    it('calls LLM with the fallback system prompt when there are no chunks', async () => {
       await service.query(makeRagParams());
-      expect(mockLlmProvider.generate).not.toHaveBeenCalled();
+      expect(mockLlmProvider.generate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          system: expect.stringContaining('No matching records were found'),
+          context: '',
+        }),
+      );
     });
 
-    it('does NOT cache the no-context response', async () => {
+    it('caches the fallback response', async () => {
       await service.query(makeRagParams());
-      expect(mockRedis.set).not.toHaveBeenCalled();
+      expect(mockRedis.set).toHaveBeenCalled();
     });
 
     it('still fires an audit log', async () => {
