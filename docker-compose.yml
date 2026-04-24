@@ -147,15 +147,16 @@ services:
     container_name: crm_alertmanager
     restart: unless-stopped
     # envsubst substitutes ${ALERTMANAGER_SMTP_USER} etc. before alertmanager reads the file
-    entrypoint: >
-      /bin/sh -c "
+    entrypoint:
+      - /bin/sh
+      - -c
+      - >-
         apk add --no-cache gettext --quiet &&
         envsubst < /etc/alertmanager/alertmanager.yml > /tmp/alertmanager.yml &&
         alertmanager --config.file=/tmp/alertmanager.yml
-          --storage.path=/alertmanager
-          --web.external-url=https://bestpurchasestore.com/alertmanager
-          --web.route-prefix=/alertmanager
-      "
+        --storage.path=/alertmanager
+        --web.external-url=https://bestpurchasestore.com/alertmanager
+        --web.route-prefix=/alertmanager
     environment:
       ALERTMANAGER_SMTP_USER: ${ALERTMANAGER_SMTP_USER}
       ALERTMANAGER_SMTP_PASSWORD: ${ALERTMANAGER_SMTP_PASSWORD}
