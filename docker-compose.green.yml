@@ -42,6 +42,8 @@ services:
     read_only: false   # NestJS writes logs; set true if logs go to stdout only
     tmpfs:
       - /tmp
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   web:
     image: ${IMAGE_WEB}:${IMAGE_TAG}
