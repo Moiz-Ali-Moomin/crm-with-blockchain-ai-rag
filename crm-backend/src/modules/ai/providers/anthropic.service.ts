@@ -35,7 +35,7 @@ export class AnthropicLLMProvider implements LLMProvider {
 
   constructor(config: AnthropicConfig) {
     this.client = new Anthropic({ apiKey: config.apiKey });
-    this.model = config.model ?? 'claude-3-5-sonnet-20241022';
+    this.model = config.model ?? 'claude-sonnet-4-6';
     this.maxTokens = config.maxTokens ?? 1024;
     this.temperature = config.temperature ?? 0.2;
   }
