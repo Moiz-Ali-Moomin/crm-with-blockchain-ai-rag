@@ -69,6 +69,8 @@ const RAG_SYSTEM_PROMPT = `You are an intelligent CRM assistant with access to r
 
 Answer ONLY using provided context. If not enough info, say so. Be concise and factual.`;
 
+const FALLBACK_SYSTEM_PROMPT = `You are an intelligent CRM assistant. No matching records were found in the database for this query, so answer based on your general knowledge of CRM best practices. Be concise and helpful. Mention that your answer is not based on live CRM data.`;
+
 @Injectable()
 export class RagService {
   private readonly logger = new Logger(RagService.name);
@@ -148,32 +150,15 @@ export class RagService {
       threshold,
     });
 
-    if (chunks.length === 0) {
-      const response: RagResponse = {
-        answer: 'I could not find any relevant CRM records for your query.',
-        sources: [],
-        confidence: 0,
-        fromCache: false,
-      };
-
-      this.logFireAndForget({
-        tenantId,
-        operationType: AiOperationType.RAG_QUERY,
-        prompt: query,
-        response: response.answer,
-      });
-
-      return response;
-    }
-
-    const contextWindow = this.buildContextWindow(chunks);
+    const hasContext = chunks.length > 0;
+    const contextWindow = hasContext ? this.buildContextWindow(chunks) : '';
 
     // ── 4. LLM call — protected by circuit breaker ───────────────────────────
     const start = Date.now();
 
     const answer = await this.circuitBreaker.execute('llm', () =>
       this.llmProvider.generate({
-        system: RAG_SYSTEM_PROMPT,
+        system: hasContext ? RAG_SYSTEM_PROMPT : FALLBACK_SYSTEM_PROMPT,
         prompt: query,
         context: contextWindow,
       }),
@@ -198,9 +183,9 @@ export class RagService {
 
     const round3 = (n: number) => Math.round(n * 1000) / 1000;
 
-    const confidence = round3(
-      chunks.reduce((sum, c) => sum + c.similarity, 0) / chunks.length,
-    );
+    const confidence = hasContext
+      ? round3(chunks.reduce((sum, c) => sum + c.similarity, 0) / chunks.length)
+      : 0;
 
     const sources: RagSource[] = chunks.map((c) => ({
       entityType: c.entityType,
@@ -231,6 +216,7 @@ export class RagService {
         provider: this.config.get<string>('LLM_PROVIDER') ?? 'anthropic',
         temperature: 0.2,
         tokensEstimated: estimatedTokens,
+        fallback: !hasContext,
       },
     });
 
