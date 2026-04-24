@@ -129,7 +129,7 @@ function fmtActivity(a: any): string {
 
 function fmtCommunication(c: any): string {
   const parts = [
-    `Communication: ${c.type}`,
+    `Communication: ${c.channel}`,
     `Subject: ${c.subject ?? '(no subject)'}`,
     `Direction: ${c.direction}`,
   ];
@@ -266,7 +266,7 @@ export class DbFallbackService {
         sections.push(`## Communications\n${comms.map(fmtCommunication).join('\n')}`);
         for (const c of comms) {
           const content = fmtCommunication(c);
-          embeddingJobs.push({ tenantId, entityType: 'communication', entityId: c.id, content, metadata: { type: c.type } });
+          embeddingJobs.push({ tenantId, entityType: 'communication', entityId: c.id, content, metadata: { channel: c.channel } });
         }
       }),
     ]);
