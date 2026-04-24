@@ -38,6 +38,11 @@ interface CircuitRecord {
 }
 
 const CIRCUIT_CONFIGS: Record<string, CircuitConfig> = {
+  llm: {
+    failureThreshold: 3,
+    windowSeconds: 60,
+    openDurationMs: 30_000,
+  },
   openai: {
     failureThreshold: 5,
     windowSeconds: 60,
