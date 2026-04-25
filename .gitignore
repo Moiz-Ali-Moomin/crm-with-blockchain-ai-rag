@@ -63,3 +63,6 @@ crm-frontend/.env.local
 
 # Nginx SSL certificates
 nginx/ssl/
+
+
+AGENTS.md

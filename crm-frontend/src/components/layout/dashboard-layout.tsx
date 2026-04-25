@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useAuthStore } from '@/store/auth.store';
 import { Sidebar } from './sidebar';
 import { Navbar } from './header';
 
@@ -24,6 +25,12 @@ interface DashboardLayoutProps {
  */
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const user = useAuthStore((s) => s.user);
+
+  // Last-resort guard: AuthGuard above should have already blocked rendering
+  // without a user, but this prevents Sidebar/Navbar from crashing if user
+  // is ever null here (e.g., during the mount tick before AuthGuard evaluates).
+  if (!user) return null;
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950">

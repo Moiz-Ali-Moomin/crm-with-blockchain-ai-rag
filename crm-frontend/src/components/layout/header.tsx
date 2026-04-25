@@ -176,7 +176,7 @@ export function Navbar({ onMenuToggle }: NavbarProps) {
   const pageTitle   = resolvePageTitle(pathname);
   const section     = resolveSection(pathname);
   const initials    = user
-    ? `${user.firstName[0]}${user.lastName[0]}`.toUpperCase()
+    ? (`${user.firstName?.[0] ?? ''}${user.lastName?.[0] ?? ''}`).toUpperCase() || 'U'
     : 'U';
 
   const handleLogout = async () => {

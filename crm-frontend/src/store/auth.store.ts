@@ -26,6 +26,12 @@ export interface User {
 interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
+  /**
+   * True while the Zustand persist middleware is reading from localStorage.
+   * Starts true on every render (server or client) and flips to false once
+   * storage is hydrated. Components should gate rendering on !isLoading.
+   */
+  isLoading: boolean;
   /** True once Zustand has rehydrated persisted state from localStorage. */
   _hasHydrated: boolean;
   /** Set the current user (called after login or from the server-side initial data). */
@@ -39,13 +45,14 @@ export const useAuthStore = create<AuthState>()(
     (set) => ({
       user: null,
       isAuthenticated: false,
+      isLoading: true,
       _hasHydrated: false,
 
-      setAuth: (user) => set({ user, isAuthenticated: true }),
+      setAuth: (user) => set({ user, isAuthenticated: true, isLoading: false }),
 
       logout: () => set({ user: null, isAuthenticated: false }),
 
-      _setHasHydrated: (value) => set({ _hasHydrated: value }),
+      _setHasHydrated: (value) => set({ _hasHydrated: value, isLoading: !value }),
     }),
     {
       name: 'crm-auth',
