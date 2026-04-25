@@ -33,7 +33,7 @@ function LoginForm() {
   const onSubmit = async (data: LoginForm) => {
     try {
       const result = await authApi.login(data.email, data.password);
-      setAuth(result.user, result.accessToken);
+      setAuth(result.user);
       toast.success('Welcome back!');
       const redirect = searchParams.get('redirect');
       router.push(redirect ?? '/dashboard');

@@ -1,16 +1,14 @@
 /**
  * Socket Singleton
  *
- * Problem with the old use-socket.ts:
- *   Each component that calls useSocket() gets a NEW socket.io connection.
- *   A page with 5 components = 5 WebSocket connections to the backend.
+ * One SocketContext holds a single connection per auth session.
+ * All components share it via useSocket().
+ * Connection is created once on auth, torn down on logout.
  *
- * Solution:
- *   One SocketContext holds a single connection per auth session.
- *   All components share it via useSocket().
- *   Connection is created once on auth, torn down on logout.
- *
- * NOTE: This file is .tsx (not .ts) because the Provider contains JSX.
+ * With cookie-based auth the access token is no longer available in JS state.
+ * The socket.io initial HTTP handshake sends the access_token httpOnly cookie
+ * automatically (withCredentials: true), so the NestJS gateway can validate it
+ * the same way any other guarded route does.
  */
 
 'use client';
@@ -27,11 +25,7 @@ import { io } from 'socket.io-client';
 import type { Socket } from 'socket.io-client';
 import { useAuthStore } from '@/store/auth.store';
 
-// ─── Context ─────────────────────────────────────────────────────────────────
-
 const SocketContext = createContext<Socket | null>(null);
-
-// ─── Provider ────────────────────────────────────────────────────────────────
 
 interface SocketProviderProps {
   children: ReactNode;
@@ -39,10 +33,10 @@ interface SocketProviderProps {
 
 export function SocketProvider({ children }: SocketProviderProps) {
   const [socket, setSocket] = useState<Socket | null>(null);
-  const { isAuthenticated, accessToken } = useAuthStore();
+  const { isAuthenticated } = useAuthStore();
 
   useEffect(() => {
-    if (!isAuthenticated || !accessToken) {
+    if (!isAuthenticated) {
       setSocket((prev) => {
         prev?.disconnect();
         return null;
@@ -55,7 +49,8 @@ export function SocketProvider({ children }: SocketProviderProps) {
       (process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') ?? 'http://localhost:3001');
 
     const newSocket: Socket = io(WS_URL, {
-      auth:                 { token: accessToken },
+      // Sends the httpOnly cookies (access_token) on the HTTP upgrade handshake.
+      withCredentials:      true,
       transports:           ['websocket', 'polling'],
       reconnection:         true,
       reconnectionAttempts: 10,
@@ -71,11 +66,8 @@ export function SocketProvider({ children }: SocketProviderProps) {
     }
 
     setSocket(newSocket);
-
-    return () => {
-      newSocket.disconnect();
-    };
-  }, [isAuthenticated, accessToken]);
+    return () => { newSocket.disconnect(); };
+  }, [isAuthenticated]);
 
   return (
     <SocketContext.Provider value={socket}>
@@ -84,34 +76,7 @@ export function SocketProvider({ children }: SocketProviderProps) {
   );
 }
 
-// ─── Hook ────────────────────────────────────────────────────────────────────
-
 /** Returns the singleton Socket.io connection — null if not authenticated. */
 export function useSocket(): Socket | null {
   return useContext(SocketContext);
-}
-
-/**
- * Subscribe to a specific WebSocket event with automatic cleanup.
- * Uses a ref for the handler to avoid stale closure issues without
- * requiring useCallback on the caller side.
- */
-export function useSocketEvent<T = unknown>(
-  eventName: string,
-  handler: (data: T) => void,
-): void {
-  const socket     = useSocket();
-  const handlerRef = useRef(handler);
-  handlerRef.current = handler;
-
-  useEffect(() => {
-    if (!socket) return;
-
-    const stableHandler = (data: T) => handlerRef.current(data);
-    socket.on(eventName, stableHandler);
-
-    return () => {
-      socket.off(eventName, stableHandler);
-    };
-  }, [socket, eventName]);
 }

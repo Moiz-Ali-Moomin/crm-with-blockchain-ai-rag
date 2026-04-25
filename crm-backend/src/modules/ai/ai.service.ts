@@ -12,6 +12,7 @@ import {
   SummarizeActivityDto,
   RagQueryDto,
   VerifyDealWithAiDto,
+  CopilotQueryDto,
 } from './ai.dto';
 import { AgentService } from '../mcp/agent.service';
 import { ChatMessage } from './providers/llm.interface';
@@ -100,6 +101,24 @@ export class AiService {
       topK: dto.topK,
       threshold: dto.threshold,
       history: dto.history as ChatMessage[],
+    });
+  }
+
+  async copilotQuery(tenantId: string, userId: string, userRole: string, dto: CopilotQueryDto) {
+    // Prepend page context to the query so the agent/RAG can focus on the right scope
+    let enrichedQuery = dto.query;
+    if (dto.context?.page) {
+      const entity = dto.context.entityId ? ` (ID: ${dto.context.entityId})` : '';
+      enrichedQuery = `[User is on the ${dto.context.page} page${entity}] ${dto.query}`;
+    }
+
+    return this.ragQuery(tenantId, userId, userRole, {
+      query: enrichedQuery,
+      history: dto.history ?? [],
+      sessionId: dto.sessionId,
+      entityTypes: ['activity', 'communication', 'ticket'],
+      topK: 8,
+      threshold: 0.72,
     });
   }
 

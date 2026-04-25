@@ -25,70 +25,31 @@ export interface User {
 
 interface AuthState {
   user: User | null;
-  accessToken: string | null;
   isAuthenticated: boolean;
-  isLoading: boolean;
-  _hasHydrated: boolean;
-  /** True while a silent /auth/refresh call is in-flight on page load. */
-  isRehydrating: boolean;
-  setAuth: (user: User, accessToken: string) => void;
-  setAccessToken: (token: string) => void;
+  /** Set the current user (called after login or from the server-side initial data). */
+  setAuth: (user: User) => void;
   logout: () => void;
-  setLoading: (loading: boolean) => void;
-  setHasHydrated: (state: boolean) => void;
-  setRehydrating: (state: boolean) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
       user: null,
-      accessToken: null,
       isAuthenticated: false,
-      isLoading: false,
-      _hasHydrated: false,
-      isRehydrating: false,
 
-      setHasHydrated: (hasHydrated) => set({ _hasHydrated: hasHydrated }),
+      setAuth: (user) => set({ user, isAuthenticated: true }),
 
-      setAuth: (user, accessToken) =>
-        set({
-          user,
-          accessToken,
-          isAuthenticated: true,
-          isLoading: false,
-        }),
-
-      setAccessToken: (token) =>
-        set({
-          accessToken: token,
-        }),
-
-      logout: () =>
-        set({
-          user: null,
-          accessToken: null,
-          isAuthenticated: false,
-          isLoading: false,
-        }),
-
-      setLoading: (loading) => set({ isLoading: loading }),
-
-      setRehydrating: (state) => set({ isRehydrating: state }),
+      logout: () => set({ user: null, isAuthenticated: false }),
     }),
     {
       name: 'crm-auth',
       storage: createJSONStorage(() =>
-        typeof window !== 'undefined' ? localStorage : { getItem: () => null, setItem: () => {}, removeItem: () => {} }
+        typeof window !== 'undefined'
+          ? localStorage
+          : { getItem: () => null, setItem: () => {}, removeItem: () => {} }
       ),
-      // Only persist user and isAuthenticated — accessToken stays in memory only
-      partialize: (state) => ({
-        user: state.user,
-        isAuthenticated: state.isAuthenticated,
-      }),
-      onRehydrateStorage: () => (state) => {
-        state?.setHasHydrated(true);
-      },
+      // Persist user profile for instant rendering; auth truth lives in the httpOnly cookie.
+      partialize: (state) => ({ user: state.user, isAuthenticated: state.isAuthenticated }),
     }
   )
 );

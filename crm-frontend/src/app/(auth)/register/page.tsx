@@ -63,7 +63,7 @@ export default function RegisterPage() {
         lastName: data.lastName,
         password: data.password,
       });
-      setAuth(result.user, result.accessToken);
+      setAuth(result.user);
       toast.success('Account created! Welcome aboard.');
       router.replace('/dashboard');
     } catch (err: any) {

@@ -2,23 +2,18 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { Brain, Search, ShieldCheck, Send, Loader2, AlertCircle, CheckCircle2, XCircle, Sparkles } from 'lucide-react';
+import { Brain, Search, ShieldCheck, Send, Loader2, AlertCircle, CheckCircle2, XCircle, Sparkles, Trash2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { aiApi, RagQueryResult, SemanticSearchResult, DealVerifyResult, ChatHistoryMessage } from '@/lib/api/ai.api';
+import { aiApi, SemanticSearchResult, DealVerifyResult } from '@/lib/api/ai.api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { useCopilotStore } from '@/store/copilot.store';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Tab = 'chat' | 'search' | 'verify';
-
-interface ChatMessage {
-  role: 'user' | 'assistant';
-  content: string;
-  sources?: RagQueryResult['sources'];
-}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -76,50 +71,22 @@ function MarkdownContent({ content, className }: { content: string; className?: 
   );
 }
 
-// ─── Tab: Ask AI (RAG Chat) ────────────────────────────────────────────────────
+// ─── Tab: Ask AI (Copilot Chat) ────────────────────────────────────────────────
 
 function ChatTab() {
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      role: 'assistant',
-      content: "Hi! I'm your AI Copilot. Ask me anything about your CRM data — leads, deals, contacts, support tickets, and more.",
-    },
-  ]);
+  const { messages, isLoading, sendMessage, clearMessages } = useCopilotStore();
   const [input, setInput] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const { mutate, isPending } = useMutation({
-    mutationFn: ({ query, history }: { query: string; history: ChatHistoryMessage[] }) =>
-      aiApi.query(query, history),
-    onSuccess: (data) => {
-      setMessages((prev) => [
-        ...prev,
-        { role: 'assistant', content: data.answer, sources: data.sources },
-      ]);
-    },
-    onError: () => {
-      setMessages((prev) => [
-        ...prev,
-        { role: 'assistant', content: 'Sorry, something went wrong. Please try again.' },
-      ]);
-    },
-  });
-
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isPending]);
+  }, [messages, isLoading]);
 
   function handleSend() {
     const q = input.trim();
-    if (!q || isPending) return;
-    // Snapshot current messages as history before appending the new user turn
-    const history: ChatHistoryMessage[] = messages.map((m) => ({
-      role: m.role,
-      content: m.content,
-    }));
-    setMessages((prev) => [...prev, { role: 'user', content: q }]);
+    if (!q || isLoading) return;
     setInput('');
-    mutate({ query: q, history });
+    sendMessage(q);
   }
 
   const suggestions = [
@@ -131,10 +98,22 @@ function ChatTab() {
 
   return (
     <div className="flex h-[calc(100vh-220px)] flex-col gap-3">
+      {/* Header actions */}
+      {messages.length > 1 && (
+        <div className="flex justify-end">
+          <button
+            onClick={clearMessages}
+            className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-fg-muted hover:text-fg-secondary hover:bg-canvas-subtle transition-colors border border-ui-border"
+          >
+            <Trash2 size={12} /> Clear chat
+          </button>
+        </div>
+      )}
+
       {/* Messages */}
       <div className="flex-1 overflow-y-auto space-y-4 pr-1">
-        {messages.map((msg, i) => (
-          <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+        {messages.map((msg) => (
+          <div key={msg.id} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             {msg.role === 'assistant' && (
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white">
                 <Sparkles size={14} />
@@ -161,7 +140,7 @@ function ChatTab() {
             </div>
           </div>
         ))}
-        {isPending && (
+        {isLoading && (
           <div className="flex gap-3">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white">
               <Sparkles size={14} />
@@ -174,13 +153,13 @@ function ChatTab() {
         <div ref={bottomRef} />
       </div>
 
-      {/* Suggestions (only when just the greeting is shown) */}
+      {/* Suggestions — only on fresh conversation */}
       {messages.length === 1 && (
         <div className="flex flex-wrap gap-2">
           {suggestions.map((s) => (
             <button
               key={s}
-              onClick={() => { setInput(s); }}
+              onClick={() => setInput(s)}
               className="rounded-full border border-ui-border bg-canvas px-3 py-1.5 text-xs text-fg-secondary hover:border-indigo-300 hover:text-indigo-600 transition-colors"
             >
               {s}
@@ -196,11 +175,11 @@ function ChatTab() {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSend()}
           placeholder="Ask anything about your CRM data…"
-          disabled={isPending}
+          disabled={isLoading}
           className="flex-1"
         />
-        <Button onClick={handleSend} disabled={!input.trim() || isPending} size="icon">
-          {isPending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+        <Button onClick={handleSend} disabled={!input.trim() || isLoading} size="icon">
+          {isLoading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
         </Button>
       </div>
     </div>

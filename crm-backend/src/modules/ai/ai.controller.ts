@@ -41,6 +41,8 @@ import {
   RagQueryDto,
   VerifyDealWithAiSchema,
   VerifyDealWithAiDto,
+  CopilotQuerySchema,
+  CopilotQueryDto,
 } from './ai.dto';
 
 @ApiTags('AI Copilot')
@@ -139,6 +141,21 @@ export class AiController {
     @Body(new ZodValidationPipe(RagQuerySchema)) dto: RagQueryDto,
   ) {
     return this.aiService.ragQuery(user.tenantId, user.id, user.role, dto);
+  }
+
+  /**
+   * POST /api/v1/ai/copilot
+   * Unified conversational copilot — routes through AgentService (tool-calling)
+   * with optional page context and persistent session memory.
+   */
+  @Post('copilot')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Unified conversational copilot with MCP agent tool-calling' })
+  copilotQuery(
+    @CurrentUser() user: { tenantId: string; id: string; role: string },
+    @Body(new ZodValidationPipe(CopilotQuerySchema)) dto: CopilotQueryDto,
+  ) {
+    return this.aiService.copilotQuery(user.tenantId, user.id, user.role, dto);
   }
 
   /**

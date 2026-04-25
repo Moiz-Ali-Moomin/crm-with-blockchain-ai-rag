@@ -5,9 +5,15 @@
  *
  * Wraps the app with:
  *   1. ErrorBoundary — catches root-level rendering errors
- *   2. SocketProvider — single WebSocket connection shared by all components
- *   3. QueryClientProvider — TanStack Query with per-entity stale times
- *   4. Toaster — sonner notification system
+ *   2. ThemeApplicator — syncs theme state with document class
+ *   3. SocketProvider — single WebSocket connection shared by all components
+ *   4. QueryClientProvider — TanStack Query with per-entity stale times
+ *   5. Toaster — sonner notification system
+ *
+ * Auth rehydration is no longer needed here. The access token lives in an
+ * httpOnly cookie managed by NestJS. Next.js middleware gates protected routes
+ * before the page is served, and the dashboard layout fetches the current user
+ * server-side to hydrate the Zustand store on first render.
  *
  * Stale time strategy (prevents over-fetching):
  *   - Notifications: 10s (near real-time)
@@ -24,8 +30,6 @@ import { ErrorBoundary } from '@/components/error-boundary';
 import { SocketProvider } from '@/hooks/use-socket-singleton';
 import { observe } from '@/lib/observability';
 import { useThemeStore } from '@/store/theme.store';
-import { useAuthStore } from '@/store/auth.store';
-import { apiClient } from '@/lib/api/client';
 
 function ThemeApplicator() {
   const theme = useThemeStore((s) => s.theme);
@@ -40,45 +44,17 @@ function ThemeApplicator() {
   return null;
 }
 
-// On mount, if localStorage says the user is authenticated but the in-memory
-// accessToken is gone (page reload), silently use the refresh-token cookie to
-// get a new access token. This keeps the user logged in across full reloads.
-//
-// isRehydrating is set to `true` for the duration of the refresh call so that
-// React Query hooks (via useAuthToken) can delay their first fetch until a
-// valid token is confirmed — preventing unauthenticated races.
-function AuthRehydrator() {
-  useEffect(() => {
-    const { isAuthenticated, accessToken, setAccessToken, setRehydrating, logout } =
-      useAuthStore.getState();
-    if (isAuthenticated && !accessToken) {
-      setRehydrating(true);
-      apiClient
-        .post('/auth/refresh')
-        .then((res) => {
-          const newToken: string = res.data?.data?.accessToken;
-          if (newToken) setAccessToken(newToken);
-          else logout();
-        })
-        .catch(() => logout())
-        .finally(() => setRehydrating(false));
-    }
-  }, []);
-  return null;
-}
-
 function makeQueryClient(): QueryClient {
   return new QueryClient({
     defaultOptions: {
       queries: {
-        staleTime:            60_000,   // Default: 60s
+        staleTime:            60_000,
         retry:                1,
         refetchOnWindowFocus: false,
         refetchOnReconnect:   true,
       },
       mutations: {
         onError: (error) => {
-          // Global mutation error capture — individual hooks still handle UI feedback
           observe.error(error as Error, { context: 'GlobalMutationError' });
         },
       },
@@ -92,7 +68,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ErrorBoundary context="Application Root">
       <ThemeApplicator />
-      <AuthRehydrator />
       <SocketProvider>
         <QueryClientProvider client={queryClient}>
           {children}

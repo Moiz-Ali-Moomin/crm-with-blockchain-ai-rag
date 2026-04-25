@@ -7,52 +7,37 @@ const API_URL = _rawApiUrl.endsWith('/api/v1') ? _rawApiUrl : `${_rawApiUrl}/api
 
 export const apiClient = axios.create({
   baseURL: API_URL,
+  // withCredentials sends the httpOnly access_token + refresh_token cookies
+  // on every request, so no Authorization header management is needed.
   withCredentials: true,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  headers: { 'Content-Type': 'application/json' },
   timeout: 30_000,
 });
 
-// Track if a token refresh is in progress to avoid multiple simultaneous refreshes
+// Track whether a token refresh is already in flight to queue concurrent 401s.
 let isRefreshing = false;
 let failedQueue: Array<{
-  resolve: (value: string) => void;
+  resolve: () => void;
   reject: (reason?: unknown) => void;
 }> = [];
 
-function processQueue(error: AxiosError | null, token: string | null = null) {
-  failedQueue.forEach((prom) => {
-    if (error) {
-      prom.reject(error);
-    } else {
-      prom.resolve(token as string);
-    }
-  });
+function processQueue(error: AxiosError | null) {
+  failedQueue.forEach((p) => (error ? p.reject(error) : p.resolve()));
   failedQueue = [];
 }
 
-// Request interceptor: attach access token + start request timer
+// Request interceptor: start latency timer (no token attachment — cookies handle auth).
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    // Track request start time for latency measurement
     (config as any)._startTime = Date.now();
-
-    // Dynamically import to avoid circular dependencies at module load time
-    const { useAuthStore } = require('@/store/auth.store');
-    const token: string | null = useAuthStore.getState().accessToken;
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => Promise.reject(error),
 );
 
-// Response interceptor: handle 401 by refreshing token and retrying + capture latency
+// Response interceptor: capture latency + silent token refresh on 401.
 apiClient.interceptors.response.use(
   (response) => {
-    // Capture API latency for observability
     const startTime = (response.config as any)._startTime;
     if (startTime) {
       const { observe } = require('@/lib/observability');
@@ -70,26 +55,19 @@ apiClient.interceptors.response.use(
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
     if (error.response?.status === 401 && !originalRequest._retry) {
-      // Don't retry refresh endpoint itself
+      // Don't try to refresh if the refresh endpoint itself returned 401.
       if (originalRequest.url?.includes('/auth/refresh')) {
         const { useAuthStore } = require('@/store/auth.store');
         useAuthStore.getState().logout();
-        if (typeof window !== 'undefined') {
-          window.location.href = '/login';
-        }
+        if (typeof window !== 'undefined') window.location.href = '/login';
         return Promise.reject(error);
       }
 
       if (isRefreshing) {
-        return new Promise((resolve, reject) => {
+        return new Promise<void>((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         })
-          .then((token) => {
-            if (originalRequest.headers) {
-              originalRequest.headers.Authorization = `Bearer ${token}`;
-            }
-            return apiClient(originalRequest);
-          })
+          .then(() => apiClient(originalRequest))
           .catch((err) => Promise.reject(err));
       }
 
@@ -97,29 +75,17 @@ apiClient.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const response = await apiClient.post('/auth/refresh');
-        const newToken: string = response.data.data.accessToken;
-
-        const { useAuthStore } = require('@/store/auth.store');
-        useAuthStore.getState().setAccessToken(newToken);
-
-        processQueue(null, newToken);
-
-        if (originalRequest.headers) {
-          originalRequest.headers.Authorization = `Bearer ${newToken}`;
-        }
-
+        // POST /auth/refresh sends the refresh_token cookie and the NestJS backend
+        // responds with Set-Cookie headers containing fresh access_token + refresh_token.
+        // No token value needs to be extracted from the response body.
+        await apiClient.post('/auth/refresh');
+        processQueue(null);
         return apiClient(originalRequest);
       } catch (refreshError) {
-        processQueue(refreshError as AxiosError, null);
-
+        processQueue(refreshError as AxiosError);
         const { useAuthStore } = require('@/store/auth.store');
         useAuthStore.getState().logout();
-
-        if (typeof window !== 'undefined') {
-          window.location.href = '/login';
-        }
-
+        if (typeof window !== 'undefined') window.location.href = '/login';
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
@@ -127,31 +93,21 @@ apiClient.interceptors.response.use(
     }
 
     return Promise.reject(error);
-  }
+  },
 );
 
 // Backend envelope: { success, data, meta, timestamp, requestId }
 export interface ApiEnvelope<T> {
   success: boolean;
   data: T;
-  meta?: {
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
-  };
+  meta?: { total: number; page: number; limit: number; totalPages: number };
   timestamp: string;
   requestId: string;
 }
 
 export interface PaginatedResult<T> {
   data: T[];
-  meta: {
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
-  };
+  meta: { total: number; page: number; limit: number; totalPages: number };
 }
 
 export async function apiGet<T>(url: string, params?: object): Promise<T> {
@@ -161,7 +117,7 @@ export async function apiGet<T>(url: string, params?: object): Promise<T> {
 
 export async function apiGetPaginated<T>(
   url: string,
-  params?: object
+  params?: object,
 ): Promise<PaginatedResult<T>> {
   const res = await apiClient.get<ApiEnvelope<T[]>>(url, { params });
   return {

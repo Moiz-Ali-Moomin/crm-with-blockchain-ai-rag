@@ -45,7 +45,6 @@ type PasswordForm = z.infer<typeof passwordSchema>;
 function ProfileTab() {
   const user = useAuthStore((s) => s.user);
   const setAuth = useAuthStore((s) => s.setAuth);
-  const token = useAuthStore((s) => s.accessToken);
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<ProfileForm>({
     resolver: zodResolver(profileSchema),
@@ -61,7 +60,7 @@ function ProfileTab() {
   const onSubmit = async (data: ProfileForm) => {
     try {
       const updated = await usersApi.updateProfile(data);
-      setAuth(updated as any, token ?? '');
+      setAuth(updated as any);
       toast.success('Profile updated');
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Error');

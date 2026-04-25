@@ -94,3 +94,18 @@ export const VerifyDealWithAiSchema = z.object({
   additionalContext: z.string().max(500).optional(),
 });
 export type VerifyDealWithAiDto = z.infer<typeof VerifyDealWithAiSchema>;
+
+// ── Unified Conversational Copilot ────────────────────────────────────────────
+
+const CopilotContextSchema = z.object({
+  page: z.string().optional(),
+  entityId: z.string().optional(),
+});
+
+export const CopilotQuerySchema = z.object({
+  query: z.string().min(1).max(800),
+  context: CopilotContextSchema.optional(),
+  sessionId: z.string().uuid().optional(),
+  history: z.array(ChatMessageSchema).max(20).optional().default([]),
+});
+export type CopilotQueryDto = z.infer<typeof CopilotQuerySchema>;
