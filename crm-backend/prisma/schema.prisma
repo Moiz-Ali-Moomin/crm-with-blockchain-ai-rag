@@ -929,11 +929,12 @@ enum Chain {
 
 enum PaymentStatus {
   PENDING      // Intent created, awaiting deposit
-  CONFIRMING   // Tx seen on-chain, accumulating confirmations
+  PARTIAL      // Some funds received, still below expected amount
+  CONFIRMING   // Full amount received, accumulating block confirmations
   COMPLETED    // N confirmations reached, ledger settled
   FAILED       // Terminal failure
   REFUNDED     // Funds returned to sender
-  EXPIRED      // Deposit window closed with no tx
+  EXPIRED      // Deposit window closed with no tx (or insufficient partial)
 }
 
 enum PaymentDirection {
@@ -1008,9 +1009,10 @@ model Payment {
   direction      PaymentDirection
 
   // USDC has 6 decimal places — store in smallest unit-compatible Decimal
-  amountUsdc     Decimal          @db.Decimal(36, 6)
-  feeUsdc        Decimal          @default(0) @db.Decimal(36, 6)
-  chain          Chain
+  amountUsdc         Decimal      @db.Decimal(36, 6)
+  receivedAmountUsdc Decimal      @default(0) @db.Decimal(36, 6)  // Accumulated across all partial deposits
+  feeUsdc            Decimal      @default(0) @db.Decimal(36, 6)
+  chain              Chain
 
   // Wallet this payment is associated with (receiving or sending)
   walletId       String

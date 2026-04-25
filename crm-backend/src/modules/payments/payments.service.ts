@@ -103,14 +103,74 @@ export class PaymentsService {
   // ─── State Transitions (called by workers) ──────────────────────────────────
 
   /**
+   * Called by BlockchainEventsWorker when a Transfer is received but the cumulative
+   * amount is still below the expected total. Updates receivedAmountUsdc and moves
+   * the payment to PARTIAL (or keeps it PARTIAL if it already is).
+   *
+   * No confirmation polling is triggered — we are still waiting for more funds.
+   * The completing tx will call handleTxDetected() to kick off confirmation.
+   */
+  async handlePartialDeposit(params: {
+    paymentId: string;
+    fromAddress: string;
+    newReceivedAmountUsdc: Prisma.Decimal;
+  }): Promise<void> {
+    const payment = await this.paymentsRepo.findByIdNoScope(params.paymentId);
+    if (!payment) {
+      this.logger.warn(`handlePartialDeposit: payment ${params.paymentId} not found`);
+      return;
+    }
+
+    if (!PaymentStateMachine.canAcceptDeposit(payment.status)) {
+      this.logger.warn(
+        `handlePartialDeposit: payment ${params.paymentId} in ${payment.status} — ignoring`,
+      );
+      return;
+    }
+
+    // Asserts PENDING → PARTIAL or PARTIAL → PARTIAL (no-op guard in state machine)
+    PaymentStateMachine.assertTransition(payment.status, 'PARTIAL');
+
+    await this.prisma.$transaction(async (tx) => {
+      await this.paymentsRepo.transition(
+        payment.id,
+        'PARTIAL',
+        {
+          fromAddress:        params.fromAddress,
+          receivedAmountUsdc: params.newReceivedAmountUsdc,
+          detectedAt:         payment.detectedAt ?? new Date(),
+        },
+        tx,
+      );
+
+      await this.paymentsRepo.appendEvent(
+        payment.id,
+        payment.tenantId,
+        payment.status,
+        'PARTIAL',
+        'partial_deposit_received',
+        { receivedAmountUsdc: params.newReceivedAmountUsdc.toFixed(6) },
+        tx,
+      );
+    });
+
+    this.logger.log(
+      `Payment ${payment.id} → PARTIAL ` +
+      `(received: ${params.newReceivedAmountUsdc.toFixed(6)} USDC, ` +
+      `expected: ${payment.amountUsdc.toFixed(6)} USDC)`,
+    );
+  }
+
+  /**
    * Called by BlockchainEventsWorker when a matching Transfer is detected.
-   * Transitions PENDING → CONFIRMING and enqueues confirmation polling.
+   * Transitions PENDING/PARTIAL → CONFIRMING and enqueues confirmation polling.
    */
   async handleTxDetected(params: {
     paymentId: string;
     txHash: string;
     fromAddress: string;
     blockNumber: bigint;
+    newReceivedAmountUsdc?: Prisma.Decimal;
     chainTxId?: string;
   }): Promise<void> {
     // Use no-scope lookup — this is called from a worker that has no tenantId context.
@@ -134,11 +194,15 @@ export class PaymentsService {
         payment.id,
         'CONFIRMING',
         {
-          txHash: params.txHash,
-          fromAddress: params.fromAddress,
-          blockNumber: params.blockNumber,
-          detectedAt: new Date(),
-          confirmations: 0,
+          txHash:             params.txHash,
+          fromAddress:        params.fromAddress,
+          blockNumber:        params.blockNumber,
+          detectedAt:         new Date(),
+          confirmations:      0,
+          // If caller provides updated total (partial → confirming), persist it
+          ...(params.newReceivedAmountUsdc && {
+            receivedAmountUsdc: params.newReceivedAmountUsdc,
+          }),
         },
         tx,
       );
@@ -149,7 +213,11 @@ export class PaymentsService {
         payment.status,
         'CONFIRMING',
         'tx_detected',
-        { txHash: params.txHash, blockNumber: params.blockNumber.toString() },
+        {
+          txHash:            params.txHash,
+          blockNumber:       params.blockNumber.toString(),
+          receivedAmountUsdc: (params.newReceivedAmountUsdc ?? payment.amountUsdc).toFixed(6),
+        },
         tx,
       );
     });
@@ -291,7 +359,7 @@ export class PaymentsService {
   }
 
   /**
-   * Expire all PENDING payments that have passed their expiresAt.
+   * Expire all PENDING/PARTIAL payments that have passed their expiresAt.
    * Runs automatically every 15 minutes via cron.
    */
   @Cron('*/15 * * * *')
@@ -299,18 +367,23 @@ export class PaymentsService {
     const stale = await this.paymentsRepo.findExpiredPending();
     await Promise.all(
       stale.map(async (p) => {
+        PaymentStateMachine.assertTransition(p.status, 'EXPIRED');
         await this.paymentsRepo.transition(p.id, 'EXPIRED', { failedAt: new Date() });
         await this.paymentsRepo.appendEvent(
           p.id,
           p.tenantId,
-          'PENDING',
+          p.status,   // preserve actual prior status (PENDING or PARTIAL)
           'EXPIRED',
           'payment_expired',
+          p.status === 'PARTIAL'
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ? { receivedAmountUsdc: (p as any).receivedAmountUsdc?.toString() }
+            : undefined,
         );
       }),
     );
     if (stale.length > 0) {
-      this.logger.log(`Expired ${stale.length} stale PENDING payments`);
+      this.logger.log(`Expired ${stale.length} stale PENDING/PARTIAL payments`);
     }
     return stale.length;
   }

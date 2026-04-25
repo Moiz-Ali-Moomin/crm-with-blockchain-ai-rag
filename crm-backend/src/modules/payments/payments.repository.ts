@@ -51,14 +51,18 @@ export class PaymentsRepository {
     return this.prisma.payment.findUnique({ where: { idempotencyKey: key } });
   }
 
-  /** Used by the blockchain listener to match an incoming tx to a pending payment. */
+  /**
+   * Used by the blockchain listener to match an incoming Transfer to an open payment.
+   * Matches PENDING (no deposits yet) and PARTIAL (accumulating, not yet complete).
+   * Address comparison is case-insensitive to tolerate EIP-55 checksum variants.
+   */
   findPendingByAddress(toAddress: string, chain: Chain): Promise<Payment | null> {
     return this.prisma.payment.findFirst({
       where: {
         toAddress: { equals: toAddress, mode: 'insensitive' },
         chain,
-        status:    'PENDING',
-        expiresAt: { gt: new Date() },  // never match expired intents
+        status:    { in: ['PENDING', 'PARTIAL'] },
+        expiresAt: { gt: new Date() },
       },
     });
   }
@@ -69,12 +73,12 @@ export class PaymentsRepository {
 
   /**
    * Bulk fetch for the reconciliation worker.
-   * Returns PENDING payments that have not yet expired — these are candidates
-   * for a chain scan to detect deposits missed by the live listener.
+   * Returns PENDING and PARTIAL payments that have not yet expired — both are
+   * candidates for a chain scan to detect deposits missed by the live listener.
    */
   findAllPending(): Promise<Payment[]> {
     return this.prisma.payment.findMany({
-      where: { status: 'PENDING', expiresAt: { gt: new Date() } },
+      where: { status: { in: ['PENDING', 'PARTIAL'] }, expiresAt: { gt: new Date() } },
       orderBy: { createdAt: 'asc' },
       take: 500,
     });
@@ -87,11 +91,11 @@ export class PaymentsRepository {
     });
   }
 
-  /** Fetch expired PENDING payments for the sweep job. */
+  /** Fetch expired PENDING/PARTIAL payments for the sweep job. */
   findExpiredPending(): Promise<Payment[]> {
     return this.prisma.payment.findMany({
-      where: { status: 'PENDING', expiresAt: { lt: new Date() } },
-      take: 200, // Process in batches
+      where: { status: { in: ['PENDING', 'PARTIAL'] }, expiresAt: { lt: new Date() } },
+      take: 200,
     });
   }
 
@@ -103,6 +107,7 @@ export class PaymentsRepository {
       fromAddress: string;
       blockNumber: bigint;
       confirmations: number;
+      receivedAmountUsdc: Prisma.Decimal;
       detectedAt: Date;
       confirmedAt: Date;
       failedAt: Date;
@@ -135,6 +140,14 @@ export class PaymentsRepository {
         event,
         metadata: metadata as Prisma.InputJsonValue,
       },
+    });
+  }
+
+  /** Returns (txHash, logIndex) pairs for all blockchain txs linked to a payment. */
+  findTxKeysForPayment(paymentId: string): Promise<{ txHash: string; logIndex: number }[]> {
+    return this.prisma.blockchainTransaction.findMany({
+      where:  { paymentId },
+      select: { txHash: true, logIndex: true },
     });
   }
 

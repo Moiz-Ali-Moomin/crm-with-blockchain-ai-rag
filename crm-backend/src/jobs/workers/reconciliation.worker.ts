@@ -120,53 +120,25 @@ export class ReconciliationWorker extends WorkerHost {
 
   private async runReconciliation(): Promise<ReconciliationResult> {
     const start = Date.now();
-    const pending = await this.paymentsRepo.findAllPending();
+    // findAllPending now returns both PENDING and PARTIAL payments
+    const open = await this.paymentsRepo.findAllPending();
 
-    if (pending.length === 0) {
-      this.logger.debug('Reconciliation: no PENDING payments — nothing to scan');
+    if (open.length === 0) {
+      this.logger.debug('Reconciliation: no open payments — nothing to scan');
       return { scanned: 0, recovered: 0, errors: 0, durationMs: Date.now() - start };
     }
 
-    this.logger.log(`Reconciliation: scanning ${pending.length} PENDING payments`);
+    this.logger.log(
+      `Reconciliation: scanning ${open.length} open payments (PENDING + PARTIAL)`,
+    );
 
     let recovered = 0;
-    let errors = 0;
+    let errors    = 0;
 
-    for (const payment of pending) {
+    for (const payment of open) {
       try {
-        const match = await this.findOnChainTransfer(payment);
-        if (!match) continue;
-
-        // Trigger the same flow BlockchainEventsWorker would have triggered
-        await this.paymentsService.handleTxDetected({
-          paymentId:   payment.id,
-          txHash:      match.txHash,
-          fromAddress: match.fromAddress,
-          blockNumber: match.blockNumber,
-        });
-
-        // Enqueue confirmation polling — jobId deduplicates with any live listener job
-        await this.confirmationQueue.add(
-          'poll_confirmations',
-          {
-            paymentId:            payment.id,
-            tenantId:             payment.tenantId,
-            txHash:               match.txHash,
-            chain:                payment.chain,
-            targetConfirmations:  payment.requiredConfirmations,
-          },
-          {
-            ...QUEUE_JOB_OPTIONS.transactionConfirmation,
-            jobId: `confirm-${payment.id}`,
-            delay: 15_000,
-          },
-        );
-
-        recovered++;
-        this.logger.log(
-          `Reconciliation: recovered payment ${payment.id} ` +
-          `(chain: ${payment.chain}, tx: ${match.txHash})`,
-        );
+        const result = await this.reconcilePayment(payment);
+        if (result) recovered++;
       } catch (err) {
         errors++;
         this.logger.error(
@@ -183,12 +155,119 @@ export class ReconciliationWorker extends WorkerHost {
 
     this.logger.log(
       `Reconciliation complete in ${durationMs}ms — ` +
-      `scanned: ${pending.length}, recovered: ${recovered}, errors: ${errors}`,
+      `scanned: ${open.length}, recovered: ${recovered}, errors: ${errors}`,
     );
 
-    return { scanned: pending.length, recovered, errors, durationMs };
+    return { scanned: open.length, recovered, errors, durationMs };
   }
 
+  /**
+   * Reconcile a single PENDING or PARTIAL payment against on-chain logs.
+   *
+   * For PARTIAL payments we accumulate all Transfer logs found in the scan window
+   * on top of the already-stored receivedAmountUsdc. This means a missed partial
+   * deposit is recovered correctly rather than ignored because a single tx was
+   * below the expected amount.
+   *
+   * Returns true if the payment was recovered (moved to CONFIRMING).
+   */
+  private async reconcilePayment(payment: Payment): Promise<boolean> {
+    const chain       = payment.chain as string;
+    const usdcAddress = USDC_ADDRESSES[chain as SupportedChain];
+    if (!usdcAddress) {
+      this.logger.warn(`Reconciliation: no USDC address for chain ${chain} — skipping`);
+      return false;
+    }
+
+    const provider     = this.getProvider(chain);
+    const currentBlock = await provider.getBlockNumber();
+    const scanWindow   = SCAN_WINDOW[chain] ?? 900;
+    const fromBlock    = Math.max(0, currentBlock - scanWindow);
+
+    const usdc   = new ethers.Contract(usdcAddress, ERC20_ABI, provider);
+    const filter = usdc.filters.Transfer(null, payment.toAddress);
+    const events = await usdc.queryFilter(filter, fromBlock, currentBlock);
+
+    if (events.length === 0) return false;
+
+    const USDC_SCALAR = new Prisma.Decimal('1000000');
+
+    // Already-recorded received amount (0 for PENDING, non-zero for PARTIAL)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const storedReceived: Prisma.Decimal = (payment as any).receivedAmountUsdc
+      ? new Prisma.Decimal((payment as any).receivedAmountUsdc.toString())
+      : new Prisma.Decimal(0);
+
+    // Collect (txHash:logIndex) keys already linked to this payment so we don't double-count
+    const knownKeys = await this.paymentsRepo.findTxKeysForPayment(payment.id);
+    const knownTxHashes = new Set(knownKeys.map((r) => `${r.txHash}:${r.logIndex}`));
+
+    // Sum new Transfer logs not yet recorded
+    let cumulativeUsdc = storedReceived;
+    let latestMatch:   ethers.EventLog | null = null;
+
+    for (const e of events) {
+      const log = e as ethers.EventLog;
+      const key = `${log.transactionHash}:${log.index}`;
+      if (knownTxHashes.has(key)) continue; // already processed by live listener
+
+      const logUsdc = new Prisma.Decimal(log.args.value.toString()).div(USDC_SCALAR);
+      cumulativeUsdc = cumulativeUsdc.add(logUsdc);
+      latestMatch    = log;
+    }
+
+    if (!latestMatch) return false; // all logs already recorded; live listener handles it
+
+    const expectedRaw     = BigInt(payment.amountUsdc.mul(USDC_SCALAR).toFixed(0));
+    const cumulativeRaw   = BigInt(cumulativeUsdc.mul(USDC_SCALAR).toFixed(0));
+    const thresholdMet    = cumulativeRaw >= expectedRaw - 1n;
+
+    if (!thresholdMet) {
+      // Partial accumulation — live listener will handle each tx; nothing to do here
+      // unless the listener is down. In that case we log but don't push partial updates
+      // (the live listener deduplicates via jobId so it will catch up when it reconnects).
+      this.logger.debug(
+        `Reconciliation: payment ${payment.id} still partial — ` +
+        `cumulative ${cumulativeUsdc.toFixed(6)} / ${payment.amountUsdc.toFixed(6)} USDC`,
+      );
+      return false;
+    }
+
+    // Threshold met — trigger CONFIRMING via the same path as the live listener
+    await this.paymentsService.handleTxDetected({
+      paymentId:             payment.id,
+      txHash:                latestMatch.transactionHash,
+      fromAddress:           (latestMatch.args.from as string).toLowerCase(),
+      blockNumber:           BigInt(latestMatch.blockNumber ?? 0),
+      newReceivedAmountUsdc: cumulativeUsdc,
+    });
+
+    await this.confirmationQueue.add(
+      'poll_confirmations',
+      {
+        paymentId:           payment.id,
+        tenantId:            payment.tenantId,
+        txHash:              latestMatch.transactionHash,
+        chain:               payment.chain,
+        targetConfirmations: payment.requiredConfirmations,
+      },
+      {
+        ...QUEUE_JOB_OPTIONS.transactionConfirmation,
+        jobId:  `confirm-${payment.id}`,
+        delay:  15_000,
+      },
+    );
+
+    this.logger.log(
+      `Reconciliation: recovered payment ${payment.id} ` +
+      `(chain: ${payment.chain}, cumulative: ${cumulativeUsdc.toFixed(6)} USDC, ` +
+      `settling tx: ${latestMatch.transactionHash})`,
+    );
+
+    return true;
+  }
+
+  /** @deprecated use reconcilePayment — kept for internal compatibility */
   private async findOnChainTransfer(payment: Payment): Promise<{
     txHash: string;
     fromAddress: string;
@@ -196,15 +275,12 @@ export class ReconciliationWorker extends WorkerHost {
   } | null> {
     const chain = payment.chain as string;
     const usdcAddress = USDC_ADDRESSES[chain as SupportedChain];
-    if (!usdcAddress) {
-      this.logger.warn(`Reconciliation: no USDC address for chain ${chain} — skipping`);
-      return null;
-    }
+    if (!usdcAddress) return null;
 
-    const provider    = this.getProvider(chain);
+    const provider     = this.getProvider(chain);
     const currentBlock = await provider.getBlockNumber();
-    const scanWindow  = SCAN_WINDOW[chain] ?? 900;
-    const fromBlock   = Math.max(0, currentBlock - scanWindow);
+    const scanWindow   = SCAN_WINDOW[chain] ?? 900;
+    const fromBlock    = Math.max(0, currentBlock - scanWindow);
 
     const usdc   = new ethers.Contract(usdcAddress, ERC20_ABI, provider);
     const filter = usdc.filters.Transfer(null, payment.toAddress);
@@ -212,17 +288,15 @@ export class ReconciliationWorker extends WorkerHost {
 
     if (events.length === 0) return null;
 
-    // Expected amount in atomic units (USDC has 6 decimals)
     const expectedRaw = BigInt(
       (payment.amountUsdc as unknown as Prisma.Decimal)
         .mul(new Prisma.Decimal('1000000'))
         .toFixed(0),
     );
 
-    // Accept the first event that is at least the expected amount (allow overpayment)
     const match = events.find((e) => {
       const log = e as ethers.EventLog;
-      return BigInt(log.args.value) >= expectedRaw - 1n; // ±1 atomic unit tolerance
+      return BigInt(log.args.value) >= expectedRaw - 1n;
     }) as ethers.EventLog | undefined;
 
     if (!match) return null;
