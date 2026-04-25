@@ -11,8 +11,17 @@ export interface RagQueryResult {
   tokensUsed?: number;
 }
 
+export interface SemanticSearchHit {
+  id: string;
+  entityType: string;
+  snippet: string;
+  score: number;
+  metadata?: Record<string, unknown>;
+}
+
 export interface SemanticSearchResult {
-  results: { id: string; entityType: string; snippet: string; score: number; metadata?: Record<string, unknown> }[];
+  results: SemanticSearchHit[];
+  answer?: string; // AI-generated summary returned alongside the raw hits
 }
 
 export interface DealVerifyResult {

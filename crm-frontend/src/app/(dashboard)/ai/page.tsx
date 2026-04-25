@@ -3,8 +3,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { Brain, Search, ShieldCheck, Send, Loader2, AlertCircle, CheckCircle2, XCircle, Sparkles, Trash2 } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
-import { aiApi, SemanticSearchResult, DealVerifyResult } from '@/lib/api/ai.api';
+import { aiApi, SemanticSearchHit, SemanticSearchResult, DealVerifyResult } from '@/lib/api/ai.api';
+import { AIResponseRenderer } from '@/components/ai/ai-response-renderer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,41 +35,6 @@ function SourceChip({ entityType, snippet, score }: { entityType: string; snippe
   );
 }
 
-// ─── Markdown renderer ────────────────────────────────────────────────────────
-
-function MarkdownContent({ content, className }: { content: string; className?: string }) {
-  return (
-    <div className={className}>
-    <ReactMarkdown
-      components={{
-        h1: ({ children }) => <h1 className="text-base font-semibold text-fg mt-3 mb-1 first:mt-0">{children}</h1>,
-        h2: ({ children }) => <h2 className="text-sm font-semibold text-fg mt-3 mb-1 first:mt-0">{children}</h2>,
-        h3: ({ children }) => <h3 className="text-sm font-medium text-fg mt-2 mb-0.5 first:mt-0">{children}</h3>,
-        p:  ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>,
-        ul: ({ children }) => <ul className="mb-2 space-y-0.5 pl-4 list-disc">{children}</ul>,
-        ol: ({ children }) => <ol className="mb-2 space-y-0.5 pl-4 list-decimal">{children}</ol>,
-        li: ({ children }) => <li className="leading-relaxed">{children}</li>,
-        strong: ({ children }) => <strong className="font-semibold text-fg">{children}</strong>,
-        em: ({ children }) => <em className="italic text-fg-secondary">{children}</em>,
-        code: ({ children }) => <code className="rounded bg-canvas-subtle px-1 py-0.5 font-mono text-xs text-indigo-600">{children}</code>,
-        pre: ({ children }) => <pre className="mb-2 overflow-x-auto rounded-lg bg-canvas-subtle p-3 text-xs font-mono">{children}</pre>,
-        blockquote: ({ children }) => <blockquote className="mb-2 border-l-2 border-indigo-400 pl-3 text-fg-secondary italic">{children}</blockquote>,
-        hr: () => <hr className="my-3 border-ui-border" />,
-        table: ({ children }) => (
-          <div className="mb-2 overflow-x-auto rounded-lg border border-ui-border">
-            <table className="w-full text-xs">{children}</table>
-          </div>
-        ),
-        thead: ({ children }) => <thead className="bg-canvas-subtle">{children}</thead>,
-        th: ({ children }) => <th className="px-3 py-2 text-left font-medium text-fg-secondary">{children}</th>,
-        td: ({ children }) => <td className="border-t border-ui-border px-3 py-2 text-fg-secondary">{children}</td>,
-      }}
-    >
-      {content}
-    </ReactMarkdown>
-    </div>
-  );
-}
 
 // ─── Tab: Ask AI (Copilot Chat) ────────────────────────────────────────────────
 
@@ -127,7 +92,7 @@ function ChatTab() {
               }`}>
                 {msg.role === 'user'
                   ? msg.content
-                  : <MarkdownContent content={msg.content} />}
+                  : <AIResponseRenderer content={msg.content} />}
               </div>
               {msg.sources && msg.sources.length > 0 && (
                 <div className="w-full space-y-1">
@@ -188,15 +153,20 @@ function ChatTab() {
 
 // ─── Tab: Semantic Search ──────────────────────────────────────────────────────
 
+// Tracks whether a search has been attempted so we can distinguish
+// "never searched" from "searched and got zero results".
+type SearchState = 'idle' | 'loading' | 'done' | 'error';
+
 function SearchTab() {
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<SemanticSearchResult['results'] | null>(null);
+  const [query, setQuery]           = useState('');
+  const [hits, setHits]             = useState<SemanticSearchHit[]>([]);
+  const [answer, setAnswer]         = useState('');
+  const [searchState, setSearchState] = useState<SearchState>('idle');
   const [entityTypes, setEntityTypes] = useState<string[]>(['activity', 'communication', 'ticket']);
 
-  const { mutate, isPending, isError } = useMutation({
-    mutationFn: () => aiApi.search(query, entityTypes),
-    onSuccess: (data) => setResults(data.results),
-  });
+  // Keep a ref to cancel stale responses when the user fires a second request
+  // before the first one finishes.
+  const requestIdRef = useRef(0);
 
   function toggleType(type: string) {
     setEntityTypes((prev) =>
@@ -204,30 +174,72 @@ function SearchTab() {
     );
   }
 
+  async function handleSearch() {
+    const trimmed = query.trim();
+    if (!trimmed || searchState === 'loading') return;
+
+    // Stamp this request so a delayed earlier response can't overwrite fresh state.
+    const reqId = ++requestIdRef.current;
+
+    setSearchState('loading');
+    setHits([]);
+    setAnswer('');
+
+    try {
+      const data: SemanticSearchResult = await aiApi.search(trimmed, entityTypes);
+
+      // Ignore response if a newer request has already been fired.
+      if (reqId !== requestIdRef.current) return;
+
+      // Defensively normalise — the backend may return the array directly,
+      // omit the key, or include a nullable.
+      setHits(Array.isArray(data?.results) ? data.results : []);
+      setAnswer(typeof data?.answer === 'string' ? data.answer : '');
+      setSearchState('done');
+    } catch {
+      if (reqId !== requestIdRef.current) return;
+      setHits([]);
+      setAnswer('');
+      setSearchState('error');
+    }
+  }
+
+  const isLoading = searchState === 'loading';
+  const hasSearched = searchState === 'done' || searchState === 'error';
+
   return (
     <div className="space-y-4">
+      {/* ── Query bar ──────────────────────────────────────────────────── */}
       <Card>
         <CardContent className="pt-4 space-y-3">
           <div className="flex gap-2">
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && query.trim() && mutate()}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleSearch();
+              }}
               placeholder="e.g. customer complained about billing delay…"
               className="flex-1"
+              disabled={isLoading}
             />
-            <Button onClick={() => mutate()} disabled={!query.trim() || isPending}>
-              {isPending ? <Loader2 size={16} className="animate-spin mr-2" /> : <Search size={16} className="mr-2" />}
-              Search
+            <Button onClick={handleSearch} disabled={!query.trim() || isLoading}>
+              {isLoading
+                ? <Loader2 size={16} className="animate-spin mr-2" />
+                : <Search size={16} className="mr-2" />}
+              {isLoading ? 'Searching…' : 'Search'}
             </Button>
           </div>
-          <div className="flex gap-2">
+
+          {/* Entity type filters */}
+          <div className="flex gap-2 flex-wrap">
             <span className="text-xs text-fg-muted self-center">Filter:</span>
             {['activity', 'communication', 'ticket'].map((type) => (
               <button
                 key={type}
                 onClick={() => toggleType(type)}
-                className={`rounded-full px-3 py-1 text-xs font-medium capitalize transition-colors ${
+                disabled={isLoading}
+                className={`rounded-full px-3 py-1 text-xs font-medium capitalize transition-colors disabled:opacity-50 ${
                   entityTypes.includes(type)
                     ? ENTITY_COLORS[type]
                     : 'bg-canvas-subtle text-fg-subtle'
@@ -240,34 +252,72 @@ function SearchTab() {
         </CardContent>
       </Card>
 
-      {isError && (
-        <div className="flex items-center gap-2 rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">
-          <AlertCircle size={16} /> Search failed. Please try again.
+      {/* ── Loading skeleton ────────────────────────────────────────────── */}
+      {isLoading && (
+        <div className="flex items-center gap-3 rounded-lg border border-ui-border bg-canvas px-4 py-3 text-sm text-fg-muted">
+          <Loader2 size={16} className="animate-spin text-indigo-500 shrink-0" />
+          Running semantic search across your CRM data…
         </div>
       )}
 
-      {results !== null && (
-        <div className="space-y-2">
-          <p className="text-sm text-fg-muted">{results.length} result{results.length !== 1 ? 's' : ''} found</p>
-          {results.length === 0 ? (
+      {/* ── Error state ─────────────────────────────────────────────────── */}
+      {searchState === 'error' && (
+        <div className="flex items-center gap-2 rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">
+          <AlertCircle size={16} className="shrink-0" />
+          Search failed — check your connection and try again.
+        </div>
+      )}
+
+      {/* ── Results ─────────────────────────────────────────────────────── */}
+      {searchState === 'done' && (
+        <div className="space-y-3">
+
+          {/* AI-generated analysis of the search results */}
+          {answer.length > 0 && (
             <Card>
-              <CardContent className="py-10 text-center text-sm text-fg-muted">
-                No matching records found. Try a different query.
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-1.5">
+                  <Sparkles size={14} className="text-indigo-500" /> AI Analysis
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-fg-secondary">
+                <AIResponseRenderer content={answer} />
               </CardContent>
             </Card>
-          ) : (
-            results.map((r, i) => (
-              <Card key={i}>
-                <CardContent className="py-3 px-4 flex items-start gap-3">
-                  <span className={`mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-xs font-medium capitalize ${ENTITY_COLORS[r.entityType] ?? 'bg-canvas-subtle text-fg-muted'}`}>
-                    {r.entityType}
-                  </span>
-                  <p className="flex-1 text-sm text-fg-secondary">{r.snippet}</p>
-                  <span className="shrink-0 text-xs text-fg-subtle">{Math.round(r.score * 100)}% match</span>
+          )}
+
+          {/* Raw hit list */}
+          <div className="space-y-2">
+            <p className="text-sm text-fg-muted">
+              {hits.length} matching record{hits.length !== 1 ? 's' : ''} found
+            </p>
+
+            {hits.length === 0 ? (
+              <Card>
+                <CardContent className="py-10 text-center text-sm text-fg-muted">
+                  No matching records found. Try a different query or broaden the entity filter.
                 </CardContent>
               </Card>
-            ))
-          )}
+            ) : (
+              hits.map((r, i) => (
+                <Card key={r.id ?? i}>
+                  <CardContent className="py-3 px-4 flex items-start gap-3">
+                    <span
+                      className={`mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-xs font-medium capitalize ${
+                        ENTITY_COLORS[r.entityType] ?? 'bg-canvas-subtle text-fg-muted'
+                      }`}
+                    >
+                      {r.entityType}
+                    </span>
+                    <p className="flex-1 text-sm text-fg-secondary">{r.snippet}</p>
+                    <span className="shrink-0 text-xs text-fg-subtle">
+                      {Math.round((r.score ?? 0) * 100)}% match
+                    </span>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -362,12 +412,12 @@ function VerifyTab() {
               </CardTitle>
             </CardHeader>
             <CardContent className="text-sm text-fg-secondary">
-              <MarkdownContent content={result.answer} />
+              <AIResponseRenderer content={result.answer} />
             </CardContent>
           </Card>
 
           {/* Sources */}
-          {result.sources.length > 0 && (
+          {(result.sources?.length ?? 0) > 0 && (
             <div className="space-y-1.5">
               <p className="text-xs font-medium text-fg-subtle uppercase tracking-wide">Context sources</p>
               {result.sources.map((s, i) => (

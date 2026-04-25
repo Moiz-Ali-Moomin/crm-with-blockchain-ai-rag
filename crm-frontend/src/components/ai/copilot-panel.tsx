@@ -4,8 +4,8 @@ import { useRef, useEffect, useState } from 'react';
 import { Send, Loader2, Sparkles, ExternalLink, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import ReactMarkdown from 'react-markdown';
 import { useCopilotStore, CopilotMessage, CopilotSource } from '@/store/copilot.store';
+import { AIResponseRenderer } from '@/components/ai/ai-response-renderer';
 import { cn } from '@/lib/utils';
 
 const TOOL_STATUSES = [
@@ -233,7 +233,7 @@ function MessageBubble({ message, compact }: { message: CopilotMessage; compact:
           {isUser ? (
             message.content
           ) : (
-            <AssistantMarkdown content={message.content} />
+            <AIResponseRenderer content={message.content} variant="compact" />
           )}
         </div>
 
@@ -246,30 +246,6 @@ function MessageBubble({ message, compact }: { message: CopilotMessage; compact:
   );
 }
 
-function AssistantMarkdown({ content }: { content: string }) {
-  return (
-    <ReactMarkdown
-      components={{
-        p:      ({ children }) => <p className="mb-1 last:mb-0 text-sm leading-relaxed">{children}</p>,
-        ul:     ({ children }) => <ul className="mb-1 pl-4 list-disc space-y-0.5">{children}</ul>,
-        ol:     ({ children }) => <ol className="mb-1 pl-4 list-decimal space-y-0.5">{children}</ol>,
-        li:     ({ children }) => <li className="text-sm">{children}</li>,
-        strong: ({ children }) => <strong className="font-semibold text-fg">{children}</strong>,
-        em:     ({ children }) => <em className="italic text-fg-secondary">{children}</em>,
-        code:   ({ children }) => (
-          <code className="rounded bg-canvas-subtle px-1 py-0.5 text-xs font-mono text-blue-600">
-            {children}
-          </code>
-        ),
-        h1: ({ children }) => <h1 className="text-sm font-semibold text-fg mt-2 mb-1 first:mt-0">{children}</h1>,
-        h2: ({ children }) => <h2 className="text-sm font-semibold text-fg mt-2 mb-1 first:mt-0">{children}</h2>,
-        h3: ({ children }) => <h3 className="text-xs font-semibold text-fg mt-1.5 mb-0.5">{children}</h3>,
-      }}
-    >
-      {content}
-    </ReactMarkdown>
-  );
-}
 
 const ENTITY_COLOR: Record<string, string> = {
   activity:      'bg-blue-100 text-blue-700',
