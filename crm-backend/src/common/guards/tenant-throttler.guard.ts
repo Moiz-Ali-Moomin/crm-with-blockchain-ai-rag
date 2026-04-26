@@ -38,6 +38,21 @@ const TIER_LIMITS: Record<TenantTier, { rpm: number }> = {
   enterprise: { rpm: 2_000 },
 };
 
+// JWT has no `tier` claim — derive tier from role so admins aren't capped at free limits.
+function tierFromRole(role?: string): TenantTier {
+  switch (role) {
+    case 'SUPER_ADMIN':
+    case 'ADMIN':
+      return 'enterprise';
+    case 'SALES_MANAGER':
+      return 'pro';
+    case 'SALES_REP':
+      return 'starter';
+    default:
+      return 'free';
+  }
+}
+
 @Injectable()
 export class TenantThrottlerGuard extends ThrottlerGuard {
   constructor(
@@ -73,11 +88,11 @@ export class TenantThrottlerGuard extends ThrottlerGuard {
     if (!baseAllowed) return false;
 
     const res = context.switchToHttp().getResponse<Response>();
-    const user = (req as any).user as { tenantId?: string; tier?: TenantTier } | undefined;
+    const user = (req as any).user as { tenantId?: string; tier?: TenantTier; role?: string } | undefined;
 
     if (!user?.tenantId) return true;
 
-    const tier = user.tier ?? 'free';
+    const tier = user.tier ?? tierFromRole(user.role);
     const { rpm } = TIER_LIMITS[tier] ?? TIER_LIMITS.free;
 
     const result = await this.slidingWindow.check(

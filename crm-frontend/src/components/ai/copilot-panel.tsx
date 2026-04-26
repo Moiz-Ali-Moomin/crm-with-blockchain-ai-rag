@@ -176,7 +176,7 @@ export function CopilotPanel({ compact = false, onOpenFull }: CopilotPanelProps)
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
+            onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && !e.repeat && handleSend()}
             placeholder={compact ? 'Ask anything…' : 'Ask anything about your CRM data…'}
             disabled={isLoading}
             className="flex-1 bg-transparent text-[13px] text-fg placeholder:text-fg-subtle outline-none disabled:opacity-50"

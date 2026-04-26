@@ -84,6 +84,7 @@ export const useCopilotStore = create<CopilotState>((set, get) => ({
       const res = await apiPost<{ answer: string; sources?: RawSource[] }>(
         '/ai/copilot',
         { query: trimmed, context, sessionId },
+        { timeout: 120_000 }, // AI responses can take 20-60 s — override the 30 s global default
       );
 
       // Map backend field names → frontend CopilotSource interface
@@ -110,7 +111,10 @@ export const useCopilotStore = create<CopilotState>((set, get) => ({
 
       if (axios.isAxiosError(err)) {
         const status = err.response?.status;
-        if (status === 429) {
+        const isTimeout = err.code === 'ECONNABORTED' || err.message?.includes('timeout');
+        if (isTimeout) {
+          content = 'The AI is taking longer than expected. Please wait a moment and try again — avoid resending while a response is in progress.';
+        } else if (status === 429) {
           const retryAfter = err.response?.headers?.['retry-after'];
           const waitSecs = retryAfter ? parseInt(retryAfter, 10) : 60;
           content = `You've sent too many messages. Please wait ${waitSecs} second${waitSecs !== 1 ? 's' : ''} before trying again.`;
