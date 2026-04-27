@@ -22,7 +22,7 @@ import { WalletsService } from '../../modules/wallets/wallets.service';
 import { CreatePaymentDto } from '../../modules/payments/payments.dto';
 import { Chain } from '@prisma/client';
 import { DlqPublisherService } from '../services/dlq-publisher.service';
-import { extractTraceContext } from '../../tracing';
+import { extractTraceContext } from '../../observability/tracing';
 
 const tracer = trace.getTracer('crm-backend');
 

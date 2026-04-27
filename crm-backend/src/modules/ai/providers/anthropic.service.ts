@@ -54,13 +54,16 @@ export class AnthropicLLMProvider implements AgentCapableLLMProvider {
     const history: { role: 'user' | 'assistant'; content: string }[] =
       (input.history ?? []).map((m) => ({ role: m.role, content: m.content }));
 
-    const response = await this.client.messages.create({
-      model: this.model,
-      max_tokens: this.maxTokens,
-      temperature: this.temperature,
-      ...(input.system ? { system: input.system } : {}),
-      messages: [...history, { role: 'user', content: userContent }],
-    });
+    const response = await this.client.messages.create(
+      {
+        model: this.model,
+        max_tokens: this.maxTokens,
+        temperature: this.temperature,
+        ...(input.system ? { system: input.system } : {}),
+        messages: [...history, { role: 'user', content: userContent }],
+      },
+      input.signal ? { signal: input.signal } : undefined,
+    );
 
     const block = response.content[0];
     if (block.type !== 'text') {

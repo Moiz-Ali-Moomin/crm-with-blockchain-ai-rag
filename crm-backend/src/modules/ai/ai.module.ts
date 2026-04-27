@@ -35,6 +35,7 @@ import { QUEUE_NAMES } from '../../core/queue/queue.constants';
 import { BlockchainModule } from '../blockchain/blockchain.module';
 import { DbFallbackService } from './db-fallback.service';
 import { ThrottledApiQueue } from './throttled-api-queue.service';
+import { AiExecutorService } from './ai-executor.service';
 import { McpModule } from '../mcp/mcp.module';
 
 // 🔥 same flag as CoreModule
@@ -96,6 +97,7 @@ const isMongoEnabled = !!process.env.MONGO_URI;
     },
 
     ThrottledApiQueue,
+    AiExecutorService,
     AiService,
     VectorSearchService,
     CopilotService,
@@ -114,6 +116,7 @@ const isMongoEnabled = !!process.env.MONGO_URI;
     RagService,
     AiCostControlService,
     ThrottledApiQueue,
+    AiExecutorService,
     BullModule,
 
     ...(isMongoEnabled ? [AiLogRepository] : []),

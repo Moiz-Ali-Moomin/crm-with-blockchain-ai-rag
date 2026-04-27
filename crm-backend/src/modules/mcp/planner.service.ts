@@ -12,7 +12,12 @@ export class PlannerService {
     private readonly toolRegistry: ToolRegistryService,
   ) {}
 
-  async plan(query: string, priorResults: StepResult[]): Promise<AgentPlan> {
+  /**
+   * MUST be called exclusively through AiExecutorService.execute() — never
+   * call plan() directly. The executor provides the global semaphore, sequential
+   * queue, 429 retry, and abort handling that wrap this call.
+   */
+  async plan(query: string, priorResults: StepResult[], signal?: AbortSignal): Promise<AgentPlan> {
     const tools = this.toolRegistry.getAll();
 
     const toolList = tools
@@ -64,7 +69,11 @@ Rules:
 - If you already have enough information to answer (check completed steps above), set "done": true, "steps": [], and write the final answer in "finalAnswer"
 - Keep steps minimal — only what is strictly necessary`;
 
-    const raw = await this.llm.generate({ prompt });
+    // Signal check before the actual API call — abort propagation from executor.
+    if (signal?.aborted) {
+      throw Object.assign(new Error('Request aborted before planner LLM call'), { name: 'AbortError' });
+    }
+    const raw = await this.llm.generate({ prompt, signal });
     return this.parsePlan(raw);
   }
 

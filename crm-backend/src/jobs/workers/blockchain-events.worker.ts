@@ -36,7 +36,7 @@ import { PaymentsService } from '../../modules/payments/payments.service';
 import { BlockchainTransferEvent } from '../../modules/blockchain/listener/blockchain-listener.service';
 import { PrismaService } from '../../core/database/prisma.service';
 import { DlqPublisherService } from '../services/dlq-publisher.service';
-import { extractTraceContext } from '../../tracing';
+import { extractTraceContext } from '../../observability/tracing';
 
 const USDC_DECIMALS = 6;
 const USDC_SCALAR   = new Prisma.Decimal(10 ** USDC_DECIMALS); // 1_000_000

@@ -37,7 +37,7 @@ import { PaymentsService } from '../modules/payments/payments.service';
 import { PrismaService } from '../core/database/prisma.service';
 import { DlqPublisherService } from '../jobs/services/dlq-publisher.service';
 import { UsdcContractService } from '../blockchain/usdc.contract';
-import { extractTraceContext } from '../tracing';
+import { extractTraceContext } from '../observability/tracing';
 import type { IncomingTransferJob } from '../blockchain/blockchain.listener';
 
 const tracer = trace.getTracer('crm-backend');

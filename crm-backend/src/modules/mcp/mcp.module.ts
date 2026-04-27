@@ -1,5 +1,6 @@
 ﻿import { Module, forwardRef } from '@nestjs/common';
 import { AiModule } from '../ai/ai.module';
+// AiExecutorService is exported from AiModule and injected into AgentService.
 import { DealsModule } from '../deals/deals.module';
 import { TasksModule } from '../tasks/tasks.module';
 import { ToolRegistryService } from './tool-registry.service';

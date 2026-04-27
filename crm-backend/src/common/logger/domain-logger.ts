@@ -17,6 +17,7 @@ import { Injectable, LoggerService } from '@nestjs/common';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { Inject } from '@nestjs/common';
 import { AsyncLocalStorage } from 'async_hooks';
+import { getActiveTraceIds } from '../../observability/tracing';
 
 export interface LogCorrelationContext {
   requestId?: string;
@@ -36,7 +37,11 @@ export class DomainLogger implements LoggerService {
   ) {}
 
   private getContext(): LogCorrelationContext {
-    return correlationAls.getStore() ?? {};
+    const { traceId, spanId } = getActiveTraceIds();
+    return {
+      ...correlationAls.getStore(),
+      ...(traceId ? { traceId, spanId } : {}),
+    };
   }
 
   log(message: string, meta?: Record<string, unknown>): void {

@@ -28,6 +28,8 @@ export interface LLMInput {
   context?: string;
   /** Prior conversation turns — enables multi-turn chat */
   history?: ChatMessage[];
+  /** Propagated from the HTTP request — cancels the in-flight API call on client disconnect */
+  signal?: AbortSignal;
 }
 
 /** Contract every LLM provider must satisfy */

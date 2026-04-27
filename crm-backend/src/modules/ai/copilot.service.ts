@@ -18,6 +18,9 @@ import { CACHE_KEYS, CACHE_TTL } from '../../core/cache/cache-keys';
 import { AiLogRepository } from './repositories/ai-log.repository';
 import { Prisma } from '@prisma/client';
 import { LLMProvider, LLM_PROVIDER } from './providers/llm.interface';
+import { AiExecutorService, uniqueCallKey } from './ai-executor.service';
+import { CircuitBreakerService } from '../../core/resilience/circuit-breaker.service';
+import { AiCostControlService, AiTier } from './cost-control.service';
 
 type CommunicationContext = Prisma.CommunicationGetPayload<{
   select: {
@@ -55,6 +58,9 @@ export class CopilotService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
+    private readonly executor: AiExecutorService,
+    private readonly circuitBreaker: CircuitBreakerService,
+    private readonly costControl: AiCostControlService,
     @Inject(LLM_PROVIDER) private readonly llmProvider: LLMProvider,
     @Optional() private readonly aiLogRepo?: AiLogRepository,
   ) {}
@@ -67,11 +73,14 @@ export class CopilotService {
     tenantId: string,
     contactId: string,
     contextLimit = 20,
+    tier: AiTier = 'free',
   ): Promise<{ summary: string; keyPoints: string[]; sentiment: string }> {
     const cacheKey = CACHE_KEYS.aiSummary(tenantId, 'contact', contactId);
     const cached = await this.redis.get<{ summary: string; keyPoints: string[]; sentiment: string }>(cacheKey);
 
     if (cached) return cached;
+
+    await this.costControl.assertQuota(tenantId, tier, 800);
 
     const context = await this.buildContactContext(tenantId, contactId, contextLimit);
 
@@ -83,11 +92,18 @@ export class CopilotService {
       };
     }
 
-    const raw = await this.llmProvider.generate({
-      system:
-        'You are a CRM analyst. Return ONLY valid JSON with keys: summary (string), keyPoints (string[]), sentiment (string).',
-      prompt: context.narrative,
-    });
+    const raw = await this.circuitBreaker.execute('llm', () =>
+      this.executor.execute({
+        key: `contact-summary:${tenantId}:${contactId}`,
+        fn: () =>
+          this.llmProvider.generate({
+            system:
+              'You are a CRM analyst. Return ONLY valid JSON with keys: summary (string), keyPoints (string[]), sentiment (string).',
+            prompt: context.narrative,
+          }),
+      }),
+    );
+    void this.costControl.recordUsage(tenantId, Math.ceil(context.narrative.length / 4) + 300);
 
     this.logger.debug('[Copilot] summarizeContactHistory: LLM responded');
 
@@ -104,7 +120,10 @@ export class CopilotService {
     tenantId: string,
     communicationId: string,
     instruction?: string,
+    tier: AiTier = 'free',
   ): Promise<{ reply: string }> {
+    await this.costControl.assertQuota(tenantId, tier, 600);
+
     const comm = await this.prisma.communication.findFirst({
       where: { id: communicationId, tenantId },
       select: {
@@ -121,12 +140,20 @@ export class CopilotService {
     }
 
     const emailContext = buildCommunicationContext(comm);
+    const prompt = `${emailContext}\n\nInstruction: ${instruction ?? 'Reply professionally'}`;
 
-    const reply = await this.llmProvider.generate({
-      system: 'You are a CRM assistant writing professional email replies.',
-      prompt: `${emailContext}\n\nInstruction: ${instruction ?? 'Reply professionally'}`,
-    });
+    const reply = await this.circuitBreaker.execute('llm', () =>
+      this.executor.execute({
+        key: uniqueCallKey(),
+        fn: () =>
+          this.llmProvider.generate({
+            system: 'You are a CRM assistant writing professional email replies.',
+            prompt,
+          }),
+      }),
+    );
 
+    void this.costControl.recordUsage(tenantId, Math.ceil(prompt.length / 4) + 300);
     this.logger.debug('[Copilot] generateEmailReply: LLM responded');
     return { reply };
   }
@@ -139,7 +166,10 @@ export class CopilotService {
     tenantId: string,
     entityType: string,
     entityId: string,
+    tier: AiTier = 'free',
   ): Promise<{ suggestion: string }> {
+    await this.costControl.assertQuota(tenantId, tier, 400);
+
     const activities = await this.prisma.activity.findMany({
       where: { tenantId, entityId },
       take: 10,
@@ -150,12 +180,20 @@ export class CopilotService {
     }
 
     const context = activities.map((a) => a.subject).join('\n');
+    const prompt = `Activity:\n${context}\n\nSuggest next action.`;
 
-    const suggestion = await this.llmProvider.generate({
-      system: 'You suggest next best follow-up actions in CRM. Keep response concise.',
-      prompt: `Activity:\n${context}\n\nSuggest next action.`,
-    });
+    const suggestion = await this.circuitBreaker.execute('llm', () =>
+      this.executor.execute({
+        key: uniqueCallKey(),
+        fn: () =>
+          this.llmProvider.generate({
+            system: 'You suggest next best follow-up actions in CRM. Keep response concise.',
+            prompt,
+          }),
+      }),
+    );
 
+    void this.costControl.recordUsage(tenantId, Math.ceil(prompt.length / 4) + 200);
     this.logger.debug('[Copilot] suggestFollowUp: LLM responded');
     return { suggestion };
   }
@@ -169,7 +207,10 @@ export class CopilotService {
     entityType: string,
     entityId: string,
     limit = 20,
+    tier: AiTier = 'free',
   ): Promise<{ summary: string }> {
+    await this.costControl.assertQuota(tenantId, tier, 500);
+
     const activities = await this.prisma.activity.findMany({
       where: { tenantId, entityId },
       take: limit,
@@ -180,12 +221,20 @@ export class CopilotService {
     }
 
     const timeline = activities.map((a) => a.subject).join('\n');
+    const prompt = `Timeline:\n${timeline}\n\nSummarize.`;
 
-    const summary = await this.llmProvider.generate({
-      system: 'You summarize CRM timelines clearly and concisely.',
-      prompt: `Timeline:\n${timeline}\n\nSummarize.`,
-    });
+    const summary = await this.circuitBreaker.execute('llm', () =>
+      this.executor.execute({
+        key: `activity-summary:${tenantId}:${entityId}`,
+        fn: () =>
+          this.llmProvider.generate({
+            system: 'You summarize CRM timelines clearly and concisely.',
+            prompt,
+          }),
+      }),
+    );
 
+    void this.costControl.recordUsage(tenantId, Math.ceil(prompt.length / 4) + 200);
     this.logger.debug('[Copilot] summarizeActivityTimeline: LLM responded');
     return { summary };
   }

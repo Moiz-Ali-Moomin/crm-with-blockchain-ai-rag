@@ -28,7 +28,7 @@ import { PaymentsService } from '../../modules/payments/payments.service';
 import { PrismaService } from '../../core/database/prisma.service';
 import { DlqPublisherService } from '../services/dlq-publisher.service';
 import { BusinessMetricsService } from '../../core/metrics/business-metrics.service';
-import { extractTraceContext } from '../../tracing';
+import { extractTraceContext } from '../../observability/tracing';
 
 const tracer = trace.getTracer('crm-backend');
 

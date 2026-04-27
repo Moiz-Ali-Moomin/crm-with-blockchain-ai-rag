@@ -14,10 +14,11 @@ import { McpMetricsService } from './mcp-metrics.service';
 import { Tool } from './interfaces/tool.interface';
 import { ConversationMemoryService } from './conversation-memory.service';
 import { PlannerService } from './planner.service';
+import { AiExecutorService, uniqueCallKey } from '../ai/ai-executor.service';
 import { StepResult } from './interfaces/plan.interface';
 
-const MAX_ITERATIONS = 5;
-const MAX_PLAN_ITERATIONS = 4;
+const MAX_ITERATIONS = 3;
+const MAX_PLAN_ITERATIONS = 3;
 
 const DEFAULT_SYSTEM = `You are a helpful CRM assistant with access to tools that query live CRM data. \
 Use tools when you need specific data. Once you have enough information, respond concisely and directly. \
@@ -38,6 +39,8 @@ export interface AgentRunInput {
    * - 'planner': Dedicated planner LLM creates a step list; executor runs each step; loop repeats.
    */
   mode?: 'reactive' | 'planner';
+  /** Propagated from the HTTP request — aborts queued + in-flight LLM calls when client disconnects */
+  signal?: AbortSignal;
 }
 
 export interface AgentRunResult {
@@ -60,6 +63,7 @@ export class AgentService {
     private readonly mcpMetrics: McpMetricsService,
     private readonly memory: ConversationMemoryService,
     private readonly planner: PlannerService,
+    private readonly executor: AiExecutorService,
   ) {}
 
   async run(input: AgentRunInput): Promise<AgentRunResult> {
@@ -145,6 +149,11 @@ export class AgentService {
     let toolCallsMade = 0;
 
     for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
+      // Bail immediately if the HTTP client disconnected — no point calling the LLM.
+      if (input.signal?.aborted) {
+        throw Object.assign(new Error('Request aborted by client'), { name: 'AbortError' });
+      }
+
       this.logger.debug(`[Reactive] Iteration ${iteration + 1}/${MAX_ITERATIONS}`);
 
       const iterSpan = tracer.startSpan('mcp.agent.iteration', {
@@ -153,11 +162,18 @@ export class AgentService {
 
       let response: Awaited<ReturnType<AgentCapableLLMProvider['generateWithTools']>>;
       try {
-        response = await this.llm.generateWithTools({
-          system: input.system ?? DEFAULT_SYSTEM,
-          messages,
-          tools: agentTools,
-          maxTokens: 2048,
+        // Route through AiExecutorService: global semaphore, sequential queue,
+        // 300 ms gap, 429 retry (max 2), abort propagation.
+        // uniqueCallKey() — every iteration is unique; no dedup across turns.
+        response = await this.executor.execute({
+          key: uniqueCallKey(),
+          fn: () => this.llm.generateWithTools({
+            system: input.system ?? DEFAULT_SYSTEM,
+            messages,
+            tools: agentTools,
+            maxTokens: 2048,
+          }),
+          signal: input.signal,
         });
         iterSpan.setAttribute('mcp.stop_reason', response.stopReason);
         iterSpan.setStatus({ code: SpanStatusCode.OK });
@@ -232,6 +248,10 @@ export class AgentService {
     let toolCallsMade = 0;
 
     for (let iteration = 0; iteration < MAX_PLAN_ITERATIONS; iteration++) {
+      if (input.signal?.aborted) {
+        throw Object.assign(new Error('Request aborted by client'), { name: 'AbortError' });
+      }
+
       this.logger.debug(`[Planner] Iteration ${iteration + 1}/${MAX_PLAN_ITERATIONS}`);
 
       const planSpan = tracer.startSpan('mcp.planner.plan', {
@@ -244,7 +264,15 @@ export class AgentService {
 
       let plan: Awaited<ReturnType<PlannerService['plan']>>;
       try {
-        plan = await this.planner.plan(input.query, allStepResults);
+        // Planner LLM call goes through the executor — global semaphore,
+        // sequential queue, 300 ms gap, 429 retry (max 2), abort propagation.
+        // planner.plan() calls llm.generate() internally; that inner call runs
+        // within the executor slot so it is still fully serialized.
+        plan = await this.executor.execute({
+          key: uniqueCallKey(),
+          fn: () => this.planner.plan(input.query, allStepResults, input.signal),
+          signal: input.signal,
+        });
         planSpan.setAttributes({
           'mcp.plan_steps': plan.steps.length,
           'mcp.plan_done': plan.done,

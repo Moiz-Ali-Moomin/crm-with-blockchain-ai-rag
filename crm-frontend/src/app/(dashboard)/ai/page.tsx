@@ -39,9 +39,13 @@ function SourceChip({ entityType, snippet, score }: { entityType: string; snippe
 // ─── Tab: Ask AI (Copilot Chat) ────────────────────────────────────────────────
 
 function ChatTab() {
-  const { messages, isLoading, sendMessage, clearMessages } = useCopilotStore();
+  const { messages, isLoading, sendMessage, clearMessages, cancelRequest } = useCopilotStore();
   const [input, setInput] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    return () => { cancelRequest(); };
+  }, [cancelRequest]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });

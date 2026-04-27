@@ -32,7 +32,7 @@ import { WalletsService } from '../../modules/wallets/wallets.service';
 import { RedisService } from '../../core/cache/redis.service';
 import { BusinessMetricsService } from '../../core/metrics/business-metrics.service';
 import { DlqPublisherService } from '../services/dlq-publisher.service';
-import { extractTraceContext } from '../../tracing';
+import { extractTraceContext } from '../../observability/tracing';
 
 export interface WithdrawalJobPayload {
   tenantId: string;

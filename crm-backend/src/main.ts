@@ -5,7 +5,7 @@
  * patch the pg, ioredis, and http modules at require time.
  */
 
-import './tracing';
+import './observability/tracing';
 
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';

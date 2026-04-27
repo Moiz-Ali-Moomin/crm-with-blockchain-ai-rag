@@ -40,7 +40,7 @@ import { AiCostControlService, AiTier } from './cost-control.service';
 import { BusinessMetricsService } from '../../core/metrics/business-metrics.service';
 import { LLMProvider, LLM_PROVIDER } from './providers/llm.interface';
 import { DbFallbackService } from './db-fallback.service';
-import { ThrottledApiQueue } from './throttled-api-queue.service';
+import { AiExecutorService, uniqueCallKey } from './ai-executor.service';
 import { QUEUE_NAMES } from '../../core/queue/queue.constants';
 import { EmbeddingJobPayload } from './ai.dto';
 
@@ -52,6 +52,7 @@ export interface RagQueryParams {
   topK?: number;
   threshold?: number;
   history?: ChatMessage[];
+  signal?: AbortSignal;
 }
 
 export interface RagSource {
@@ -91,7 +92,7 @@ export class RagService {
     private readonly costControl: AiCostControlService,
     private readonly businessMetrics: BusinessMetricsService,
     private readonly dbFallback: DbFallbackService,
-    private readonly throttledApi: ThrottledApiQueue,
+    private readonly executor: AiExecutorService,
     @Inject(LLM_PROVIDER) private readonly llmProvider: LLMProvider,
     @InjectQueue(QUEUE_NAMES.AI_EMBEDDING) private readonly embeddingQueue: Queue<EmbeddingJobPayload>,
     @Optional() private readonly aiLogRepo?: AiLogRepository,
@@ -106,6 +107,7 @@ export class RagService {
       topK = 8,
       threshold = 0.72,
       history = [],
+      signal,
     } = params;
 
     // ── 0. Key guard — fail fast before any I/O ──────────────────────────────
@@ -161,6 +163,7 @@ export class RagService {
       entityTypes,
       limit: topK,
       threshold,
+      signal,
     });
 
     // ── 3b. DB fallback — query Postgres directly when pgvector has no results ─
@@ -180,25 +183,28 @@ export class RagService {
       }
     }
 
-    // ── 4. LLM call — sequential via ThrottledApiQueue (300 ms gap after embed)
-    //    Circuit breaker wraps the throttled call so open-circuit fast-fails
-    //    without consuming a queue slot.
-    //    cacheKey: reuse paramHash for stateless queries; omit for conversational
-    //    turns (history present) since every turn is unique.
+    // ── 4. LLM call — ALL calls MUST go through AiExecutorService.
+    //    Circuit breaker wraps the executor call so open-circuit fast-fails
+    //    without consuming a queue/semaphore slot.
+    //    Key: reuse paramHash for stateless queries (dedup); unique key for
+    //    conversational turns (history present) since every turn is different.
     const start = Date.now();
-    const llmCacheKey = history.length === 0 ? `${paramHash}:${hasContext ? 'ctx' : 'fb'}` : undefined;
+    const execKey = history.length === 0
+      ? `rag:${paramHash}:${hasContext ? 'ctx' : 'fb'}`
+      : uniqueCallKey();
 
     const answer = await this.circuitBreaker.execute('llm', () =>
-      this.throttledApi.llm(
-        () =>
+      this.executor.execute({
+        key: execKey,
+        fn: () =>
           this.llmProvider.generate({
             system: hasContext ? RAG_SYSTEM_PROMPT : FALLBACK_SYSTEM_PROMPT,
             prompt: query,
             context: contextWindow,
             history,
           }),
-        llmCacheKey,
-      ),
+        signal,
+      }),
     );
 
     const latencyMs = Date.now() - start;

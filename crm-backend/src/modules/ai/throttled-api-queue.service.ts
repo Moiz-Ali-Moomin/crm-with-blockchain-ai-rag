@@ -123,6 +123,21 @@ export class ThrottledApiQueue {
   }
 
   /**
+   * agentLlm<T>()
+   *
+   * Route any agent LLM call (generateWithTools or generate) through the
+   * sequential queue. Provides identical guarantees to llm(): one call at a
+   * time, 300 ms gap, 429 retry with back-off, queue depth cap.
+   *
+   * Not cached — agent turns are always unique (messages array changes every
+   * iteration). Use the signal to abort queued calls when the HTTP client
+   * disconnects.
+   */
+  async agentLlm<T>(fn: () => Promise<T>, signal?: AbortSignal): Promise<T> {
+    return this.schedule<T>(uniqueKey(), fn, signal);
+  }
+
+  /**
    * llm()
    *
    * Execute an LLM API call with:

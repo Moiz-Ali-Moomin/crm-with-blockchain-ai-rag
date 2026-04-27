@@ -49,7 +49,7 @@ import { PaymentsService } from '../modules/payments/payments.service';
 import { PrismaService } from '../core/database/prisma.service';
 import { BusinessMetricsService } from '../core/metrics/business-metrics.service';
 import { DlqPublisherService } from '../jobs/services/dlq-publisher.service';
-import { extractTraceContext } from '../tracing';
+import { extractTraceContext } from '../observability/tracing';
 
 const tracer = trace.getTracer('crm-backend');
 

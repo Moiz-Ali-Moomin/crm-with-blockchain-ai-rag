@@ -65,6 +65,7 @@ export class VectorSearchService {
     entityTypes?: string[];
     limit?: number;
     threshold?: number;
+    signal?: AbortSignal;
   }): Promise<SemanticSearchResult[]> {
     const {
       tenantId,
@@ -72,6 +73,7 @@ export class VectorSearchService {
       entityTypes = ['activity', 'communication', 'ticket'],
       limit = 10,
       threshold = 0.72,
+      signal,
     } = params;
 
     // Cache key based on hash of all parameters
@@ -89,6 +91,7 @@ export class VectorSearchService {
     const queryEmbedding = await this.throttledApi.embed(
       query,
       () => this.embeddingService.generateEmbedding(query),
+      signal,
     );
 
     // pgvector cosine distance is undefined for zero-magnitude vectors (division by zero).

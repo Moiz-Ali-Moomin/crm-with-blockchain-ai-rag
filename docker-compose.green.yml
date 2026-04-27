@@ -17,6 +17,7 @@ services:
       SLOT: green
       OTEL_EXPORTER_OTLP_ENDPOINT: http://crm_otel_collector:4318
       OTEL_SERVICE_NAME: crm-api
+      APP_VERSION: ${IMAGE_TAG}
     networks:
       - crm_internal
       - crm_public

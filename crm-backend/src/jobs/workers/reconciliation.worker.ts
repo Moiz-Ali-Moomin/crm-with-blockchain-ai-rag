@@ -38,7 +38,7 @@ import { QUEUE_NAMES, QUEUE_JOB_OPTIONS } from '../../core/queue/queue.constants
 import { PaymentsService } from '../../modules/payments/payments.service';
 import { PaymentsRepository } from '../../modules/payments/payments.repository';
 import { BusinessMetricsService } from '../../core/metrics/business-metrics.service';
-import { extractTraceContext } from '../../tracing';
+import { extractTraceContext } from '../../observability/tracing';
 import { USDC_ADDRESSES } from '../../modules/wallets/wallets.service';
 import { SupportedChain } from '../../modules/blockchain/custody/custody.interface';
 
