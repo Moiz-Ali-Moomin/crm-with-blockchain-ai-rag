@@ -3,22 +3,26 @@
 const { NodeSDK } = require('@opentelemetry/sdk-node');
 const { getNodeAutoInstrumentations } = require('@opentelemetry/auto-instrumentations-node');
 const { OTLPTraceExporter } = require('@opentelemetry/exporter-trace-otlp-http');
+const { OTLPMetricExporter } = require('@opentelemetry/exporter-metrics-otlp-http');
+const { OTLPLogExporter } = require('@opentelemetry/exporter-logs-otlp-http');
+const { PeriodicExportingMetricReader } = require('@opentelemetry/sdk-metrics');
+const { BatchLogRecordProcessor } = require('@opentelemetry/sdk-logs');
 const { resourceFromAttributes } = require('@opentelemetry/resources');
 const { SemanticResourceAttributes } = require('@opentelemetry/semantic-conventions');
 
 // ─────────────────────────────────────────
-// Endpoint (ensures /v1/traces)
+// Base collector endpoint
 // ─────────────────────────────────────────
 const base =
   process.env.OTEL_EXPORTER_OTLP_ENDPOINT ||
   'http://crm_otel_collector:4318';
 
-const endpoint = base.endsWith('/v1/traces')
-  ? base
-  : base + '/v1/traces';
+const traceEndpoint = base.endsWith('/v1/traces') ? base : base + '/v1/traces';
+const metricsEndpoint = base.replace(/\/v1\/traces$/, '') + '/v1/metrics';
+const logsEndpoint = base.replace(/\/v1\/traces$/, '') + '/v1/logs';
 
 // ─────────────────────────────────────────
-// Service metadata (OTel v2 compatible)
+// Service metadata
 // ─────────────────────────────────────────
 const resource = resourceFromAttributes({
   [SemanticResourceAttributes.SERVICE_NAME]:
@@ -29,34 +33,34 @@ const resource = resourceFromAttributes({
 });
 
 // ─────────────────────────────────────────
-// SDK setup
+// SDK setup — traces + metrics + logs
 // ─────────────────────────────────────────
 const sdk = new NodeSDK({
   resource,
 
-  traceExporter: new OTLPTraceExporter({
-    url: endpoint,
+  traceExporter: new OTLPTraceExporter({ url: traceEndpoint }),
+
+  metricReader: new PeriodicExportingMetricReader({
+    exporter: new OTLPMetricExporter({ url: metricsEndpoint }),
+    exportIntervalMillis: 15000,
   }),
+
+  logRecordProcessor: new BatchLogRecordProcessor(
+    new OTLPLogExporter({ url: logsEndpoint }),
+  ),
 
   instrumentations: [
     getNodeAutoInstrumentations({
-      // ✅ incoming + outgoing HTTP
       '@opentelemetry/instrumentation-http': {
         enabled: true,
-        ignoreIncomingPaths: [], // ensure nothing is skipped
+        ignoreIncomingPaths: [],
       },
-
-      // ✅ NestJS uses Express internally
       '@opentelemetry/instrumentation-express': {
         enabled: true,
       },
-
-      // ✅ Redis (BullMQ / queues)
       '@opentelemetry/instrumentation-ioredis': {
         enabled: true,
       },
-
-      // ✅ PostgreSQL
       '@opentelemetry/instrumentation-pg': {
         enabled: true,
       },
@@ -69,7 +73,9 @@ const sdk = new NodeSDK({
 // ─────────────────────────────────────────
 try {
   sdk.start();
-  console.log(`[OTEL] started → ${endpoint}`);
+  console.log(`[OTEL] traces  → ${traceEndpoint}`);
+  console.log(`[OTEL] metrics → ${metricsEndpoint}`);
+  console.log(`[OTEL] logs    → ${logsEndpoint}`);
 } catch (err) {
   console.error('[OTEL] failed to start', err);
 }

@@ -19,13 +19,9 @@ processors:
 exporters:
   # 🔥 Traces → Tempo
   otlp/tempo:
-    endpoint: http://crm_tempo:4317
+    endpoint: crm_tempo:4317
     tls:
       insecure: true
-
-  # 🔍 DEBUG (temporary, can remove later)
-  logging:
-    verbosity: detailed
 
   # 📊 Metrics → Prometheus
   prometheusremotewrite:
@@ -55,7 +51,7 @@ service:
     traces:
       receivers: [otlp]
       processors: [memory_limiter, batch]
-      exporters: [otlp/tempo, logging]   # 👈 logging added
+      exporters: [otlp/tempo]
 
     metrics:
       receivers: [otlp]
