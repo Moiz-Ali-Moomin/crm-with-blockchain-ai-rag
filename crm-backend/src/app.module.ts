@@ -17,6 +17,8 @@ import Redis from 'ioredis';
 import { ConfigModule } from '@nestjs/config';
 import { WinstonModule } from 'nest-winston';
 import * as winston from 'winston';
+import { OpenTelemetryTransportV3 } from '@opentelemetry/winston-transport';
+import { MetricsMiddleware } from './observability/metrics.middleware';
 
 import { validateEnv } from './config/env.validation';
 import { CoreModule } from './core/core.module';
@@ -87,6 +89,13 @@ import { AiConcurrencyInterceptor } from './common/interceptors/ai-concurrency.i
             }),
           ),
         }),
+
+        // OTel log bridge: forwards every Winston record into the OTel Logs SDK
+        // pipeline defined in otel.js → BatchLogRecordProcessor → OTLPLogExporter
+        // → otel-collector → Loki.  trace_id / span_id are injected automatically
+        // from the active span, giving click-through correlation in Grafana.
+        new OpenTelemetryTransportV3(),
+
         // Production: structured JSON to files with size-based rotation
         // Files are kept for 14 days; max 500 MB per file; max 5 GB total
         ...(process.env.NODE_ENV === 'production'
@@ -192,6 +201,15 @@ import { AiConcurrencyInterceptor } from './common/interceptors/ai-concurrency.i
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
+    // RED metrics: rate, errors, duration — all routes except health probes
+    consumer
+      .apply(MetricsMiddleware)
+      .exclude(
+        { path: 'api/v1/health',      method: RequestMethod.GET },
+        { path: 'api/v1/health/(.*)', method: RequestMethod.GET },
+      )
+      .forRoutes({ path: '*', method: RequestMethod.ALL });
+
     // Inject X-Request-ID on every request for distributed tracing
     consumer
       .apply(RequestIdMiddleware)

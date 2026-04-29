@@ -1,11 +1,11 @@
 /**
  * CRM SaaS Backend - Application Bootstrap
  *
- * tracing.ts MUST be imported before everything else so OpenTelemetry can
- * patch the pg, ioredis, and http modules at require time.
+ * The OTel SDK (traces + metrics + logs) is initialised by otel.js via
+ * `node -r ./otel.js` BEFORE this module is evaluated. Import tracing helpers
+ * directly in the module that needs them (injectTraceContext, getActiveTraceIds,
+ * recordError) — there is nothing to initialise here.
  */
-
-import './observability/tracing';
 
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';

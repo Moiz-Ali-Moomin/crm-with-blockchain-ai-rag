@@ -26,8 +26,6 @@ exporters:
   # 📊 Metrics → Prometheus
   prometheusremotewrite:
     endpoint: http://crm_prometheus:9090/api/v1/write
-    tls:
-      insecure: true
     resource_to_telemetry_conversion:
       enabled: true
 
