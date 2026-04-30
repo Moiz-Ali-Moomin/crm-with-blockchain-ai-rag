@@ -10,7 +10,7 @@ export const apiClient = axios.create({
   // withCredentials sends the httpOnly access_token + refresh_token cookies
   // on every request, so no Authorization header management is needed.
   withCredentials: true,
-  headers: { 'Content-Type': 'application/json' },
+  headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
   timeout: 30_000,
 });
 
