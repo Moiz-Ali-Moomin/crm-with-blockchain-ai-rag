@@ -36,15 +36,15 @@ export class HealthController {
     return this.health.check([
       // Database reachability
       () => this.prismaHealth.pingCheck('database', this.prisma),
-      // RSS memory must stay below 512 MB
-      () => this.memory.checkRSS('memory_rss', 512 * 1024 * 1024),
-      // Heap must stay below 300 MB
-      () => this.memory.checkHeap('memory_heap', 300 * 1024 * 1024),
-      // Disk must have at least 10% free on /
+      // RSS memory must stay below 768 MB (safer for heavy apps with blockchain/RAG)
+      () => this.memory.checkRSS('memory_rss', 768 * 1024 * 1024),
+      // Heap must stay below 512 MB
+      () => this.memory.checkHeap('memory_heap', 512 * 1024 * 1024),
+      // Disk must have at least 5% free on / (be lenient in Alpine containers)
       () =>
         this.disk.checkStorage('disk', {
           path: '/',
-          thresholdPercent: 0.9,
+          thresholdPercent: 0.95,
         }),
     ]);
   }

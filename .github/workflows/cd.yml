@@ -355,13 +355,21 @@ jobs:
             # ── [9] Post-cutover health validation (with auto-rollback) ─────────
             echo "[7/7] Validating production endpoint"
             if ! bash "$DEPLOY_PATH/deploy/health-check-prod.sh" 30 5; then
-              echo "  ❌ Post-cutover health check FAILED — auto-rolling back to $ACTIVE"
-              ACTIVE_SLOT="$ACTIVE" \
-              envsubst '${ACTIVE_SLOT}' \
-                < "$DEPLOY_PATH/nginx/conf.d/single-slot.conf.template" \
-                > "$DEPLOY_PATH/nginx/conf.d/app.conf"
-              docker exec crm_nginx nginx -t && docker exec crm_nginx nginx -s reload
-              echo "  ✅ Rolled back — production is serving $ACTIVE again"
+              echo "  ❌ Post-cutover health check FAILED — dumping logs for $IDLE"
+              docker logs "crm_api_${IDLE}" --tail 100
+              docker logs "crm_web_${IDLE}" --tail 100
+
+              if docker ps --format '{{.Names}}' | grep -q "^crm_api_${ACTIVE}$"; then
+                echo "  ⚠️ Auto-rolling back to $ACTIVE"
+                ACTIVE_SLOT="$ACTIVE" \
+                envsubst '${ACTIVE_SLOT}' \
+                  < "$DEPLOY_PATH/nginx/conf.d/single-slot.conf.template" \
+                  > "$DEPLOY_PATH/nginx/conf.d/app.conf"
+                docker exec crm_nginx nginx -t && docker exec crm_nginx nginx -s reload
+                echo "  ✅ Rolled back — production is serving $ACTIVE again"
+              else
+                echo "  ❌ Rollback skipped: $ACTIVE slot is not running (likely first deploy)"
+              fi
               exit 1
             fi
             echo "  OK: production endpoint healthy"

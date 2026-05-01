@@ -67,22 +67,25 @@ export class PrismaService
 
         // Inject tenantId automatically into the query arguments
         if (params.action === 'create') {
+          params.args = params.args || {};
           params.args.data = {
-            ...params.args.data,
+            ...(params.args.data || {}),
             tenantId,
           };
         }
 
         if (params.action === 'findMany' || params.action === 'findFirst') {
+          params.args = params.args || {};
           params.args.where = {
-            ...params.args.where,
+            ...(params.args.where || {}),
             tenantId,
           };
         }
 
         if (params.action === 'update' || params.action === 'updateMany' || params.action === 'delete' || params.action === 'deleteMany') {
+          params.args = params.args || {};
           params.args.where = {
-            ...params.args.where,
+            ...(params.args.where || {}),
             tenantId,
           };
         }
