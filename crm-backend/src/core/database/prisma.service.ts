@@ -39,8 +39,9 @@ export class PrismaService
     this.$use(async (params, next) => {
       const ctx = tenantContext.getStore();
 
-      // 👇 Skip tenant enforcement (bootstrap/register flows)
-      if (ctx?.skipTenant) {
+      // Skip when: explicit bypass (auth/bootstrap) OR no request context at all
+      // (ctx === undefined means TenantContextMiddleware didn't run, e.g. auth routes)
+      if (!ctx || ctx.skipTenant) {
         return next(params);
       }
 
