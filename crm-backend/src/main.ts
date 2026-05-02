@@ -53,6 +53,8 @@ async function bootstrap() {
       'Authorization',
       'X-Request-ID',
       'X-Tenant-ID',
+      'X-Requested-With',
+      'X-CSRF-Token',
       'Idempotency-Key',
     ],
   });

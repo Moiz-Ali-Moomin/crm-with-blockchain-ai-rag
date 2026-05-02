@@ -117,6 +117,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
       };
     }
 
+    if (exception instanceof Prisma.PrismaClientInitializationError) {
+      return {
+        status: HttpStatus.SERVICE_UNAVAILABLE,
+        message: 'Database connection unavailable',
+      };
+    }
+
     // Unknown errors
     return {
       status: HttpStatus.INTERNAL_SERVER_ERROR,

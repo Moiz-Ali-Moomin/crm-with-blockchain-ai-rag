@@ -25,6 +25,11 @@ export class TenantContextMiddleware implements NestMiddleware {
   ) {}
 
   use(req: Request, res: Response, next: NextFunction) {
+    // Failsafe: skip tenant context for auth routes regardless of exclude pattern
+    if (req.path.includes('/auth/') || req.path.endsWith('/auth')) {
+      return next();
+    }
+
     // Cookie-first (SSR/Frontend); fall back to Bearer header (API/Swagger)
     const token = req.cookies?.access_token || req.headers.authorization?.replace('Bearer ', '');
     const requestId = req.headers['x-request-id'] as string;

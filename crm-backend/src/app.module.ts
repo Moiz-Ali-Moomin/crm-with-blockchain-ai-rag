@@ -222,8 +222,8 @@ export class AppModule implements NestModule {
     consumer
       .apply(TenantContextMiddleware)
       .exclude(
-        { path: 'api/v1/auth/(.*)', method: RequestMethod.ALL },
-        { path: 'api/v1/health/(.*)', method: RequestMethod.GET },
+        { path: 'api/v1/auth/*', method: RequestMethod.ALL },
+        { path: 'api/v1/health/*', method: RequestMethod.GET },
         { path: 'api/v1/health', method: RequestMethod.GET },
       )
       .forRoutes({ path: '*', method: RequestMethod.ALL });
