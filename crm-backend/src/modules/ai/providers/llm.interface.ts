@@ -89,6 +89,7 @@ export interface AgentLLMInput {
   messages: AgentConversationMessage[];
   tools: AgentToolDefinition[];
   maxTokens?: number;
+  signal?: AbortSignal;
 }
 
 export interface AgentLLMResponse {

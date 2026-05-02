@@ -75,18 +75,21 @@ export class AnthropicLLMProvider implements AgentCapableLLMProvider {
   }
 
   async generateWithTools(input: AgentLLMInput): Promise<AgentLLMResponse> {
-    const response = await this.client.messages.create({
-      model: this.model,
-      max_tokens: input.maxTokens ?? this.maxTokens,
-      temperature: this.temperature,
-      ...(input.system ? { system: input.system } : {}),
-      tools: input.tools.map((t) => ({
-        name: t.name,
-        description: t.description,
-        input_schema: t.input_schema as Anthropic.Tool['input_schema'],
-      })),
-      messages: input.messages as Anthropic.MessageParam[],
-    });
+    const response = await this.client.messages.create(
+      {
+        model: this.model,
+        max_tokens: input.maxTokens ?? this.maxTokens,
+        temperature: this.temperature,
+        ...(input.system ? { system: input.system } : {}),
+        tools: input.tools.map((t) => ({
+          name: t.name,
+          description: t.description,
+          input_schema: t.input_schema as Anthropic.Tool['input_schema'],
+        })),
+        messages: input.messages as Anthropic.MessageParam[],
+      },
+      input.signal ? { signal: input.signal } : undefined,
+    );
 
     const stopReason = (response.stop_reason ?? 'end_turn') as AgentLLMResponse['stopReason'];
     const content: AgentContentBlock[] = [];

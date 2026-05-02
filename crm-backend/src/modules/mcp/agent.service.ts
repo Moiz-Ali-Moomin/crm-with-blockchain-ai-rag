@@ -172,6 +172,7 @@ export class AgentService {
             messages,
             tools: agentTools,
             maxTokens: 2048,
+            signal: input.signal,
           }),
           signal: input.signal,
         });
