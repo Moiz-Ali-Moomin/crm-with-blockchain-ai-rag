@@ -1,13 +1,6 @@
 version: '3.9'
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Base docker-compose — infrastructure services shared by both slots.
-# App services (api, web) are defined in docker-compose.blue.yml /
-# docker-compose.green.yml so the two slots can run simultaneously.
-# ─────────────────────────────────────────────────────────────────────────────
-
 services:
-  # ── Stateful services (single instance, shared by both slots) ─────────────
   postgres:
     image: pgvector/pgvector:pg16
     container_name: crm_postgres
@@ -26,6 +19,13 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: '1.0'
+        reservations:
+          memory: 256m
 
   redis:
     image: redis:7-alpine
@@ -42,6 +42,13 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+          cpus: '0.5'
+        reservations:
+          memory: 32m
 
   mongodb:
     image: mongo:7-jammy
@@ -62,10 +69,14 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: '0.5'
+        reservations:
+          memory: 64m
 
-  # ── Reverse proxy (single instance, reloaded in-place during deploys) ──────
-  # WHY: nginx reload (SIGHUP) is zero-downtime — it drains existing connections
-  # while workers on the new config handle new ones. No restart needed.
   nginx:
     image: nginx:1.27-alpine
     container_name: crm_nginx
@@ -80,17 +91,20 @@ services:
       - certbot_www:/var/www/certbot:ro
     networks:
       - crm_public
-      - crm_internal   # needs to reach both blue and green app containers
+      - crm_internal
     healthcheck:
-      # /healthz is served by nginx itself (no upstream dependency).
-      # Using the app health endpoint here would report unhealthy during bootstrap
-      # before any app slot is running, causing misleading container state.
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/healthz || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 64m
+          cpus: '0.5'
+        reservations:
+          memory: 16m
 
-  # ── Observability stack ────────────────────────────────────────────────────
   prometheus:
     image: prom/prometheus:v2.52.0
     container_name: crm_prometheus
@@ -99,19 +113,25 @@ services:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
       - '--storage.tsdb.retention.time=30d'
-      - '--web.enable-lifecycle'          # allows hot-reload via POST /-/reload
-      - '--web.enable-remote-write-receiver'  # accepts OTLP metrics from OTEL collector
+      - '--web.enable-lifecycle'
+      - '--web.enable-remote-write-receiver'
     volumes:
       - ./observability/prometheus:/etc/prometheus:ro
       - prometheus_data:/prometheus
     networks:
       - crm_internal
-    # Not exposed externally — accessed only via Grafana or SSH tunnel
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9090/-/healthy || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: '0.5'
+        reservations:
+          memory: 128m
 
   grafana:
     image: grafana/grafana:11.0.0
@@ -123,10 +143,6 @@ services:
       GF_USERS_ALLOW_SIGN_UP: 'false'
       GF_SERVER_ROOT_URL: https://bestpurchasestore.com/grafana
       GF_SERVER_SERVE_FROM_SUB_PATH: 'true'
-      # Plugins disabled — crm_internal network has no internet access (internal: true).
-      # Grafana crashes trying to reach grafana.com to download them.
-      # To add plugins, build a custom Grafana image with RUN grafana-cli plugins install ...
-      # GF_INSTALL_PLUGINS: grafana-clock-panel,grafana-piechart-panel
     volumes:
       - grafana_data:/var/lib/grafana
       - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
@@ -140,15 +156,18 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+          cpus: '0.5'
+        reservations:
+          memory: 32m
 
-  # ── Alertmanager (routes Prometheus alerts → email / Slack) ──────────────
   alertmanager:
     image: prom/alertmanager:v0.27.0
     container_name: crm_alertmanager
     restart: unless-stopped
-    # sed substitutes ${VAR} placeholders in alertmanager.yml using busybox's
-    # built-in sed — no apk/gettext needed. The result is written to /tmp so
-    # the read-only volume mount is not touched.
     entrypoint:
       - /bin/sh
       - -c
@@ -177,15 +196,21 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 64m
+          cpus: '0.25'
+        reservations:
+          memory: 32m
 
-  # ── Distributed tracing (Tempo + OTEL Collector) ─────────────────────────
   tempo:
     image: grafana/tempo:2.5.0
     container_name: crm_tempo
     restart: unless-stopped
     command: -config.file=/etc/tempo/tempo.yml
     ports:
-      - "3200:3200"    # Tempo HTTP API (Grafana datasource + health checks)
+      - "3200:3200"
     volumes:
       - ./observability/tempo:/etc/tempo:ro
       - tempo_data:/var/tempo
@@ -196,6 +221,13 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: '0.5'
+        reservations:
+          memory: 128m
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.102.0
@@ -203,8 +235,8 @@ services:
     restart: unless-stopped
     command: --config=/etc/otelcol/config.yml
     ports:
-      - "4317:4317"   # OTLP gRPC — apps instrument with this
-      - "4318:4318"   # OTLP HTTP — browser/SDK HTTP fallback
+      - "4317:4317"
+      - "4318:4318"
     volumes:
       - ./observability/otelcollector:/etc/otelcol:ro
     networks:
@@ -215,10 +247,14 @@ services:
       - prometheus
     healthcheck:
       disable: true
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+          cpus: '0.5'
+        reservations:
+          memory: 64m
 
-  # ── Log aggregation (Loki + Promtail) ─────────────────────────────────────
-  # WHY: centralized logs mean you can correlate an error spike in Grafana with
-  # the exact log line that caused it — without SSH-ing into the container.
   loki:
     image: grafana/loki:3.0.0
     container_name: crm_loki
@@ -234,24 +270,14 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: '0.5'
+        reservations:
+          memory: 128m
 
-  promtail:
-    image: grafana/promtail:3.0.0
-    container_name: crm_promtail
-    restart: unless-stopped
-    command: -config.file=/etc/promtail/config.yml
-    volumes:
-      - ./observability/promtail:/etc/promtail:ro
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    networks:
-      - crm_internal
-    depends_on:
-      - loki
-
-  # ── Nginx Prometheus exporter ─────────────────────────────────────────────
-  # Scrapes nginx stub_status (port 8080 inside crm_nginx) and exposes
-  # Prometheus-format metrics on port 9113 for prometheus.yml to collect.
   nginx-exporter:
     image: nginx/nginx-prometheus-exporter:1.1.0
     container_name: crm_nginx_exporter
@@ -262,22 +288,33 @@ services:
       - crm_internal
     depends_on:
       - nginx
+    deploy:
+      resources:
+        limits:
+          memory: 32m
+          cpus: '0.1'
+        reservations:
+          memory: 16m
 
-  # ── Node exporter (host metrics) ──────────────────────────────────────────
   node-exporter:
     image: prom/node-exporter:v1.8.0
     container_name: crm_node_exporter
     restart: unless-stopped
     command:
       - '--path.rootfs=/host'
-      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
     pid: host
     volumes:
       - /:/host:ro,rslave
     networks:
       - crm_internal
+    deploy:
+      resources:
+        limits:
+          memory: 64m
+          cpus: '0.1'
+        reservations:
+          memory: 32m
 
-  # ── cAdvisor (container metrics) ─────────────────────────────────────────
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.49.1
     container_name: crm_cadvisor
@@ -292,8 +329,14 @@ services:
       - /var/lib/docker:/var/lib/docker:ro
     networks:
       - crm_internal
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+          cpus: '0.25'
+        reservations:
+          memory: 64m
 
-  # ── Daily Postgres backup ──────────────────────────────────────────────────
   postgres-backup:
     image: pgvector/pgvector:pg16
     container_name: crm_postgres_backup
@@ -310,37 +353,10 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    entrypoint: >
-      /bin/sh -c "
-        while true; do
-          TIMESTAMP=$$(date +%Y%m%d_%H%M%S);
-          echo \"[$$TIMESTAMP] Running backup...\";
-          pg_dump -h postgres -U $$POSTGRES_USER $$POSTGRES_DB | gzip > /backups/crm_$$TIMESTAMP.sql.gz;
-          echo \"[$$TIMESTAMP] Backup complete.\";
-          ls -t /backups/*.sql.gz | tail -n +8 | xargs rm -f;
-          echo \"Sleeping 24h...\";
-          sleep 86400;
-        done
-      "
-
-volumes:
-  postgres_data:
-  redis_data:
-  mongo_data:
-  certbot_www:
-  prometheus_data:
-  grafana_data:
-  loki_data:
-  tempo_data:
-  alertmanager_data:
-
-networks:
-  crm_internal:
-    name: crm_internal
-    internal: true
-    # internal: true isolates this network from the internet.
-    # Slot containers (blue/green) declare it as external: true and join it.
-    # The infra project owns it — slot projects never create or destroy it.
-  crm_public:
-    name: crm_public
-    # internet-facing — nginx and web containers attach here for external traffic.
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+          cpus: '0.25'
+        reservations:
+          memory: 32m
