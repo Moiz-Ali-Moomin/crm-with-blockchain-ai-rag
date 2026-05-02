@@ -112,7 +112,7 @@ services:
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
-      - '--storage.tsdb.retention.time=30d'
+      - '--storage.tsdb.retention.time=7d'
       - '--web.enable-lifecycle'
       - '--web.enable-remote-write-receiver'
     volumes:
@@ -360,3 +360,23 @@ services:
           cpus: '0.25'
         reservations:
           memory: 32m
+
+volumes:
+  postgres_data:
+  redis_data:
+  mongo_data:
+  certbot_www:
+  prometheus_data:
+  grafana_data:
+  loki_data:
+  tempo_data:
+  alertmanager_data:
+
+networks:
+  crm_internal:
+    name: crm_internal
+    external: true
+
+  crm_public:
+    name: crm_public
+    external: true
