@@ -375,8 +375,6 @@ volumes:
 networks:
   crm_internal:
     name: crm_internal
-    external: true
 
   crm_public:
     name: crm_public
-    external: true
