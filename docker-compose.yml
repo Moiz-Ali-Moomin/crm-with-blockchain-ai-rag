@@ -93,7 +93,7 @@ services:
       - crm_public
       - crm_internal
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/healthz || exit 1"]
+      test: ["CMD-SHELL", "wget --no-check-certificate -qO- https://127.0.0.1/ || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3

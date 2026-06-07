@@ -9,7 +9,7 @@ services:
     container_name: crm_api_green
     restart: unless-stopped
     env_file:
-      - /opt/crm-with-blockchain-rag/.secrets
+      - ./.secrets
     environment:
       NODE_ENV: production
       PORT: 3001
