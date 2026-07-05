@@ -86,6 +86,76 @@ jobs:
           name: backend-coverage
           path: crm-backend/coverage/
 
+  # ────────────────────────────────────────────────────────────────────────────
+  # E2E — full HTTP stack against real Postgres (pgvector), Redis, and Mongo.
+  #
+  # WHY service containers, not the smoke test: the smoke test proves the built
+  # image boots; this job proves the *behaviour* — auth lifecycle, CSRF guard,
+  # token revocation, and above all cross-tenant isolation through the live
+  # request pipeline (JWT → AsyncLocalStorage → Prisma tenant scoping).
+  # Services run as sidecars reachable from the runner at localhost:<port>.
+  # ────────────────────────────────────────────────────────────────────────────
+  backend-e2e:
+    name: Backend — e2e (tenant isolation / auth / health)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: crm-backend
+    services:
+      postgres:
+        # pgvector build — schema.prisma declares the vector extension;
+        # plain postgres:16 cannot run the migrations.
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: e2e
+          POSTGRES_PASSWORD: e2e
+          POSTGRES_DB: e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U e2e -d e2e"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+      mongo:
+        image: mongo:7
+        ports:
+          - 27017:27017
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://e2e:e2e@localhost:5432/e2e?schema=public
+      REDIS_URL: redis://localhost:6379
+      MONGO_URI: mongodb://localhost:27017/crm_logs_e2e
+      JWT_SECRET: ci-e2e-jwt-secret-not-for-prod-padded-to-32-chars!!
+      JWT_REFRESH_SECRET: ci-e2e-refresh-secret-not-for-prod-pad-32-chars!!
+      # Required at bootstrap by UsdcContractService / EthereumProviderService
+      # (getOrThrow). ethers providers are lazy — no chain call is ever made.
+      USDC_CONTRACT_ADDRESS: '0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582'
+      RPC_URL: https://rpc-amoy.polygon.technology
+      ENABLE_AI: 'false'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: crm-backend/package-lock.json
+
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npx prisma migrate deploy
+      - run: npm run test:e2e
+
   frontend-quality:
     name: Frontend — lint / typecheck / build
     runs-on: ubuntu-latest
@@ -200,6 +270,7 @@ jobs:
     needs:
       - backend-quality
       - backend-tests
+      - backend-e2e
       - frontend-quality
     # Skip on main — the push job below covers it
     if: github.ref != 'refs/heads/main'
@@ -241,6 +312,7 @@ jobs:
     needs:
       - backend-quality
       - backend-tests
+      - backend-e2e
       - frontend-quality
     if: github.ref == 'refs/heads/main'
 
