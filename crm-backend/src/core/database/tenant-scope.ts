@@ -6,9 +6,15 @@
  *
  * Coverage matrix (every Prisma action is either scoped or intentionally exempt):
  *
- *   create                       → tenantId injected into data
+ *   create                       → tenant injected into data, matching the
+ *                                  caller's input style: relation
+ *                                  (tenant: { connect }) when other fields use
+ *                                  relation operations, scalar tenantId
+ *                                  otherwise — Prisma forbids mixing the two
  *   createMany                   → tenantId injected into every element of data
+ *                                  (createMany accepts scalar inputs only)
  *   upsert                       → tenantId merged into where AND create data
+ *                                  (create side is style-aware like `create`)
  *   findUnique / findUniqueOrThrow → tenantId merged into where
  *                                  (valid since Prisma 5.0 extendedWhereUnique:
  *                                   non-unique fields may accompany the unique key)
@@ -99,6 +105,38 @@ const WHERE_SCOPED_ACTIONS = new Set([
   'groupBy',
 ]);
 
+const RELATION_OPS = new Set(['connect', 'create', 'connectOrCreate', 'createMany']);
+
+/** True when a value is a Prisma relation operation like { connect: {...} }. */
+function isRelationOperation(value: unknown): boolean {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const keys = Object.keys(value);
+  return keys.length > 0 && keys.every((k) => RELATION_OPS.has(k));
+}
+
+/**
+ * Returns create-data constrained to the context tenant, matching the caller's
+ * input style. Prisma forbids mixing relation objects ({ connect }) with scalar
+ * foreign keys in one data object, so the injection must follow suit:
+ *
+ *  - relation style (data.tenant present, or any other field is a relation
+ *    operation, e.g. createdBy: { connect })  → tenant: { connect: { id } }
+ *  - scalar style (plain fields only)          → tenantId
+ *
+ * Any caller-supplied tenant/tenantId is dropped first — context always wins.
+ */
+function withTenantData(
+  data: Record<string, unknown> | undefined,
+  tenantId: string,
+): Record<string, unknown> {
+  const { tenant: callerTenant, tenantId: _callerFk, ...rest } = data ?? {};
+  const relationStyle =
+    callerTenant !== undefined || Object.values(rest).some(isRelationOperation);
+  return relationStyle
+    ? { ...rest, tenant: { connect: { id: tenantId } } }
+    : { ...rest, tenantId };
+}
+
 /**
  * Rewrites a Prisma middleware params object so the query is constrained to the
  * context tenant. Mutates and returns `params`. Passthrough when there is no
@@ -121,15 +159,18 @@ export function applyTenantScope(
   params.args = params.args || {};
 
   if (params.action === 'create') {
-    params.args.data = { ...(params.args.data || {}), tenantId };
+    params.args.data = withTenantData(params.args.data, tenantId);
     return params;
   }
 
   if (params.action === 'createMany') {
+    // createMany only accepts scalar (unchecked) inputs — always inject the FK.
     const data = params.args.data;
-    params.args.data = Array.isArray(data)
-      ? data.map((row: Record<string, unknown>) => ({ ...row, tenantId }))
-      : { ...(data || {}), tenantId };
+    const scalarRow = (row: Record<string, unknown>) => {
+      const { tenant: _rel, ...rest } = row || {};
+      return { ...rest, tenantId };
+    };
+    params.args.data = Array.isArray(data) ? data.map(scalarRow) : scalarRow(data);
     return params;
   }
 
@@ -137,7 +178,7 @@ export function applyTenantScope(
     // where scoped → cross-tenant unique key can never match (falls into create);
     // create scoped → the new row always lands in the caller's tenant.
     params.args.where = { ...(params.args.where || {}), tenantId };
-    params.args.create = { ...(params.args.create || {}), tenantId };
+    params.args.create = withTenantData(params.args.create, tenantId);
     return params;
   }
 

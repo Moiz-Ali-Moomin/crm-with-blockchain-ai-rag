@@ -23,7 +23,7 @@ import { ConfigService } from '@nestjs/config';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import * as bcrypt from 'bcrypt';
-import { createHash } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import { addDays } from 'date-fns';
 import { AuthRepository } from './auth.repository';
 import { TokenBlacklistService } from './token-blacklist.service';
@@ -270,12 +270,16 @@ export class AuthService {
       10,
     );
 
+    // jti makes every issued token unique. Without it, two logins within the
+    // same second produce byte-identical JWTs (same claims, same iat), which
+    // collides on the RefreshSession.tokenHash unique index and breaks
+    // per-session revocation semantics.
     const [accessToken, refreshToken] = await Promise.all([
-      this.jwtService.signAsync(payload, {
+      this.jwtService.signAsync({ ...payload, jti: randomUUID() }, {
         secret: this.config.get<string>('JWT_SECRET'),
         expiresIn: this.config.get<string>('JWT_EXPIRES_IN', '15m'),
       }),
-      this.jwtService.signAsync(payload, {
+      this.jwtService.signAsync({ ...payload, jti: randomUUID() }, {
         secret: this.config.get<string>('JWT_REFRESH_SECRET'),
         expiresIn: this.config.get<string>('JWT_REFRESH_EXPIRES_IN', '7d'),
       }),

@@ -113,6 +113,58 @@ describe('applyTenantScope', () => {
       const result = applyTenantScope(params, ctx);
       expect((result.args.data as { tenantId: string }).tenantId).toBe(TENANT);
     });
+
+    // Services build creates in Prisma's "checked" style (relation operations
+    // like createdBy: { connect }). Prisma rejects any data object that mixes
+    // relation operations with scalar foreign keys, so the injection has to
+    // match the caller's style.
+    it('uses tenant relation connect when the data uses relation operations', () => {
+      const params = makeParams('Lead', 'create', {
+        data: {
+          firstName: 'Ada',
+          createdBy: { connect: { id: 'user-1' } },
+        },
+      });
+      const result = applyTenantScope(params, ctx);
+      expect(result.args.data).toEqual({
+        firstName: 'Ada',
+        createdBy: { connect: { id: 'user-1' } },
+        tenant: { connect: { id: TENANT } },
+      });
+      expect(result.args.data).not.toHaveProperty('tenantId');
+    });
+
+    it('overrides a caller-supplied foreign tenant relation (context wins)', () => {
+      const params = makeParams('Lead', 'create', {
+        data: {
+          firstName: 'Ada',
+          createdBy: { connect: { id: 'user-1' } },
+          tenant: { connect: { id: OTHER_TENANT } },
+        },
+      });
+      const result = applyTenantScope(params, ctx);
+      expect(result.args.data).toMatchObject({ tenant: { connect: { id: TENANT } } });
+    });
+
+    it('does not mistake a plain JSON column for a relation operation', () => {
+      const params = makeParams('Lead', 'create', {
+        data: { firstName: 'Ada', customFields: { favourite: 'blue' } },
+      });
+      const result = applyTenantScope(params, ctx);
+      expect(result.args.data).toEqual({
+        firstName: 'Ada',
+        customFields: { favourite: 'blue' },
+        tenantId: TENANT,
+      });
+    });
+
+    it('strips relation objects from createMany rows and injects the scalar FK', () => {
+      const params = makeParams('Activity', 'createMany', {
+        data: [{ type: 'CALL', tenant: { connect: { id: OTHER_TENANT } } }],
+      });
+      const result = applyTenantScope(params, ctx);
+      expect(result.args.data).toEqual([{ type: 'CALL', tenantId: TENANT }]);
+    });
   });
 
   describe('upsert', () => {
@@ -125,6 +177,17 @@ describe('applyTenantScope', () => {
       const result = applyTenantScope(params, ctx);
       expect((result.args.where as { tenantId: string }).tenantId).toBe(TENANT);
       expect(result.args.create).toEqual({ plan: 'pro', tenantId: TENANT });
+    });
+
+    it('respects relation style in the create branch', () => {
+      const params = makeParams('BlockchainRecord', 'upsert', {
+        where: { dealId: 'deal-1' },
+        create: { dealId: 'deal-1', deal: { connect: { id: 'deal-1' } } },
+        update: { status: 'CONFIRMED' },
+      });
+      const result = applyTenantScope(params, ctx);
+      expect(result.args.create).toMatchObject({ tenant: { connect: { id: TENANT } } });
+      expect(result.args.create).not.toHaveProperty('tenantId');
     });
   });
 
