@@ -130,14 +130,25 @@ export class LeaderElectionService {
   /**
    * Release leadership for graceful shutdown (Lua CAS delete).
    * No-op when LISTENER_MODE != auto.
+   *
+   * Best-effort by design: shutdown hook ordering is not guaranteed, so the
+   * shared Redis connection may already be closed when this runs. The lock
+   * carries a TTL and expires on its own — a failed release must never turn
+   * a graceful shutdown into a crash.
    */
   async release(chain: string): Promise<void> {
     if (this.modeOverride !== 'auto') return;
 
-    await this.redis.client.eval(
-      LUA_RELEASE, 1, this.leaderKey(chain), this.instanceId,
-    );
-    this.logger.log(`[${chain}] leader_lost — released on shutdown`);
+    try {
+      await this.redis.client.eval(
+        LUA_RELEASE, 1, this.leaderKey(chain), this.instanceId,
+      );
+      this.logger.log(`[${chain}] leader_lost — released on shutdown`);
+    } catch (err) {
+      this.logger.warn(
+        `[${chain}] leader release skipped (${(err as Error).message}) — lock expires via TTL`,
+      );
+    }
   }
 
   /**
