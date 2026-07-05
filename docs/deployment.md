@@ -101,7 +101,9 @@
 | `NEXT_PUBLIC_APP_URL` | `https://bestpurchasestore.com` |
 
 > These are used **only** at build time for Next.js. Runtime secrets live in
-> `/opt/crm/.secrets` on the server (mode 600, never in git).
+> `/opt/crm/.secrets` on the server (mode 600, never in git — the repo tracks
+> only the placeholder template `.secrets.example`, and `.secrets` is
+> gitignored so a deploy's `git reset` can never clobber the real file).
 
 ## First deploy (bootstrap)
 

@@ -99,6 +99,10 @@ chown "$DEPLOY_USER:$DEPLOY_USER" "$DEPLOY_PATH"
 # WHY: a single 600-permission file is safer than a .env checked into git.
 # Only the deploy user (and root) can read it.
 if [ ! -f "$DEPLOY_PATH/.secrets" ]; then
+  if [ -f "$DEPLOY_PATH/.secrets.example" ]; then
+    # Repo already cloned — seed from the tracked template (full variable list)
+    cp "$DEPLOY_PATH/.secrets.example" "$DEPLOY_PATH/.secrets"
+  else
   cat > "$DEPLOY_PATH/.secrets" <<'SECRETS'
 # Fill in production values — never commit this file
 POSTGRES_USER=crm
@@ -117,6 +121,7 @@ API_VERSION=v1
 GRAFANA_PASSWORD=CHANGE_ME
 JWT_SECRET=CHANGE_ME
 SECRETS
+  fi
   chmod 600 "$DEPLOY_PATH/.secrets"
   chown "$DEPLOY_USER:$DEPLOY_USER" "$DEPLOY_PATH/.secrets"
   echo "⚠️  Edit $DEPLOY_PATH/.secrets before deploying!"
