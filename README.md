@@ -11,7 +11,7 @@
 [![Redis](https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white)](https://redis.io/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-A production-ready, fully-owned SaaS CRM with an 8-stage RAG pipeline (pgvector + GPT-4o), blockchain deal verification on Polygon, three payment rails (Stripe, PayPal, Razorpay), Fireblocks MPC custody for USDC, a double-entry ledger, 13 BullMQ workers with DLQ and reconciliation, and a full observability stack (OpenTelemetry, Grafana Tempo, Loki, Prometheus, Alertmanager). Built to the architectural standard of HubSpot, Salesforce, and Zoho — but entirely self-hosted and extensible.
+A production-ready, fully-owned SaaS CRM with an 8-stage RAG pipeline (pgvector + Claude Sonnet, with GPT-4o fallback), blockchain deal verification on Polygon, three payment rails (Stripe, PayPal, Razorpay), Fireblocks MPC custody for USDC, a double-entry ledger, 13 BullMQ workers with DLQ and reconciliation, and a full observability stack (OpenTelemetry, Grafana Tempo, Loki, Prometheus, Alertmanager). Built to the architectural standard of HubSpot, Salesforce, and Zoho — but entirely self-hosted and extensible.
 
 [Quick Start](#-quick-start) · [Architecture](#-architecture) · [Financial Rail](#-financial-rail) · [AI & RAG](#-ai--rag) · [API Reference](#-api-reference) · [Deployment](#-deployment)
 
@@ -63,11 +63,11 @@ A production-ready, fully-owned SaaS CRM with an 8-stage RAG pipeline (pgvector 
 - **Email Templates** — Full CRUD with live Handlebars variable preview and duplicate support
 
 ### AI & Intelligence
-- **RAG Pipeline** — 8-stage orchestration: quota check → Redis cache → pgvector search → context window → GPT-4o → usage record → Prometheus metrics → MongoDB audit log
+- **RAG Pipeline** — 8-stage orchestration: quota check → Redis cache → pgvector search → context window → Claude Sonnet (GPT-4o fallback) → usage record → Prometheus metrics → MongoDB audit log
 - **Async Embeddings** — `text-embedding-3-small` (1536-dim) vectors generated in the background via BullMQ; job deduplication prevents re-processing
 - **AI Copilot** — Contextual assistance on any record: contact history summaries, email reply suggestions, follow-up recommendations, activity timeline synthesis
 - **Token Cost Control** — Per-tenant monthly token quotas stored in Redis (`INCRBY` + `EXPIREAT`); tiers: free=10k, starter=100k, pro=500k, enterprise=unlimited; 429 thrown on budget exhaustion
-- **Circuit Breaker** — Redis-backed circuit breaker (CLOSED/OPEN/HALF_OPEN) wraps every OpenAI call; state shared across all pods so a single flapping key opens the breaker cluster-wide
+- **Circuit Breaker** — Redis-backed circuit breaker (CLOSED/OPEN/HALF_OPEN) wraps every LLM call; state shared across all pods so a single flapping key opens the breaker cluster-wide
 - **AI Audit Log** — Every LLM call persisted to MongoDB with latency, token count, confidence score, and source chunk references for cost tracking and quality audits
 - **Lead Scoring Engine** — Deterministic 0–100 score per lead: profile completeness (20), activity frequency (25), recency (25), email engagement (15), status weight (15); Redis-cached 5 min, fire-and-forget DB persist
 
@@ -142,15 +142,15 @@ A production-ready, fully-owned SaaS CRM with an 8-stage RAG pipeline (pgvector 
       ┌────────────┴──────────────┬───────────────────────┐
       │                           │                       │
 ┌─────▼────────┐       ┌──────────▼──────────┐  ┌────────▼──────────┐
-│  OpenAI API  │       │   Polygon Network   │  │  Fireblocks MPC   │
-│  GPT-4o      │       │  DealHashRegistry   │  │  (prod custody)   │
+│  LLM APIs    │       │   Polygon Network   │  │  Fireblocks MPC   │
+│  Claude +    │       │  DealHashRegistry   │  │  (prod custody)   │
 │  embed-3-sm  │       │  Smart Contract     │  │  LocalHD (dev)    │
 └──────────────┘       └─────────────────────┘  └───────────────────┘
 ```
 
 ### Multi-Tenancy
 
-Every authenticated request carries `tenantId` inside its JWT payload. `AsyncLocalStorage` propagates this through the NestJS call stack without requiring it to be passed through every function signature. A Prisma middleware intercepts every query and injects `WHERE tenant_id = ?` automatically — tenants are **completely isolated at the data layer** with zero risk of cross-tenant data leakage.
+Every authenticated request carries `tenantId` inside its JWT payload. `AsyncLocalStorage` propagates this through the NestJS call stack without requiring it to be passed through every function signature. A Prisma middleware (`core/database/tenant-scope.ts`) rewrites **every** query action — `create`, `createMany`, `findUnique`, `findFirst`, `findMany`, `update`, `updateMany`, `upsert`, `delete`, `deleteMany`, `count`, `aggregate`, `groupBy` — so it can only touch the caller's rows, even when an attacker knows another tenant's primary keys. Enforcement is **fail-closed**: a scoped model queried without tenant context throws instead of returning unscoped data, and the request context always wins over any caller-supplied `tenantId`. The scoping unit is covered by a dedicated attack-scenario test suite, and a live two-tenant e2e suite proves isolation through the full HTTP pipeline on every CI run.
 
 ### Queue-Driven Side Effects
 
@@ -183,7 +183,8 @@ The `Deals` and `Blockchain` modules have been refactored to full DDD: domain en
 | Email | SendGrid | 8.1 |
 | SMS / WhatsApp | Twilio | 5.0 |
 | Payments | Stripe + PayPal + Razorpay | 14.14 |
-| AI | OpenAI SDK (GPT-4o + text-embedding-3-small) | 4.104 |
+| AI (LLM) | Anthropic Claude Sonnet (primary) → OpenAI GPT-4o (fallback) | — |
+| AI (embeddings) | text-embedding-3-small / Ollama (local) via provider factory | — |
 | Blockchain | ethers.js (EVM / Polygon) | 6.16 |
 | Custody | Fireblocks REST API (prod) / LocalHD (dev) | — |
 | Tracing | OpenTelemetry SDK + OTLP exporter | — |
@@ -317,7 +318,7 @@ CORS_ORIGINS=http://localhost:3000
 # Databases
 DATABASE_URL=postgresql://crm_user:crm_password@localhost:5432/crm_db?schema=public
 REDIS_URL=redis://localhost:6379
-MONGO_URI=mongodb://localhost:27017/crm_logs
+MONGO_URI=mongodb://localhost:27017/crm_logs   # optional — needed for AI audit logs / DLQ archive
 
 # Auth (generate with: openssl rand -hex 32)
 JWT_SECRET=<min-32-char-random-string>
@@ -351,8 +352,11 @@ PAYPAL_CLIENT_ID=xxx
 PAYPAL_CLIENT_SECRET=xxx
 PAYPAL_MODE=sandbox            # sandbox | live
 
-# AI (RAG pipeline, embeddings, copilot — all AI features disabled without this)
-OPENAI_API_KEY=sk-xxx
+# AI (RAG pipeline, copilot — all AI features disabled without this)
+ANTHROPIC_API_KEY=sk-ant-xxx      # primary LLM (Claude Sonnet)
+OPENAI_API_KEY=sk-xxx             # optional fallback LLM (GPT-4o) + embeddings
+OLLAMA_BASE_URL=http://localhost:11434   # optional local embeddings (no API cost)
+OLLAMA_MODEL=nomic-embed-text
 
 # Blockchain (deal hash registry — blockchain features disabled without this)
 BLOCKCHAIN_RPC_URL=https://rpc-mumbai.maticvigil.com/v1/YOUR_API_KEY
@@ -413,23 +417,25 @@ docker compose down -v
 | Redis Commander | http://localhost:8081 | — |
 | Prisma Studio | `npx prisma studio` → http://localhost:5555 | — |
 
-### Production — Full Stack
+### Production — Blue/Green Slots
+
+Production does **not** build on the server. CI builds immutable images, pushes
+them to GHCR, and CD starts the idle slot from the exact tested artifact:
 
 ```bash
-# Build and start all containers (api, web, postgres, redis, mongodb, nginx)
-docker compose -f docker-compose.prod.yml up -d --build
+# On the server, each slot is its own compose project (images come from GHCR)
+IMAGE_API=ghcr.io/<owner>/crm-api IMAGE_WEB=ghcr.io/<owner>/crm-web IMAGE_TAG=sha-abc1234 \
+docker compose -f docker-compose.green.yml --project-name crm-green up -d
 
-# View running containers
-docker compose -f docker-compose.prod.yml ps
+# Environment comes from /opt/crm/.secrets (mode 600, never in git —
+# the tracked template is .secrets.example)
 
-# Run migrations inside the api container
-docker compose -f docker-compose.prod.yml exec api npx prisma migrate deploy
-
-# Tail API logs
-docker compose -f docker-compose.prod.yml logs -f api
+# Run migrations from the same image before the new slot takes traffic
+docker run --rm --network crm_internal --env-file /opt/crm/.secrets \
+  --entrypoint npx ghcr.io/<owner>/crm-api:sha-abc1234 prisma migrate deploy
 ```
 
-The production `Dockerfile` (multi-stage) produces a minimal Node 20-alpine image running as a non-root user (`nestjs:1001`). Prisma migrations execute automatically at container startup before the HTTP server binds.
+The production `Dockerfile` (multi-stage) produces a minimal Node 20-alpine image running as a non-root user (`nestjs:1001`).
 
 See [docs/deployment.md](docs/deployment.md) for full production setup including Nginx SSL, monitoring, and backup strategy.
 
@@ -585,8 +591,9 @@ RagService.buildContext(chunks)        ← 12,000-char context window
 CircuitBreakerService.execute()        ← Redis-backed CLOSED/OPEN/HALF_OPEN guard
     │
     ▼
-OpenAI Chat Completion (GPT-4o)        ← temperature=0.2, system prompt hardcoded
+Claude Sonnet Chat Completion          ← temperature=0.2, system prompt hardcoded
     │                                    user input placed in 'user' role only
+    │                                    (GPT-4o used if Anthropic is degraded)
     ├──► CostControlService.recordUsage()  ← Redis INCRBY + EXPIREAT (monthly bucket)
     │
     ├──► BusinessMetricsService          ← Prometheus histogram (latency, tokens)
@@ -749,24 +756,34 @@ npm run test:watch
 # Coverage report
 npm run test:cov
 
-# E2E tests (requires running PostgreSQL and Redis)
+# E2E tests — run the full HTTP stack against the local docker compose
+# infrastructure (PostgreSQL + Redis + MongoDB must be up: `docker compose up -d`)
 npm run test:e2e
-
-# Debug open handles after test run
-npm run test:cov -- --detectOpenHandles
 ```
 
-### Test Suites
+### Unit Test Suites
 
-| Suite | File | Coverage |
-|---|---|---|
-| Condition Evaluator | `automation/engine/condition-evaluator.spec.ts` | 100% |
-| RAG Service | `ai/rag.service.spec.ts` | 100% |
-| Blockchain Service | `blockchain/blockchain.service.spec.ts` | 87% |
-| Ledger Service | `ledger/ledger.service.spec.ts` | 100% |
-| Payment State Machine | `payments/payment-state-machine.spec.ts` | 100% |
+| Suite | File |
+|---|---|
+| **Tenant Scoping (security-critical)** | `core/database/tenant-scope.spec.ts` |
+| Payment State Machine | `payments/payment-state-machine.spec.ts` |
+| Ledger Service | `ledger/ledger.service.spec.ts` |
+| RAG Service | `ai/rag.service.spec.ts` |
+| Blockchain Service | `blockchain/blockchain.service.spec.ts` |
+| Condition Evaluator | `automation/engine/condition-evaluator.spec.ts` |
+| Deal Domain (DDD) | `deals/domain/__tests__/` + `deals/application/use-cases/__tests__/` |
 
-The payment state machine test suite validates all 161 transition cases including terminal state enforcement, idempotent no-ops, and the `COMPLETED → REFUNDED` valid exit path.
+The tenant-scope suite asserts every Prisma action (`create`, `createMany`, `findUnique`, `upsert`, `aggregate`, `groupBy`, …) is rewritten to the caller's tenant — including cross-tenant attack scenarios like reads/deletes by leaked primary key. The payment state machine suite validates all transition cases including terminal state enforcement, idempotent no-ops, and the `COMPLETED → REFUNDED` valid exit path.
+
+### E2E Test Suites (`crm-backend/test/`)
+
+| Suite | What it proves |
+|---|---|
+| `tenant-isolation.e2e-spec.ts` | Two real tenants registered over HTTP can never read, update, or delete each other's records — even with a leaked primary key |
+| `auth.e2e-spec.ts` | Register → login → me → logout lifecycle; CSRF header enforcement; HttpOnly cookie contract; Redis token revocation after logout |
+| `health.e2e-spec.ts` | Liveness/readiness probe contracts used by Docker and the CD pipeline |
+
+E2E runs in CI on every push against real service containers (pgvector Postgres, Redis 7, Mongo 7) and gates the Docker image build.
 
 ---
 
@@ -779,21 +796,24 @@ Triggers on `push` to any branch and `pull_request` to `main`.
 | Job | What It Checks |
 |---|---|
 | `backend-quality` | ESLint + `tsc --noEmit` + `nest build` |
-| `backend-tests` | Jest coverage (`--passWithNoTests --runInBand`) |
+| `backend-tests` | Jest unit tests with coverage |
+| `backend-e2e` | Full HTTP stack against real Postgres (pgvector) + Redis + Mongo service containers — tenant isolation, auth lifecycle, health probes |
 | `frontend-quality` | ESLint + `tsc --noEmit` + `next build` |
-| `docker-validate` | Matrix build of `crm-api:ci` and `crm-web:ci` (no push on PR) |
+| `nginx-validate` | Rate-limit zone consistency + `nginx -t` against the rendered production config |
+| `docker-validate` | Build of `crm-api:ci` and `crm-web:ci` (no push on PR) |
+| `build-and-push` | (main only) Build immutable `sha-` tagged images → GHCR, then a runtime smoke test: boots the real image against Postgres/Redis, runs migrations + seed, polls `/health/live` and `/health/ready` |
 
-### CD (`.github/workflows/cd.yml`)
+### CD (`.github/workflows/cd.yml`) — Blue/Green, image-based
 
-Triggers on `push` to `main` after CI passes (or manual dispatch).
+Triggers on `push` to `main` after CI passes (or manual dispatch). No code is ever built on the server — the exact image CI tested is what deploys.
 
-1. SSH into production server
-2. `git fetch && git reset --hard origin/main`
-3. Tag existing images as `*-backup` for rollback
-4. `docker compose down && docker compose up -d --build`
-5. Poll `GET /api/v1/health` — 30 attempts, 5s interval
-6. On failure: restore backup images and restart automatically
-7. `docker system prune` to reclaim disk
+1. SSH into production server; resolve the immutable `sha-` image tag from CI
+2. Detect the **active** slot from the live Nginx config (ground truth, not `docker ps`)
+3. Verify `.secrets` (mode 600, server-provisioned), core containers, and Docker networks exist — fail early otherwise
+4. Run `prisma migrate deploy` from the new image *before* the new slot starts (migrations must be expand-contract so the old slot keeps working mid-deploy)
+5. Start the **idle** slot with the new image; poll its health endpoint
+6. Atomically reload Nginx to shift traffic to the new slot — zero dropped connections
+7. Tear down the old slot; an emergency-rollback job can shift traffic back to the previous slot at any time
 
 ### Required GitHub Secrets
 
@@ -843,17 +863,18 @@ See [docs/deployment.md](docs/deployment.md) for the complete guide covering:
 Two parallel compose files (`docker-compose.blue.yml` / `docker-compose.green.yml`) run the app on separate internal ports behind Nginx. To deploy:
 
 ```bash
-# Deploy to the inactive slot (e.g. green)
-docker compose -f docker-compose.green.yml up -d --build
+# Deploy the CI-built image to the inactive slot (e.g. green) — no server-side builds
+IMAGE_API=ghcr.io/<owner>/crm-api IMAGE_WEB=ghcr.io/<owner>/crm-web IMAGE_TAG=sha-abc1234 \
+docker compose -f docker-compose.green.yml --project-name crm-green up -d
 
-# Verify health
-curl http://localhost:3002/api/v1/health
+# Verify health of the idle slot
+curl http://localhost:3002/api/v1/health/live
 
 # Shift Nginx upstream to green (atomic config reload — zero dropped connections)
 nginx -s reload
 
 # Tear down old blue slot
-docker compose -f docker-compose.blue.yml down
+docker compose -f docker-compose.blue.yml --project-name crm-blue down
 ```
 
 The CD pipeline automates this flow with automatic rollback if the health check fails within 30 attempts (5s interval).
@@ -861,22 +882,19 @@ The CD pipeline automates this flow with automatic rollback if the health check 
 ### Quick VPS Deploy
 
 ```bash
-# On your production server
-git clone https://github.com/Moiz-Ali-Moomin/crm-with-blockchain-rag.git /opt/nexus-crm
-cd /opt/nexus-crm
+# On your production server (Ubuntu 22.04)
+git clone https://github.com/Moiz-Ali-Moomin/crm-with-blockchain-rag.git /opt/crm
+cd /opt/crm
 
-# Fill in production environment
-cp crm-backend/.env.example crm-backend/.env
-nano crm-backend/.env
+# One-time server bootstrap: deploy user, Docker, firewall, sysctl tuning,
+# and the .secrets file (seeded from .secrets.example, chmod 600)
+sudo bash deploy/server-setup.sh
 
-# Start everything
-docker compose -f docker-compose.prod.yml up -d --build
+# Fill in real production credentials
+nano /opt/crm/.secrets
 
-# Run database migrations
-docker compose -f docker-compose.prod.yml exec api npx prisma migrate deploy
-
-# Seed demo data (first run only)
-docker compose -f docker-compose.prod.yml exec api npm run seed
+# Add the GitHub secrets listed above, then push to main —
+# the CD pipeline builds, smoke-tests, and blue/green-deploys automatically.
 ```
 
 ---
@@ -1035,7 +1053,8 @@ POST   /users/invite            (ADMIN+)
 PATCH  /rbac/users/:id/role     (ADMIN+)
 GET    /tenant                  Workspace info
 PATCH  /tenant                  Update settings
-GET    /health                  Terminus health check (no auth — for load balancers)
+GET    /health/live             Liveness probe (no auth — Docker healthcheck / CD gate)
+GET    /health/ready            Readiness probe: DB, memory, disk (no auth — load balancers)
 ```
 
 ---
@@ -1133,6 +1152,7 @@ crm-with-blockchain-rag/
 │   │       │   └── custody/        # fireblocks-custody.adapter.ts | local-custody.adapter.ts
 │   │       ├── payments/           # Payment intents, state machine, Stripe/PayPal/Razorpay
 │   │       └── ledger/             # Double-entry accounting, balance sheet
+│   ├── test/                       # E2E suites: tenant isolation, auth lifecycle, health
 │   ├── Dockerfile                  # Multi-stage build (Node 20-alpine, non-root)
 │   └── .env.example
 │
@@ -1175,10 +1195,12 @@ crm-with-blockchain-rag/
 │   └── ai-rag.md                   # RAG pipeline, pgvector, embedding strategy
 │
 ├── nginx/                          # Reverse proxy + rate limiting config
+├── observability/                  # Grafana, Prometheus, Loki, Tempo, Alertmanager configs
+├── deploy/                         # server-setup.sh, health checks
 ├── docker-compose.yml              # Development infrastructure
-├── docker-compose.prod.yml         # Full production stack
 ├── docker-compose.blue.yml         # Blue slot (zero-downtime blue/green)
 ├── docker-compose.green.yml        # Green slot
+├── .secrets.example                # Production env template (real .secrets lives on the server, mode 600)
 ├── CONTRIBUTING.md
 ├── SECURITY.md
 └── README.md
@@ -1190,6 +1212,7 @@ crm-with-blockchain-rag/
 
 | Document | Description |
 |---|---|
+| [Architecture, Explained Simply](docs/architecture-explained-simply.md) | **Start here** — every technology and design decision (sagas, IVFFlat, DLQ, blue/green, double-entry…) explained in plain English, no jargon |
 | [Architecture](docs/architecture.md) | System design, module structure, data flow, caching strategy |
 | [Deployment](docs/deployment.md) | VPS setup, Nginx SSL, zero-downtime deploys, Prometheus/Grafana monitoring |
 | [Blockchain](docs/blockchain.md) | `DealHashRegistry.sol` deployment, keccak256 hashing, Polygon setup |
